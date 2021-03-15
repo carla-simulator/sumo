@@ -114,6 +114,8 @@ NWWriter_OpenDrive::writeNetwork(const OptionsCont& oc, NBNetBuilder& nb) {
             device.writeAttr("z", -gch.getOffsetBase().z());
             device.writeAttr("hdg", 0);
             device.closeTag();
+        } else {
+            WRITE_WARNING("Could not write OpenDRIVE geoReference. Only unshifted Coordinate systems are supported (center_map and use_offsets need to be set to False)");
         }
     }
     device.closeTag();
@@ -148,6 +150,7 @@ NWWriter_OpenDrive::writeNetwork(const OptionsCont& oc, NBNetBuilder& nb) {
             crosswalksByEdge[cw->edges[0]->getID()].push_back(crosswalkId);
         }
     }
+    device.closeTag();
 
     // write normal edges (road)
     for (std::map<std::string, NBEdge*>::const_iterator i = ec.begin(); i != ec.end(); ++i) {
@@ -254,7 +257,10 @@ NWWriter_OpenDrive::writeNetwork(const OptionsCont& oc, NBNetBuilder& nb) {
     device << junctionOSS.getString();
 
     device.closeTag();
-    device.close();
+
+    OptionsCont::getOptions().output_xodr_file = device.getString();
+
+    // device.close();
 }
 
 
@@ -390,7 +396,15 @@ NWWriter_OpenDrive::writeNormalEdge(OutputDevice& device, const NBEdge* e,
                 markType = "solid";
             }
         }
-        device << "                        <roadMark sOffset=\"0\" type=\"" << markType << "\" weight=\"standard\" color=\"standard\" width=\"0.13\"/>\n";
+        std::string laneChange = "both";
+        if (j == 0) {
+            laneChange = "none";
+        } else if (getLaneType(e->getPermissions(j - 1)) == laneType) {
+            laneChange = "both";
+        } else {
+            laneChange = "none";
+        }
+        device << "                        <roadMark sOffset=\"0\" type=\"" << markType << "\" weight=\"standard\" color=\"standard\" width=\"0.13\" laneChange=\"" << laneChange << "\"/>\n";
         device << "                        <speed sOffset=\"0\" max=\"" << lanes[j].speed << "\"/>\n";
         device << "                    </lane>\n";
     }
@@ -570,6 +584,8 @@ NWWriter_OpenDrive::writeInternalEdge(OutputDevice& device, OutputDevice& juncti
         device << "                    </lane>\n";
 
         junctionDevice << "            <laneLink from=\"" << fromIndex << "\" to=\"" << xJ << "\"/>\n";
+        // const int toLane = -(parallel.size() - j);
+        // junctionDevice << "            <laneLink from=\"" << fromIndex << "\" to=\"" << toLane << "\"/>\n";
         connectionID++;
     }
     device << "                 </" << side << ">\n";
@@ -615,7 +631,8 @@ NWWriter_OpenDrive::writeEmptyCenterLane(OutputDevice& device, const std::string
     device << "                <center>\n";
     device << "                    <lane id=\"0\" type=\"none\" level=\"true\">\n";
     device << "                        <link/>\n";
-    device << "                        <roadMark sOffset=\"0\" type=\"" << mark << "\" weight=\"standard\" color=\"standard\" width=\"" << markWidth << "\"/>\n";
+    // laneChange = none as roads contain lanes in one direction only
+    device << "                        <roadMark sOffset=\"0\" type=\"" << mark << "\" weight=\"standard\" color=\"standard\" width=\"" << markWidth << "\" laneChange=\"none\"/>\n";
     device << "                    </lane>\n";
     device << "                </center>\n";
 }

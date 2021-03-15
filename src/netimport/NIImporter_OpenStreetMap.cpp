@@ -153,40 +153,54 @@ NIImporter_OpenStreetMap::load(const OptionsCont& oc, NBNetBuilder& nb) {
 
     // load nodes, first
     NodesHandler nodesHandler(myOSMNodes, myUniqueNodes, oc);
-    for (const std::string& file : files) {
-        if (!FileHelpers::isReadable(file)) {
-            WRITE_ERRORF(TL("Could not open osm-file '%'."), file);
-            return;
-        }
-        nodesHandler.setFileName(file);
-        nodesHandler.resetHierarchy();
-        const long before = PROGRESS_BEGIN_TIME_MESSAGE("Parsing nodes from osm-file '" + file + "'");
-        readers.push_back(XMLSubSys::getSAXReader(nodesHandler));
-        if (!readers.back()->parseFirst(file) || !readers.back()->parseSection(SUMO_TAG_NODE) ||
-                MsgHandler::getErrorInstance()->wasInformed()) {
-            return;
-        }
-        if (nodesHandler.getDuplicateNodes() > 0) {
-            WRITE_MESSAGEF(TL("Found and substituted % osm nodes."), toString(nodesHandler.getDuplicateNodes()));
-        }
-        PROGRESS_TIME_MESSAGE(before);
+    // for (const std::string& file : files) {
+    //     if (!FileHelpers::isReadable(file)) {
+    //         WRITE_ERRORF(TL("Could not open osm-file '%'."), file);
+    //         return;
+    //     }
+    //     nodesHandler.setFileName(file);
+    //     nodesHandler.resetHierarchy();
+    //     const long before = PROGRESS_BEGIN_TIME_MESSAGE("Parsing nodes from osm-file '" + file + "'");
+    //     readers.push_back(XMLSubSys::getSAXReader(nodesHandler));
+    //     if (!readers.back()->parseFirst(file) || !readers.back()->parseSection(SUMO_TAG_NODE) ||
+    //             MsgHandler::getErrorInstance()->wasInformed()) {
+    //         return;
+    //     }
+    //     if (nodesHandler.getDuplicateNodes() > 0) {
+    //         WRITE_MESSAGEF(TL("Found and substituted % osm nodes."), toString(nodesHandler.getDuplicateNodes()));
+    //     }
+    //     PROGRESS_TIME_MESSAGE(before);
+    // }
+    nodesHandler.setFileName("osm_file");
+    PROGRESS_BEGIN_MESSAGE("Parsing nodes from osm string");
+    if (!XMLSubSys::runParserFromString(nodesHandler, oc.input_osm_file)) {
+        return;
     }
+    if (nodesHandler.getDuplicateNodes() > 0) {
+        WRITE_MESSAGE("Found and substituted " + toString(nodesHandler.getDuplicateNodes()) + " osm nodes.");
+    }
+    PROGRESS_DONE_MESSAGE();
 
     // load edges, then
     EdgesHandler edgesHandler(myOSMNodes, myEdges, myPlatformShapes);
-    int idx = 0;
-    for (const std::string& file : files) {
-        edgesHandler.setFileName(file);
-        readers[idx]->setHandler(edgesHandler);
-        const long before = PROGRESS_BEGIN_TIME_MESSAGE("Parsing edges from osm-file '" + file + "'");
-        if (!readers[idx]->parseSection(SUMO_TAG_WAY)) {
-            // eof already reached, no relations
-            delete readers[idx];
-            readers[idx] = nullptr;
-        }
-        PROGRESS_TIME_MESSAGE(before);
-        idx++;
-    }
+    // int idx = 0;
+    // for (const std::string& file : files) {
+    //     edgesHandler.setFileName(file);
+    //     readers[idx]->setHandler(edgesHandler);
+    //     const long before = PROGRESS_BEGIN_TIME_MESSAGE("Parsing edges from osm-file '" + file + "'");
+    //     if (!readers[idx]->parseSection(SUMO_TAG_WAY)) {
+    //         // eof already reached, no relations
+    //         delete readers[idx];
+    //         readers[idx] = nullptr;
+    //     }
+    //     PROGRESS_TIME_MESSAGE(before);
+    //     idx++;
+    // }
+    edgesHandler.setFileName("osm_file");
+    PROGRESS_BEGIN_MESSAGE("Parsing nodes from osm string");
+    XMLSubSys::runParserFromString(edgesHandler, oc.input_osm_file);
+    PROGRESS_DONE_MESSAGE();
+
 
     /* Remove duplicate edges with the same shape and attributes */
     if (!oc.getBool("osm.skip-duplicates-check")) {
@@ -363,35 +377,40 @@ NIImporter_OpenStreetMap::load(const OptionsCont& oc, NBNetBuilder& nb) {
     // turn-restrictions directly to NBEdges)
     RelationHandler relationHandler(myOSMNodes, myEdges, &(nb.getPTStopCont()), myPlatformShapes,
                                     &nb.getPTLineCont(), oc);
-    idx = 0;
-    for (const std::string& file : files) {
-        if (readers[idx] != nullptr) {
-            relationHandler.setFileName(file);
-            readers[idx]->setHandler(relationHandler);
-            const long before = PROGRESS_BEGIN_TIME_MESSAGE("Parsing relations from osm-file '" + file + "'");
-            readers[idx]->parseSection(SUMO_TAG_RELATION);
-            PROGRESS_TIME_MESSAGE(before);
-            delete readers[idx];
-        }
-        idx++;
-    }
+    // idx = 0;
+    // for (const std::string& file : files) {
+    //     if (readers[idx] != nullptr) {
+    //         relationHandler.setFileName(file);
+    //         readers[idx]->setHandler(relationHandler);
+    //         const long before = PROGRESS_BEGIN_TIME_MESSAGE("Parsing relations from osm-file '" + file + "'");
+    //         readers[idx]->parseSection(SUMO_TAG_RELATION);
+    //         PROGRESS_TIME_MESSAGE(before);
+    //         delete readers[idx];
+    //     }
+    //     idx++;
+    // }
 
-    // declare additional stops that are not anchored to a (road)-way or route relation
-    std::set<std::string> stopNames;
-    for (const auto& item : nb.getPTStopCont().getStops()) {
-        stopNames.insert(item.second->getName());
-    }
-    for (const auto& item : myOSMNodes) {
-        const NIOSMNode* n = item.second;
-        if (n->ptStopPosition && stopNames.count(n->name) == 0) {
-            Position ptPos(n->lon, n->lat, n->ele);
-            if (!NBNetBuilder::transformCoordinate(ptPos)) {
-                WRITE_ERRORF("Unable to project coordinates for node '%'.", n->id);
-            }
-            std::shared_ptr<NBPTStop> ptStop = std::make_shared<NBPTStop>(toString(n->id), ptPos, "", "", n->ptStopLength, n->name, n->permissions);
-            nb.getPTStopCont().insert(ptStop, true);
-        }
-    }
+    // // declare additional stops that are not anchored to a (road)-way or route relation
+    // std::set<std::string> stopNames;
+    // for (const auto& item : nb.getPTStopCont().getStops()) {
+    //     stopNames.insert(item.second->getName());
+    // }
+    // for (const auto& item : myOSMNodes) {
+    //     const NIOSMNode* n = item.second;
+    //     if (n->ptStopPosition && stopNames.count(n->name) == 0) {
+    //         Position ptPos(n->lon, n->lat, n->ele);
+    //         if (!NBNetBuilder::transformCoordinate(ptPos)) {
+    //             WRITE_ERRORF("Unable to project coordinates for node '%'.", n->id);
+    //         }
+    //         std::shared_ptr<NBPTStop> ptStop = std::make_shared<NBPTStop>(toString(n->id), ptPos, "", "", n->ptStopLength, n->name, n->permissions);
+    //         nb.getPTStopCont().insert(ptStop, true);
+    //     }
+    // }
+    relationHandler.setFileName("osm-file");
+    PROGRESS_BEGIN_MESSAGE("Parsing nodes from osm string");
+    XMLSubSys::runParserFromString(edgesHandler, oc.input_osm_file);
+    PROGRESS_DONE_MESSAGE();
+
 }
 
 

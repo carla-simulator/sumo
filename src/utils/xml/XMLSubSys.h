@@ -143,6 +143,8 @@ public:
                           const bool isNet = false, const bool isRoute = false,
                           const bool isExternal = false, const bool catchExceptions = true);
 
+    static bool runParserFromString(GenericSAXHandler& handler,
+                        const std::string& xml, const bool isNet = false);
 
 private:
     static std::string warnLocalScheme(const std::string& newScheme, const bool haveSUMO_HOME);

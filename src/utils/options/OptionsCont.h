@@ -666,6 +666,9 @@ public:
     /// @brief make a copy of this OptionsCont instance
     OptionsCont* clone() const;
 
+    std::string input_osm_file;
+    std::string output_xodr_file;
+
 private:
     /** @brief Returns the named option
      *

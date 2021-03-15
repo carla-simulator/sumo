@@ -77,6 +77,7 @@ endif()
 
 set(CMAKE_COLOR_MAKEFILE ON)
 set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${CMAKE_SOURCE_DIR}/build_config/cmake_modules/")
+#set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${CMAKE_SOURCE_DIR}/build/cmake_modules/")
 
 set(ENABLED_FEATURES "${CMAKE_SYSTEM} ${CMAKE_SYSTEM_PROCESSOR} ${CMAKE_CXX_COMPILER_ID} ${CMAKE_CXX_COMPILER_VERSION} ${CMAKE_BUILD_TYPE}")
 
@@ -367,7 +368,7 @@ find_package(XercesC REQUIRED)
 if (XercesC_FOUND)
     include_directories(SYSTEM ${XercesC_INCLUDE_DIRS})
 endif (XercesC_FOUND)
-find_package(Proj)
+find_package(Proj REQUIRED)
 if (PROJ_FOUND)
     include_directories(SYSTEM ${PROJ_INCLUDE_DIR})
     set(ENABLED_FEATURES "${ENABLED_FEATURES} Proj")

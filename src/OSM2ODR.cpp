@@ -48,7 +48,6 @@ namespace osm2odr {
     oc.addOptionSubTopic("Bicycle");
     oc.addOptionSubTopic("Railway");
     oc.addOptionSubTopic("Formats");
-    SystemFrame::addReportOptions(oc); // this subtopic is filled here, too
 
     NIFrame::fillOptions();
     NBFrame::fillOptions(false);

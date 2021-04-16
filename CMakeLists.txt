@@ -108,7 +108,7 @@ if (GNU_COMPILER OR CLANG_COMPILER)
         set(CMAKE_BUILD_TYPE "Release")
     else ()
         # flags for clang and gcc in linux
-        set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -pthread -Wall -pedantic -Wextra")
+        set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++14 -pthread -Wall -pedantic -Wextra")
     endif ()
     if (PROFILING)
         set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -pg")

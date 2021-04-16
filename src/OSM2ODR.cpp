@@ -68,12 +68,20 @@ namespace osm2odr {
     std::vector<std::string> OptionsArgs = {
       "--proj", settings.proj_string,
       "--geometry.remove", "--ramps.guess", "--edges.join", "--junctions.join", "--roundabouts.guess",
-      "--keep-edges.by-type",
-      "highway.motorway,highway.motorway_link,highway.trunk,highway.trunk_link,highway.primary,highway.primary_link,highway.secondary,highway.secondary_link,highway.tertiary,highway.tertiary_link,highway.unclassified,highway.residential",
-      "--tls.discard-loaded", "--tls.discard-simple", "--default.lanewidth",
+      "--default.lanewidth",
       std::to_string(settings.default_lane_width),
       "--osm-files", "TRUE", "--opendrive-output", "TRUE", // necessary for now to enable osm input and xodr output
     };
+    if (settings.osm_highways_types.size() == 0) {
+      WRITE_ERROR("No osm way types specified for importing.");
+      return "";
+    }
+    OptionsArgs.emplace_back("--keep-edges.by-type");
+    std::string edges_types = "";
+    for (std::string& osm_way_type : settings.osm_highways_types) {
+      edges_types += "highway." + osm_way_type + ",";
+    }
+    OptionsArgs.emplace_back(edges_types);
     if (settings.elevation_layer_height > 0) {
       OptionsArgs.emplace_back("--osm.layer-elevation");
       OptionsArgs.emplace_back(std::to_string(settings.elevation_layer_height));
@@ -92,6 +100,9 @@ namespace osm2odr {
     // OptionsCont::getOptions().clear();
     OptionsCont& oc = OptionsCont::getOptions();
     oc.input_osm_file = osm_file;
+    oc.generate_traffic_lights = settings.generate_traffic_lights;
+    oc.all_junctions_traffic_lights = settings.all_junctions_traffic_lights;
+    oc.tl_excluded_highways_types = settings.tl_excluded_highways_types;
 
     XMLSubSys::init();
     fillOptions();

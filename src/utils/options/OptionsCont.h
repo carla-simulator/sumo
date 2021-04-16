@@ -666,6 +666,9 @@ public:
     /// @brief make a copy of this OptionsCont instance
     OptionsCont* clone() const;
 
+    bool generate_traffic_lights = true;
+    bool all_junctions_traffic_lights = false;
+    std::vector<std::string> tl_excluded_highways_types;
     std::string input_osm_file;
     std::string output_xodr_file;
 

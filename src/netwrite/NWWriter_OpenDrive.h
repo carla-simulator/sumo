@@ -19,11 +19,13 @@
 /****************************************************************************/
 #pragma once
 #include <config.h>
+#include <vector>
+#include <memory>
 
 #include <utils/common/StringBijection.h>
 #include <utils/common/SUMOVehicleClass.h>
 #include <netbuild/NBEdge.h>
-
+#include <utils/geom/Position.h>
 
 // ===========================================================================
 // class declarations
@@ -62,6 +64,25 @@ protected:
 
     /// @brief retrieve divider type
     static std::string getDividerType(const NBEdge* e);
+    
+    // Auxiliary structs for traffic light placement
+    struct LanePoint {
+        double s = 0;
+        Position pos;
+        double heading = 0;
+        LanePoint(double ss, Position poss, double hdg) : s(ss), pos(poss), heading(hdg) {};
+    };
+    struct RoadLane {
+        std::vector<LanePoint> points;
+    };
+    struct OpenDRIVERoad {
+        int id = -1;
+        std::shared_ptr<OutputDevice_String> road_device;
+        std::shared_ptr<OutputDevice_String> signals_device;
+        OpenDRIVERoad(int idd);
+        OpenDRIVERoad();
+        std::vector<RoadLane> lanes;
+    };
 
     /// @brief write normal edge to device
     static void writeNormalEdge(OutputDevice& device, const NBEdge* e,
@@ -81,7 +102,8 @@ protected:
                                  const bool isOuterEdge,
                                  const double straightThresh,
                                  const std::string& centerMark,
-                                 SignalLanes& signalLanes);
+                                 SignalLanes& signalLanes,
+                                 OpenDRIVERoad &discretizedRoad);
 
     static void addPedestrianConnection(const NBEdge* inEdge, const NBEdge* outEdge, std::vector<NBEdge::Connection>& parallel);
 
@@ -146,6 +168,21 @@ protected:
     // @brief return road postion in s,t coordinates
     static double getRoadSideOffset(const NBEdge* e);
 
+    static void writeSignal(OutputDevice& device, std::string id, double s, double t, std::string type, double hOffset);
+    static void writeSignalInertial(
+            OutputDevice& device, std::string id, std::string type,
+            double x, double y, double z, 
+            double hdg, double pitch, double roll);
+    static void writeSignalReference(OutputDevice& device, std::string id, double s, double t, std::string orientation);
+
+    // Computes distance of the segment [P1 + t*(P2-P1)] to the point P3
+    // Returns minimum value t and corresponding distance
+    static std::pair<double, double> ComputePointSegmentDistance(
+            const Position& P1, const Position& P2, const Position& P3);
+
+    static void GenerateControllerRecord(OutputDevice& device, int controllerID, int signalID);
+    static void GenerateJunctionControllerRecord(OutputDevice& device, int controllerID, int sequence);
+
 
 protected:
     /// @brief whether a lefthand network is being written
@@ -159,5 +196,4 @@ protected:
 
     // lefthand but lanes written as right lanes
     static bool LHRL;
-
 };

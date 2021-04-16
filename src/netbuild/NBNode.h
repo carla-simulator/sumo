@@ -71,6 +71,7 @@ class NBNode : public Named, public Parameterised {
     friend class NBEdgePriorityComputer; // < computes priorities of edges per intersection
 
 public:
+    bool is_suitable_for_traffic_lights = true;
     /**
      * @class ApproachingDivider
      * @brief Computes lane-2-lane connections

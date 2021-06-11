@@ -408,6 +408,31 @@ NIImporter_OpenStreetMap::load(const OptionsCont& oc, NBNetBuilder& nb) {
             }
         }
     }
+    if (OptionsCont::getOptions().generate_traffic_lights) {
+        for(auto& node_pair : nc) {
+            // WRITE_WARNING(node_pair.first);
+            long long int id = std::stoll(node_pair.first);
+            NBNode* node = node_pair.second;
+            NIOSMNode* n = myOSMNodes.find(id)->second;
+            if (n == nullptr) {
+                continue;
+            }
+            if ((n->tlsControlled || OptionsCont::getOptions().all_junctions_traffic_lights) &&
+                (node->is_suitable_for_traffic_lights && node->getIncomingEdges().size() > 1)) {
+                // ok, this node is a traffic light node where no other nodes
+                //  participate
+                // @note: The OSM-community has not settled on a schema for differentiating between fixed and actuated lights
+                TrafficLightType type = SUMOXMLDefinitions::TrafficLightTypes.get(
+                                            OptionsCont::getOptions().getString("tls.default-type"));
+                NBOwnTLDef* tlDef = new NBOwnTLDef(toString(id), node, 0, type);
+                if (!tlsc.insert(tlDef)) {
+                    // actually, nothing should fail here
+                    delete tlDef;
+                    throw ProcessError("Could not allocate tls '" + toString(id) + "'.");
+                }
+            }
+        }
+    }
 
     const double layerElevation = oc.getFloat("osm.layer-elevation");
     if (layerElevation > 0) {

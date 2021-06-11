@@ -38,6 +38,7 @@
 #endif
 #include "IStreamInputSource.h"
 #include "SUMOSAXReader.h"
+#include <netimport/typemap.h>
 
 using XERCES_CPP_NAMESPACE::SAX2XMLReader;
 using XERCES_CPP_NAMESPACE::XMLUni;
@@ -173,12 +174,11 @@ SUMOSAXReader::LocalSchemaResolver::resolveEntity(const XMLCh* const /* publicId
     const std::string::size_type pos = url.find("/xsd/");
     if (pos != std::string::npos) {
         const std::string file = std::string("../carla/data") + url.substr(pos);
-        if (FileHelpers::isReadable(file)) {
-            XMLCh* t = XERCES_CPP_NAMESPACE::XMLString::transcode(file.c_str());
-            XERCES_CPP_NAMESPACE::InputSource* const result = new XERCES_CPP_NAMESPACE::LocalFileInputSource(t);
-            XERCES_CPP_NAMESPACE::XMLString::release(&t);
-            return result;
-        } else {
+        WRITE_WARNING("------- searching file " + url + " ---------------------");
+        if(url.substr(pos) == "/xsd/types_file.xsd") {
+            return new XERCES_CPP_NAMESPACE::MemBufInputSource((const XMLByte*)types_file.c_str(), types_file.size(), "registrySettings");
+        }
+        else {
             WRITE_WARNING("Cannot read local schema '" + file + "', will try website lookup.");
         }
     }

@@ -38,6 +38,7 @@
 #endif
 #include "IStreamInputSource.h"
 #include "SUMOSAXReader.h"
+#include <netimport/typemap.h>
 
 using XERCES_CPP_NAMESPACE::SAX2XMLReader;
 using XERCES_CPP_NAMESPACE::XMLUni;
@@ -216,18 +217,25 @@ SUMOSAXReader::LocalSchemaResolver::resolveEntity(const XMLCh* const /* publicId
     const std::string url = StringUtils::transcode(systemId);
     const std::string::size_type pos = url.find("/xsd/");
     if (pos != std::string::npos) {
-        const char* sumoPath = std::getenv("SUMO_HOME");
-        // no need for a warning if SUMO_HOME is not set, global preparsing should have done it.
-        if (sumoPath != nullptr) {
-            const std::string file = sumoPath + std::string("/data") + url.substr(pos);
-            if (FileHelpers::isReadable(file)) {
-                XMLCh* t = XERCES_CPP_NAMESPACE::XMLString::transcode(file.c_str());
-                XERCES_CPP_NAMESPACE::InputSource* const result = new XERCES_CPP_NAMESPACE::LocalFileInputSource(t);
-                XERCES_CPP_NAMESPACE::XMLString::release(&t);
-                return result;
-            } else {
-                WRITE_WARNING("Cannot read local schema '" + file + (myHaveFallback ? "', will try website lookup." : "', XML validation will fail."));
-            }
+        // const char* sumoPath = std::getenv("SUMO_HOME");
+        // // no need for a warning if SUMO_HOME is not set, global preparsing should have done it.
+        // if (sumoPath != nullptr) {
+        //     const std::string file = sumoPath + std::string("/data") + url.substr(pos);
+        //     if (FileHelpers::isReadable(file)) {
+        //         XMLCh* t = XERCES_CPP_NAMESPACE::XMLString::transcode(file.c_str());
+        //         XERCES_CPP_NAMESPACE::InputSource* const result = new XERCES_CPP_NAMESPACE::LocalFileInputSource(t);
+        //         XERCES_CPP_NAMESPACE::XMLString::release(&t);
+        //         return result;
+        //     } else {
+        //         WRITE_WARNING("Cannot read local schema '" + file + (myHaveFallback ? "', will try website lookup." : "', XML validation will fail."));
+        //     }        
+        const std::string file = std::string("../carla/data") + url.substr(pos);
+        WRITE_WARNING("------- searching file " + url + " ---------------------");
+        if(url.substr(pos) == "/xsd/types_file.xsd") {
+            return new XERCES_CPP_NAMESPACE::MemBufInputSource((const XMLByte*)types_file.c_str(), types_file.size(), "registrySettings");
+        }
+        else {
+            WRITE_WARNING("Cannot read local schema '" + file + "', will try website lookup.");
         }
     }
     if (myHaveFallback || (!StringUtils::startsWith(url, "http:") && !StringUtils::startsWith(url, "https:") && !StringUtils::startsWith(url, "ftp:"))) {

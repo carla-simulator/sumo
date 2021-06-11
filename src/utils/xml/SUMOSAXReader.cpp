@@ -229,13 +229,11 @@ SUMOSAXReader::LocalSchemaResolver::resolveEntity(const XMLCh* const /* publicId
         //     } else {
         //         WRITE_WARNING("Cannot read local schema '" + file + (myHaveFallback ? "', will try website lookup." : "', XML validation will fail."));
         //     }        
-        const std::string file = std::string("../carla/data") + url.substr(pos);
-        WRITE_WARNING("------- searching file " + url + " ---------------------");
         if(url.substr(pos) == "/xsd/types_file.xsd") {
             return new XERCES_CPP_NAMESPACE::MemBufInputSource((const XMLByte*)types_file.c_str(), types_file.size(), "registrySettings");
         }
         else {
-            WRITE_WARNING("Cannot read local schema '" + file + "', will try website lookup.");
+            WRITE_WARNING("Cannot read local schema '" + url + "', will try website lookup.");
         }
     }
     if (myHaveFallback || (!StringUtils::startsWith(url, "http:") && !StringUtils::startsWith(url, "https:") && !StringUtils::startsWith(url, "ftp:"))) {

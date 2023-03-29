@@ -1,6 +1,5 @@
 ---
-title: Networks/PlainXML
-permalink: /Networks/PlainXML/
+title: PlainXML
 ---
 
 **SUMO**-Networks have two representations:
@@ -101,14 +100,15 @@ certain meaning and value range:
 | **x**           | float                                                                                                                                                                                                                     | The x-position of the node on the plane in meters                                                                                                  |
 | **y**           | float                                                                                                                                                                                                                     | The y-position of the node on the plane in meters                                                                                                  |
 | z               | float                                                                                                                                                                                                                     | The z-position of the node on the plane in meters                                                                                                  |
-| type            | enum ( "priority", "traffic_light", "right_before_left", "unregulated", "priority_stop", "traffic_light_unregulated", "allway_stop", "rail_signal", "zipper", "traffic_light_right_on_red", "rail_crossing") | An optional type for the node                                                                                                                      |
+| type            | enum ( "priority", "traffic_light", "right_before_left", "left_before_right", "unregulated", "priority_stop", "traffic_light_unregulated", "allway_stop", "rail_signal", "zipper", "traffic_light_right_on_red", "rail_crossing") | An optional type for the node                                                                                                                      |
 | tlType          | enum ( **"static"**, "actuated", "delay_based")                                                                                                                                                                                              | An optional type for the [traffic light algorithm](../Simulation/Traffic_Lights.md#actuated_traffic_lights)
 | tlLayout        | enum (  **"opposites"**, "incoming", "alternateOneWay")                                                                                                                                                                                              | An optional layout for the traffic light plan (see below)
 | tl              | id (string)                                                                                                                                                                                                               | An optional id for the traffic light program. Nodes with the same tl-value will be joined into a single program                                    |
 | radius          | positive float;                                                                                                                                                                                                           | optional turning radius (for all corners) for that node in meters *(default 1.5)*                                                                  |
 | shape           | List of positions; each position is encoded in x,y or x,y,z in meters (do not separate the numbers with a space\!).                                                                                                       | A custom shape for that node. If less than two positions are given, netconvert will reset that node to use a computed shape.                       |
 | keepClear       | bool                                                                                                                                                                                                                      | Whether the [junction-blocking-heuristic](../Simulation/Intersections.md#junction_blocking) should be activated at this node *(default true)* |
-| rightOfWay      | string                                                                                                                                                                                                                    | Set algorithm for computing [\#Right-of-way](#right-of-way). Allowed values are *default* and *edgePriority*                            |
+| rightOfWay      | string                                                                                                                                                                                                                    | Set algorithm for computing [\#Right-of-way](#right-of-way). Allowed values are *default*, *edgePriority*, *mixedPriority*, and *allwayStop*   |
+| fringe      | string                                                                                                                                                                                                                    | Clarify whether this junction is on the [network fringe](#fringe). Allowed values are *default*, *outer* and *inner*      |
 | controlledInner | list of edge ids                                                                                                                                                                                                          | Edges which shall be controlled by a joined TLS despite being incoming as well as outgoing to the jointly controlled nodes                         |
 
 !!! note
@@ -184,12 +184,12 @@ error and will yield in a program stop:
 - `traffic_light`: The junction is
   controlled by a traffic light (priority rules are used to avoid
   collisions if conflicting links have green light at the same time).
-- `right_before_left`: Vehicles will let
-  vehicles coming from their right side pass.
+- `right_before_left`: Vehicles yield to traffic coming from the right. (This is automatically flipped when building [lefthand](../FAQ.md#can_sumo_simulate_lefthand_traffic) networks)
+- `left_before_right`: Vehicles yield to traffic coming from the left. (Only known to be needed for [Madagascar](https://www.countryreports.org/country/Madagascar/traffic.htm) where cars drive on the right but yield for the left side)
 - `unregulated`: The junction is completely
   unregulated - all vehicles may pass without braking; Collision
   detection on the intersection is disabled but collisions beyond the
-  intersection will detected and are likely to occur.
+  intersection will be detected and are likely to occur.
 - `traffic_light_unregulated`: The
   junction is controlled by a traffic light without any further rules.
   This may cause collision if unsafe signal plans are used. Note, that
@@ -214,35 +214,32 @@ error and will yield in a program stop:
   any phase whenever it is safe to do so (after stopping once). This
   behavior is known as
   [right-turn-on-red](https://en.wikipedia.org/wiki/Right_turn_on_red).
+- `dead_end`: There are no connections at this node. This type is assigned automatically. Using this as input will trigger guessing the type.
 
 ## Right-of-way
 
 The right-of-way computation at each intersection is based on the `type` of
 the node. For the types *priority* and *priority_stop*, the
-right-of-way also depends on the `priority`-values of the incoming and outgoing
-edges. The [edge priorities are also influenced by speed and lane count](#edge_priorities). Generally, the traffic direction
-with the highest edge priorities will get the right of way.
+right-of-way also depends on the `importance` of the incoming and outgoing
+edges as explained in the following. Generally, the traffic direction
+with the edges of highest importance will get the right of way.
 
 !!! note
     Right-of-way computation also influences connection-guessing and the generated traffic light program.
 
-### Modifying Right-of-Way
-
-The right-of-way can be customized by specifying [additional prohibitions](#setting_connection_priorities) and by
-specifying the [connection attribute](#explicitly_setting_which_edge_lane_is_connected_to_which)
-`pass="true"`.
-
-Since version 1.1.0, the algorithm for computing right-of-way from the
-edge priorities can be switched between two modes using `<node>`-attribute
-*rightOfWay*.
-
 ### rightOfWay="default"
-This mode is useful if the *priority*
+This mode is the default and it is useful if the *priority*
 attribute of the edges cannot be relied on to determine right-of-way all
-by itself. It sorts edges according to *priority*, *speed* and
-*laneNumber*. The 2 incoming edges with the highest position are
+by itself. It sorts edges according to attributes *priority*, *speed* and
+*laneNumber*. The two incoming edges with the highest position are
 determined and will receive right-of-way. All other edges will be
 classified as minor.
+
+### rightOfWay="mixedPriority"
+This behaves like "default".
+Setting this value is only useful when configuring the switched-off behavior of
+intersections controlled by traffic lights of type [NEMA](../Simulation/NEMA.md).
+In this case it corresponds to main roads having priority (yellow blinking) and side roads having to stop (red blinking).
 
 ### rightOfWay="edgePriority"
 This mode is useful for customizing
@@ -250,6 +247,11 @@ right-of-way by tuning edge *priority* attributes. The relationship
 between streams of different incoming-edge priority will be solely
 determined by edge priority. For equal-priority values, turning
 directions are also evaluated.
+
+### rightOfWay="allwayStop"
+This mode is only used for configuring the behavior of traffic light junctions when switching the [traffic light off](../Simulation/Traffic_Lights.md#switching_tls_off).
+When this mode is used, the junction will behave like [type](#node_types) `allway_stop` in the 'off' state.
+This is used as the default for nodes controlled by traffic lights of type [NEMA](../Simulation/NEMA.md).
 
 ### Special Cases
 
@@ -272,20 +274,45 @@ The right-of-way rules are indicated in [sumo-gui by the colored bars at the end
 *junctions-\>show lane to lane connections*.
 
 The right-of-way relationship between any two connections ca be shown in
-[netedit using right-of-way mode](../netedit.md#right-of-way).
+[netedit using right-of-way mode](../Netedit/index.md#right-of-way).
 
 If a vehicle is braking in the simulation, the responsible foe vehicle
 (if any) can also be [identified directly](../sumo-gui.md#right_of_way).
 
 !!! caution
     Never attempt to modify the junction logic within a ***.net.xml*** file manually as there are subtle inter-dependencies with other data structures in the network. Nevertheless, it may be useful to [look into the .net.xml to understand right-of-way](../Networks/SUMO_Road_Networks.md#requests)
+    
+### Modifying Right-of-Way
+
+The right-of-way can be customized by specifying [additional prohibitions](#setting_connection_priorities) and by
+specifying the [connection attribute](#explicitly_setting_which_edge_lane_is_connected_to_which)
+`pass="true"`.
+
+Since version 1.1.0, the algorithm for computing right-of-way from the
+edge priorities can be switched between two modes using `<node>`-attribute
+*rightOfWay*.    
+
+## Fringe
+
+For route generation it may be relevant to know whether a particular junction or edge is at boundary of a network where other roads (that exist in the real world) were cut off. This can specified using the 'fringe' attribute:
+
+- default: this junction is not part of the fringe
+- outer: this junction is connected to additional edges in the real world. It is part of the outer boundary of the network
+- inner: this junction is connected to additional edges in the real world. It lies within the network but other roads (i.e. with a lower road class) were removed from the simulation
+
+The fringe attribute can be determined automatically for the outer fringe based on the pareto frontier by setting netconvert option **--fringe.guess**. It is also set automatically by [netgenerate](../netgenerate.md) when option **--attach-length** is used. Editing the attribute in [netedit](../Netedit/index.md) is also supported.
+
+The 'fringe' attribute is used by [randomTrips.py](../Tools/Trip.md#randomtripspy) when setting option **--fringe-junctions**.
 
 ## Joining Nodes
 
 Sometimes your network may contain nodes which are very close together
 forming a big cluster. This happens frequently when [Importing Networks from OpenStreetMap](../Networks/Import/OpenStreetMap.md).
 [netconvert](../netconvert.md) supports the option **--junctions.join** to find such
-clusters and join them into a big and well shaped junction. Junctions can also be joined manually with [netedit](../netedit.md#processing_menu_options). It is even possible to [undo joins](../netedit.md#junction) that were computed automatically.
+clusters and join them into a big and well shaped junction. Junctions can also be joined manually with [netedit](../Netedit/index.md#processing_menu_options).
+It is even possible to [undo joins](../Netedit/index.md#junction) that were computed automatically.
+The new junction will get the id *cluster_id0_id1*. If there are more nodes in the cluster than given by **--max-join-ids** (default 4)
+the id will be abbreviated to something like *cluster_id0_id1_id2_id3_#5more* (for a 9 node cluster).
 
 ### Reasons for joining node clusters
 Within an intersection, special rules of traffic do apply. When modelling an intersection by a cluster of nodes, the edges within the cluster are regular roads where these rules cannot be applied. 
@@ -325,7 +352,7 @@ following syntax within a nodes-file
 
 This will cause the nodes *id0*,*id23* and *id24* to be joined into a
 single junction. It will also prevent the nodes *id13* and *id17* from
-being joined. The **joinExclude**-tag is only usefull together with the
+being joined. The **joinExclude**-tag is only useful together with the
 option **--junctions.join** but the **join**-tag can also be used all by itself. Nodes to be
 excluded from joining can also be specified via the option **--junctions.join-exclude id,[id\]+**.
 
@@ -436,13 +463,15 @@ Let's list an edge's attributes again:
 | priority       | int                                   | The priority of the edge. Used for [\#Right-of-way](#right-of-way)-computation            |
 | length         | float                                 | The length of the edge in meter                                                     |
 | shape          | List of positions; each position is encoded in x,y or x,y,z in meters (do not separate the numbers with a space\!). | If the shape is given it should start and end with the positions of the from-node and to-node. Alternatively it can also start and end with the position where the edge leaves or enters the junction shape. This gives some control over the final junction shape. When using the option **--plain.extend-edge-shape** it is sufficient to supply inner geometry points and extend the shape with the starting and ending node positions automatically |
-| spreadType     | enum ( "right", "center", "roadCenter")                                                                                          | The description of how to compute lane geometry from edge geometry. See [SpreadType](#spreadtype)  |
-| allow          | list of vehicle classes               | List of permitted vehicle classes (see [access permissions](#road_access_permissions_allow_disallow))       |
-| disallow       | list of vehicle classes               | List of forbidden vehicle classes (see [access permissions](#road_access_permissions_allow_disallow))       |
-| width          | float                                 | lane width for all lanes of this edge in meters (used for visualization)                                    |
-| name           | string                                | street name (need not be unique, used for visualization)                                                    |
+| spreadType     | enum ( "right", "center", "roadCenter") | The description of how to compute lane geometry from edge geometry. See [SpreadType](#spreadtype)  |
+| allow          | list of vehicle classes               | List of permitted vehicle classes (see [access permissions](#road_access_permissions_allow_disallow))|
+| disallow       | list of vehicle classes               | List of forbidden vehicle classes (see [access permissions](#road_access_permissions_allow_disallow))|
+| width          | float                                 | lane width for all lanes of this edge in meters (used for visualization) |
+| name           | string                                | street name (need not be unique, used for visualization)  |
 | endOffset      | float \>= 0                           | Move the stop line back from the intersection by the given amount (effectively shortening the edge and locally enlarging the intersection)  |
-| sidewalkWidth  | float \>= 0                           | Adds a sidewalk with the given width (defaults to -1 which adds nothing).                              |
+| sidewalkWidth  | float \>= 0                           | Adds a sidewalk with the given width (defaults to -1 which adds nothing).  |
+| bikeLaneWidth  | float \>= 0                           | Adds a bicycle lane with the given width (defaults to -1 which adds nothing).  |
+| distance       | float                                 | [Kilometrage](../Simulation/Railways.md#kilometrage_mileage_chainage) at the start of this edge. If the value is positive, kilometrage increases in driving direction; if the value is negative, kilometrage decreases. Kilometrage along the edge is computed as abs(*distance* + *offsetFromStart*).  |
 
 The priority plays a role during the computation of the way-giving rules
 of a node. Normally, the allowed speed on the edge and the edge's number
@@ -487,6 +516,7 @@ example for using types is described in the chapter [Type Descriptions](#type_de
 ## SpreadType
 Each edge has a geometry definition (which defaults to the straight-line between from-junction and to-junction position).
 The spreadType defines how to compute the lane geometry from the edge geometry:
+
 - **right** (default): The edge geometry is interpreted as the left side of the edge and lanes flare out to the right. This works well if edges in opposite directions have the same (or rather reversed) geometry.
 - **center**: The edge geometry is interpreted as the middle of the directional edge and lanes flare out symmetrically to both sides. This is appropriate for one-way edges
 - **roadCenter**: The edge geometry is interpreted as the middle of a bi-directional road. This works well when both directional edges have a different lane number.
@@ -542,13 +572,55 @@ The definition of a lane contains the following optional attributes:
 | **index**      | int                                                                                                                 | The enumeration index of the lane (0 is the rightmost lane, <NUMBER_LANES\>-1 is the leftmost one)                                          |
 | allow          | list of vehicle classes                                                                                             | List of permitted vehicle classes (see [access permissions](#road_access_permissions_allow_disallow))                  |
 | disallow       | list of vehicle classes                                                                                             | List of forbidden vehicle classes (see [access permissions](#road_access_permissions_allow_disallow))                  |
+| changeLeft        | list of vehicle classes | List of vehicle classes that may change left from this lane |
+| changeRight       | list of vehicle classes | List of vehicle classes that may change right from this lane |
 | speed          | float                                                                                                               | speed in meters per second                                                                                                                 |
 | width          | float                                                                                                               | width in meters (used for visualization)                                                                                                   |
 | endOffset      | float \>= 0                                                                                                         | Move the stop line back from the intersection by the given amount (effectively shortening the lane and locally enlarging the intersection) |
-| shape          | List of positions; each position is encoded in x,y or x,y,z in meters (do not separate the numbers with a space\!). | A custom shape for this lane.<br><br>**Note:** The lane lengths will be averaged in the generated network. Lane-changing will ignore gaps between lanes.     |
+| shape          | List of positions; each position is encoded in x,y or x,y,z in meters (do not separate the numbers with a space\!). | A custom shape for this lane.<br><br>**Note:** The lane lengths will be averaged in the generated network. Lane-changing will ignore gaps between lanes.    
+| type          | string | a custom type description for this lane (only informational) |
+| acceleration  | bool | whether this lane is a motorway acceleration lane (default *false*) |
 
 See "Vehicle Classes" for further information about [allowed vehicle classes](../Definition_of_Vehicles,_Vehicle_Types,_and_Routes.md#abstract_vehicle_class)
 and their usage.
+
+### lane change restrictions
+When defining lane change restrictions with `changeLeft` and `changeRight`, the vehicle class "emergency" should typically be allowed since emergency vehicles can ignore non-physical restrictions in most cases. 
+
+To strongest restriction is the value "ignoring". Note, that vehicles of class "ignoring" cannot be restricted from lane changing with `changeLeft` and `changeRight`. (only creating separate parallel edges will work).
+
+## Stop Offsets
+
+Each edge or lane may carry a `stopOffset` child element to specify an additional
+stopping offset for vehicles of certain classes. This can be used to define a [bike box](https://en.wikipedia.org/wiki/Advanced_stop_line). 
+
+```
+<edge id="<ID>">
+    <stopOffset value="<distance in m.>" vClasses="<space-separated list of vClasses>" />
+    <lane id="<ID>" index="<INDEX>" ... >
+        <stopOffset value="<distance in m.>" exceptions="<space-separated list of vClasses>" />
+    </lane>
+    ...
+</edge>
+```
+
+Defining this element for an edge will affect all lanes of the edge that
+do not hold an own `stopOffset` element. Note that there is the possibility to
+define either all vehicle classes, that are affected by the stop offset
+(attribute `vClasses`), or those, which are not affected (attribute `exceptions`). You may not
+use both attributes in conjunction. The distance at which the specified
+vehicle classes are required to stop from the lane end is specified by
+the `value`-attribute.
+
+| Name           | Type             | Description                                                         |
+| -------------- | ---------------- | ------------------------------------------------------------------- |
+| **value**      | value (double)   | The stop offset as positive value in meters.                        |
+| **vClasses**   | list of vClasses | Specifies, for which vehicle classes the stopOffset applies.        |
+| **exceptions** | list of vClasses | Specifies, for which vehicle classes the stopOffset does not apply. |
+
+For specification of vehicle classes see
+[here](../Definition_of_Vehicles,_Vehicle_Types,_and_Routes.md#abstract_vehicle_class).
+
 
 ## Road Segment Refining
 
@@ -773,6 +845,13 @@ speed limit.
 !!! note
     vClass-specific speed limit restrictions can also be loaded directly into [sumo](../sumo.md) from an additional file (only type attribute 'id' is needed)
 
+## speed on junction
+
+If a connection defines the 'type' attribute, this can be used to load restrictions directly. Otherwise, the type and restrictions are inferred from the edge types before and after the intersection as follows:
+
+If a vclass-specific speed restriction exists for the edge type before and after a junction, the speed restriction is also applied to the (junction-)internal edge. By default, the average value of the restricted speeds before and after the junction will be used.
+If the network was built with option **--junctions.higher-speed**, the maximum of both speeds is used on the junction instead.
+
 # Connection Descriptions
 
 | **Connection Descriptions** | |
@@ -831,12 +910,17 @@ Here, a connection from the edge's "*<FROM_EDGE_ID\>*" lane with the number *<IN
 | pass           | bool                                                                                                                | false   | if set, vehicles which pass this (lane-2-lane) connection) will not wait                                                                                                                                                                                                                                                                                                     |
 | keepClear      | bool                                                                                                                | true    | if set to *false*, vehicles which pass this (lane-2-lane) connection) will not worry about [blocking the intersection](../Simulation/Intersections.md#junction_blocking).                                                                                                                                                                                               |
 | contPos        | float                                                                                                               | \-1     | if set to 0, no [internal junction](../Networks/SUMO_Road_Networks.md#internal_junctions) will be built for this connection. If set to a positive value, an internal junction will be built at this position (in m) from the start of the internal lane for this connection.                                                                                            |
-| visibility     | float                                                                                                               | 4.5     | specifies the distance to the connection \[in m.\] below which an approaching vehicle has full sight of any other approaching vehicles on the connection's foe lanes (i.e. vehicle can accelerate if none are present). Note, that a too low visibility (<=0.1m.) will prevent vehicles from crossing a minor link. For major links the attribute has no effect, currently. |
+| visibility     | float                                                                                                               | 4.5     | specifies the distance to the connection \[in m.\] below which an approaching vehicle has full sight of any other approaching vehicles on the connection's foe lanes (i.e. vehicle can accelerate if none are present). Note, that a too low visibility (<=0.1m.) will prevent vehicles from crossing a minor link. For 'zipper'-links, this attribute controls the point at which zipper-merging behavior starts (default 100m). For major links (right-of-way) the attribute has no effect. |
 | speed          | float                                                                                                               | \-1     | specifies the maximum speed while moving across the intersection using this connection (in m/s). By default the mean speed of the edge before and after the connection is used. With the default value, the speed is set to the average of the incoming and outgoing lane or to a radius based limit if option **--junctions.limit-turn-speed** is set.                                                      |
 | shape          | List of positions; each position is encoded in x,y or x,y,z in meters (do not separate the numbers with a space\!). |         | specifies a custom shape for the internal lane(s) for this connection. By default an interpolated cubic spline is used.                                                                                                                                                                                                                                                      |
 | uncontrolled   | bool  | false   | if set to *true*, This connection will not be TLS-controlled despite its node being controlled. |
 | allow     | list of vehicle classes    |    | set custom permissions independent of from-lane and to-lane permissions. |
 | disallow  | list of vehicle classes    |    | set custom permissions independent of from-lane and to-lane permissions. |
+| changeLeft        | list of vehicle classes | List of vehicle classes that may change left from this lane |
+| changeRight       | list of vehicle classes | List of vehicle classes that may change right from this lane |
+| length  | float    |    | set a [custom length](../Simulation/Distances.md#length-geometry-mismatch) for this connection |
+| indirect | bool    | false | declare an indirect (two-step) turning movement (affects geometry and right-of-way) |
+| type | string    |  | set custom edgeType for applying [vClass-specific speed limits](#vehicle-class_specific_speed_limits) |
 
 If you only wish to **remove** a connection it may be convenient to use
 the following xml definition: `<delete from="<FROM_EDGE_ID>" to="<T0_EDGE_ID>"/>`. The attributes are the same as for the
@@ -850,7 +934,7 @@ simple connection element:
 | toLane         | referenced lane no | The destination lane index of the connection to be removed |
 
 !!! note
-    Note that in basic format (that is, without **fromLane** and **toLane** attributes) the defenition deletes **all** connections from given incoming edge to the given outgoing edge. When **fromLane** and **toLane** attributes are provided, only the connection from given lane to given lane is removed.
+    Note that in basic format (that is, without **fromLane** and **toLane** attributes) the definition deletes **all** connections from given incoming edge to the given outgoing edge. When **fromLane** and **toLane** attributes are provided, only the connection from given lane to given lane is removed.
 
 There are two examples within the distribution. Both use the nodes and
 edges descriptions from the example located in
@@ -912,7 +996,7 @@ The built network looks like this:
 Network with explicit lane-2-lane connections
 
 !!! caution
-    Please do not use both types of connection declarations (those with an lane attribute and those without) for the same from-edge! The behaviour is not verified and tested for these settings.
+    Please do not use both types of connection declarations (those with an lane attribute and those without) for the same from-edge! The behavior is not verified and tested for these settings.
 
 ## Setting Connection Priorities
 
@@ -959,7 +1043,7 @@ want to wait due to right-before-left - rule. The network looks like
 this:
 
 ![cross3l_prohibitions.gif](../images/Cross3l_prohibitions.gif "Network with explicite prohibitions")
-Network with explicite prohibitions
+Network with explicit prohibitions
 
 The syntax of a prohibition-tag is: `<prohibition prohibitor="<PROHIBITING_FROM_EDGE_ID>-><PROHIBITING_TO_EDGE_ID>" prohibited="<PROHIBITED_FROM_EDGE_ID>-><PROHIBITED_TO_EDGE_ID>"/>`.
 This means we define two connections (edge-to-edge), the prohibiting one

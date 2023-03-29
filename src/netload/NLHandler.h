@@ -1,6 +1,6 @@
 /****************************************************************************/
 // Eclipse SUMO, Simulation of Urban MObility; see https://eclipse.org/sumo
-// Copyright (C) 2001-2020 German Aerospace Center (DLR) and others.
+// Copyright (C) 2001-2023 German Aerospace Center (DLR) and others.
 // This program and the accompanying materials are made available under the
 // terms of the Eclipse Public License 2.0 which is available at
 // https://www.eclipse.org/legal/epl-2.0/
@@ -60,7 +60,7 @@ public:
     /// @brief Destructor
     virtual ~NLShapeHandler() {}
 
-    Position getLanePos(const std::string& poiID, const std::string& laneID, double lanePos, double lanePosLat);
+    Position getLanePos(const std::string& poiID, const std::string& laneID, double lanePos, bool friendlyPos, double lanePosLat);
 
     virtual bool addLanePosParams() {
         return true;
@@ -104,6 +104,10 @@ public:
         return myHaveSeenInternalEdge;
     }
 
+    bool hasJunctionHigherSpeeds() const {
+        return myHaveJunctionHigherSpeeds;
+    }
+
     bool haveSeenDefaultLength() const {
         return myHaveSeenDefaultLength;
     }
@@ -120,9 +124,11 @@ public:
         return myHaveSeenMesoEdgeType;
     }
 
-    double networkVersion() const {
+    MMVersion networkVersion() const {
         return myNetworkVersion;
     }
+
+    static Parameterised* addPredecessorConstraint(int element, const SUMOSAXAttributes& attrs, MSRailSignal* rs);
 
 protected:
     /// @name inherited from GenericSAXHandler
@@ -211,12 +217,6 @@ protected:
     /// Closes the process of building an edge
     virtual void closeEdge();
 
-
-protected:
-    /// The net to fill (preinitialised)
-    MSNet& myNet;
-
-
 private:
     /// begins the processing of an edge
     void beginEdgeParsing(const SUMOSAXAttributes& attrs);
@@ -236,6 +236,17 @@ private:
     /// adds a phase to the traffic lights logic currently build
     void addPhase(const SUMOSAXAttributes& attrs);
 
+    /// adds a switching condition to the traffic lights logic currently build
+    void addCondition(const SUMOSAXAttributes& attrs);
+
+    /// adds a switching condition assignment to the traffic lights logic currently build
+    void addAssignment(const SUMOSAXAttributes& attrs);
+
+    /// adds a switching condition function to the traffic lights logic currently build
+    void addFunction(const SUMOSAXAttributes& attrs);
+
+    /// adds a switching condition function to the traffic lights logic currently build
+    void closeFunction();
 
     /// opens a junction for processing
     virtual void openJunction(const SUMOSAXAttributes& attrs);
@@ -245,18 +256,18 @@ private:
     /// adds a connection
     void addConnection(const SUMOSAXAttributes& attrs);
 
+    void addConflict(const SUMOSAXAttributes& attrs);
+
     virtual void openWAUT(const SUMOSAXAttributes& attrs);
     void addWAUTSwitch(const SUMOSAXAttributes& attrs);
     void addWAUTJunction(const SUMOSAXAttributes& attrs);
-    void addPredecessorConstraint(const SUMOSAXAttributes& attrs);
-    void addInsertionPredecessorConstraint(const SUMOSAXAttributes& attrs);
 
     /// Parses network location description
     void setLocation(const SUMOSAXAttributes& attrs);
 
     /** @begin Parses a district and creates a pseudo edge for it
      *
-     * Called on the occurence of a "district" element, this method
+     * Called on the occurrence of a "district" element, this method
      *  retrieves the id of the district and creates a district type
      *  edge with this id.
      *
@@ -268,7 +279,7 @@ private:
 
     /** @begin Parses a district edge and connects it to the district
      *
-     * Called on the occurence of a "dsource" or "dsink" element, this method
+     * Called on the occurrence of a "dsource" or "dsink" element, this method
      *  retrieves the id of the approachable edge. If this edge is known
      *  and valid, the approaching edge is informed about it.
      *
@@ -293,6 +304,9 @@ private:
     LinkState parseLinkState(const std::string& state);
 
 protected:
+    /// @brief The net to fill (preinitialised)
+    MSNet& myNet;
+
     /// @brief A builder for object actions
     NLDiscreteEventBuilder myActionBuilder;
 
@@ -340,6 +354,9 @@ protected:
     /// @brief whether the loaded network contains internal lanes
     bool myHaveSeenInternalEdge;
 
+    /// @brief Whether the network was built with higher speed on junctions
+    bool myHaveJunctionHigherSpeeds;
+
     /// @brief whether the loaded network contains edges with default lengths
     bool myHaveSeenDefaultLength;
 
@@ -353,7 +370,7 @@ protected:
     bool myHaveSeenMesoEdgeType;
 
     /// @brief the loaded network version
-    double myNetworkVersion;
+    MMVersion myNetworkVersion;
 
     /// @brief whether the location element was already loadee
     bool myNetIsLoaded;
@@ -361,9 +378,14 @@ protected:
     /// @brief rail signal for which constraints are being loaded
     MSRailSignal* myConstrainedSignal;
 
+    /// @brief the link element for the connection currently being parsed
+    MSLink* myCurrentLink = nullptr;
+
     /// @brief temporary data for building the junction graph after network parsing is finished
     typedef std::map<std::string, std::pair<std::string, std::string> > JunctionGraph;
     JunctionGraph myJunctionGraph;
+
+    int myPreviousEdgeIdx = 0;
 
 private:
     /** invalid copy constructor */

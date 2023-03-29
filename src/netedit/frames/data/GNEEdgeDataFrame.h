@@ -1,6 +1,6 @@
 /****************************************************************************/
 // Eclipse SUMO, Simulation of Urban MObility; see https://eclipse.org/sumo
-// Copyright (C) 2001-2020 German Aerospace Center (DLR) and others.
+// Copyright (C) 2001-2023 German Aerospace Center (DLR) and others.
 // This program and the accompanying materials are made available under the
 // terms of the Eclipse Public License 2.0 which is available at
 // https://www.eclipse.org/legal/epl-2.0/
@@ -34,10 +34,10 @@ class GNEEdgeDataFrame : public GNEGenericDataFrame {
 
 public:
     /**@brief Constructor
-     * @brief parent FXHorizontalFrame in which this GNEFrame is placed
+     * @brief viewParent GNEViewParent in which this GNEFrame is placed
      * @brief viewNet viewNet that uses this GNEEdgeDataFrame
      */
-    GNEEdgeDataFrame(FXHorizontalFrame* horizontalFrameParent, GNEViewNet* viewNet);
+    GNEEdgeDataFrame(GNEViewParent* viewParent, GNEViewNet* viewNet);
 
     /// @brief Destructor
     ~GNEEdgeDataFrame();
@@ -45,7 +45,7 @@ public:
     /**@brief add additional element
      * @param objectsUnderCursor collection of objects under cursor after click over view
      * @param mouseButtonKeyPressed key pressed during click
-     * @return true if additional was sucesfully added
+     * @return true if additional was successfully added
      */
     bool addEdgeData(const GNEViewNetHelper::ObjectsUnderCursor& objectsUnderCursor, const GNEViewNetHelper::MouseButtonKeyPressed& mouseButtonKeyPressed);
 

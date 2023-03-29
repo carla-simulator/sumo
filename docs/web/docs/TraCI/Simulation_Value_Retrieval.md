@@ -1,6 +1,5 @@
 ---
-title: TraCI/Simulation Value Retrieval
-permalink: /TraCI/Simulation_Value_Retrieval/
+title: Simulation Value Retrieval
 ---
 
 ## Command 0xab: Get Simulation Variable
@@ -199,8 +198,20 @@ value is also shown in the table.
 <tr class="even">
 <td><p>parameter (0x7e)</p></td>
 <td><p>string</p></td>
-<td><p><a href="#Generic_Parameter_Retrieval_0x7e" title="wikilink">Returns the value for the given string parameter</a></p></td>
+<td><p>Returns the value for the given string parameter.</p></td>
 <td><p><a href="http://sumo.dlr.de/daily/pydoc/traci._simulation.html#SimulationDomain-getParameter">getParameter</a></p></td>
+</tr>
+<tr class="odd">
+<td><p>scale (id 0x8e)</p></td>
+<td><p>double</p></td>
+<td><p>Returns the traffic scaling factor.</p></td>
+<td><p><a href="http://sumo.dlr.de/daily/pydoc/traci._simulation.html#SimulationDomain-getScale">getScale</a></p></td>
+</tr>
+<tr class="even">
+<td><p>option (0x3f)</p></td>
+<td><p>string</p></td>
+<td><p>Returns the value of one of the global SUMO options.</p></td>
+<td><p><a href="http://sumo.dlr.de/daily/pydoc/traci._simulation.html#SimulationDomain-getOption">getOption</a></p></td>
 </tr>
 </tbody>
 </table>
@@ -264,6 +275,13 @@ Some further messages require additional parameters.
 <td><p>Reads origin and destination position together with usable modes and other person paramters and computes the currently fastest route for the person using the available modes.</p></td>
 <td><p><a href="https://sumo.dlr.de/pydoc/traci._simulation.html#SimulationDomain-findIntermodalRoute">findIntermodalRoute</a></p></td>
 </tr>
+<tr class="odd">
+<td><p>get collisions (0x23)</p></td>
+<td><p>-</p></td>
+<td><p>compound, see below</p></td>
+<td><p>Retrieves details on all collision events in the last time step.</p></td>
+<td><p><a href="https://sumo.dlr.de/pydoc/traci._simulation.html#SimulationDomain-getCollisions">getCollisions</a></p></td>
+</tr>
 </tbody>
 </table>
 
@@ -281,6 +299,13 @@ given through *PositionId*. When converting from coordinates to road
 positions, the result is the closest position that was found to match
 the given one. In all other cases, the conversion will give an exact
 match. The return values consists of the converted value only.
+
+To simplify position conversions, a number of convenience functions are provided by [many traci client libraries](../TraCI.md#interfaces_by_programming_language),and [libsumo](../Libsumo.md):
+
+- [convert2D](https://sumo.dlr.de/pydoc/traci._simulation.html#SimulationDomain-convert2D): convert road,laneIndex,offset to x,y or lon,lat
+- [convert3D](https://sumo.dlr.de/pydoc/traci._simulation.html#SimulationDomain-convert3D): convert road,laneIndex,offset to x,y,z or lon,lat
+- [convertGeo](https://sumo.dlr.de/pydoc/traci._simulation.html#SimulationDomain-convertGeo): convert x,y to lon,lat or vice versa
+- [convertRoad](https://sumo.dlr.de/pydoc/traci._simulation.html#SimulationDomain-convert3D): convert x,y or lon,lat to road,laneInex,offset
 
 See [TraCI/Protocol\#Position
 Representations](../TraCI/Protocol.md#position_representations) for
@@ -337,13 +362,23 @@ empty, the default vehicle type is used.
 The response is a list of stages similar to the one returned by
 findRoute.
 
+### Command 0x23: Get Collisions
+
+The response is a list of Collision objects:
+
+| type + string | type + string | type + string | type + string |  type + double | type + double | type + string | type + string |type + double |
+| :-----------: | :-----------: | :-----------: | :-----------: | :------------: | :-----------: |:------------: |:------------: |:-----------: |
+|  collider id  | victim id     | collider type | victim type   | collider speed | victim speed  | collision type| lane id       | pos on lane  |
+
 ## Generic Parameter Retrieval 0x7e
 
 The simulation supports retrieval of additional object parameters using
-the [generic parameter retrieval
-call](../TraCI/GenericParameters.md#get_parameter). The *object id*
-refers to the object (i.e. chargingStation) id. The following parameters
-are supported:
+the [generic parameter retrieval call](../TraCI/GenericParameters.md#get_parameter).
+
+### Stoppping Place Information
+
+The *object id* of `getParameter` refers to the object (i.e. chargingStation) id. The following parameters
+are supported: 
 
 - chargingStation.totalEnergyCharged
 - chargingStation.name
@@ -354,3 +389,64 @@ are supported:
 - parkingArea.lane
 - busStop.name
 - busStop.lane
+
+!!! note
+    Since version 1.7.0 these and other values can be retrieved via new domains (i.e. `traci.busstop`)
+    
+    
+### Device Parameter Retrieval
+
+The following parameters can be retrieved. They are not for a specific device holder but are instead global measures. The *object id* must be the empty string "".
+
+- device.tripinfo.count
+- device.tripinfo.routeLength
+- device.tripinfo.speed
+- device.tripinfo.duration
+- device.tripinfo.waitingTime
+- device.tripinfo.timeLoss
+- device.tripinfo.departDelay
+- device.tripinfo.departDelayWaiting
+- device.tripinfo.totalTravelTime
+- device.tripinfo.totalDepartDelay
+- device.tripinfo.vehicleTripStatistics.count
+- device.tripinfo.vehicleTripStatistics.routeLength
+- device.tripinfo.vehicleTripStatistics.speed
+- device.tripinfo.vehicleTripStatistics.duration
+- device.tripinfo.vehicleTripStatistics.waitingTime
+- device.tripinfo.vehicleTripStatistics.timeLoss
+- device.tripinfo.vehicleTripStatistics.departDelay
+- device.tripinfo.vehicleTripStatistics.departDelayWaiting
+- device.tripinfo.vehicleTripStatistics.totalTravelTime
+- device.tripinfo.vehicleTripStatistics.totalDepartDelay
+- device.tripinfo.bikeTripStatistics.count
+- device.tripinfo.bikeTripStatistics.routeLength
+- device.tripinfo.bikeTripStatistics.speed
+- device.tripinfo.bikeTripStatistics.duration
+- device.tripinfo.bikeTripStatistics.waitingTime
+- device.tripinfo.bikeTripStatistics.timeLoss
+- device.tripinfo.bikeTripStatistics.totalTravelTime
+- device.tripinfo.pedestrianStatistics.count
+- device.tripinfo.pedestrianStatistics.number
+- device.tripinfo.pedestrianStatistics.routeLength
+- device.tripinfo.pedestrianStatistics.duration
+- device.tripinfo.pedestrianStatistics.timeLoss
+- device.tripinfo.rideStatistics.count
+- device.tripinfo.rideStatistics.number
+- device.tripinfo.rideStatistics.waitingTime
+- device.tripinfo.rideStatistics.routeLength
+- device.tripinfo.rideStatistics.duration
+- device.tripinfo.rideStatistics.bus
+- device.tripinfo.rideStatistics.train
+- device.tripinfo.rideStatistics.taxi
+- device.tripinfo.rideStatistics.bike
+- device.tripinfo.rideStatistics.aborted
+- device.tripinfo.transportStatistics.count
+- device.tripinfo.transportStatistics.number
+- device.tripinfo.transportStatistics.waitingTime
+- device.tripinfo.transportStatistics.routeLength
+- device.tripinfo.transportStatistics.duration
+- device.tripinfo.transportStatistics.bus
+- device.tripinfo.transportStatistics.train
+- device.tripinfo.transportStatistics.taxi
+- device.tripinfo.transportStatistics.bike
+- device.tripinfo.transportStatistics.aborted

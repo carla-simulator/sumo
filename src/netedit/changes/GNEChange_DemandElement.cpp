@@ -1,6 +1,6 @@
 /****************************************************************************/
 // Eclipse SUMO, Simulation of Urban MObility; see https://eclipse.org/sumo
-// Copyright (C) 2001-2020 German Aerospace Center (DLR) and others.
+// Copyright (C) 2001-2023 German Aerospace Center (DLR) and others.
 // This program and the accompanying materials are made available under the
 // terms of the Eclipse Public License 2.0 which is available at
 // https://www.eclipse.org/legal/epl-2.0/
@@ -20,7 +20,7 @@
 #include <config.h>
 
 #include <netedit/GNENet.h>
-#include <netedit/frames/demand/GNEVehicleTypeFrame.h>
+#include <netedit/frames/demand/GNETypeFrame.h>
 #include <netedit/GNEViewParent.h>
 #include <netedit/GNEViewNet.h>
 
@@ -36,9 +36,8 @@ FXIMPLEMENT_ABSTRACT(GNEChange_DemandElement, GNEChange, nullptr, 0)
 // ===========================================================================
 
 GNEChange_DemandElement::GNEChange_DemandElement(GNEDemandElement* demandElement, bool forward) :
-    GNEChange(demandElement, forward, demandElement->isAttributeCarrierSelected()),
-    myDemandElement(demandElement),
-    myPath(demandElement->getPath()) {
+    GNEChange(Supermode::DEMAND, demandElement, forward, demandElement->isAttributeCarrierSelected()),
+    myDemandElement(demandElement) {
     myDemandElement->incRef("GNEChange_DemandElement");
 }
 
@@ -47,18 +46,11 @@ GNEChange_DemandElement::~GNEChange_DemandElement() {
     myDemandElement->decRef("GNEChange_DemandElement");
     if (myDemandElement->unreferenced()) {
         // show extra information for tests
-        WRITE_DEBUG("Deleting unreferenced " + myDemandElement->getTagStr() + " '" + myDemandElement->getID() + "'");
+        WRITE_DEBUG("Deleting unreferenced " + myDemandElement->getTagStr());
         // make sure that element isn't in net before removing
         if (myDemandElement->getNet()->getAttributeCarriers()->demandElementExist(myDemandElement)) {
             // remove demand element of network
             myDemandElement->getNet()->getAttributeCarriers()->deleteDemandElement(myDemandElement);
-            // remove element from path
-            for (const auto& pathElement : myPath) {
-                pathElement.getLane()->removePathDemandElement(myDemandElement);
-                if (pathElement.getJunction()) {
-                    pathElement.getJunction()->removePathDemandElement(myDemandElement);
-                }
-            }
         }
         delete myDemandElement;
     }
@@ -76,13 +68,6 @@ GNEChange_DemandElement::undo() {
         }
         // delete demand element from net
         myDemandElement->getNet()->getAttributeCarriers()->deleteDemandElement(myDemandElement);
-        // remove element from path
-        for (const auto& pathElement : myPath) {
-            pathElement.getLane()->removePathDemandElement(myDemandElement);
-            if (pathElement.getJunction()) {
-                pathElement.getJunction()->removePathDemandElement(myDemandElement);
-            }
-        }
         // restore container
         restoreHierarchicalContainers();
     } else {
@@ -94,21 +79,22 @@ GNEChange_DemandElement::undo() {
         }
         // insert demand element into net
         myDemandElement->getNet()->getAttributeCarriers()->insertDemandElement(myDemandElement);
-        // compute demand element path
-        myDemandElement->computePath();
         // restore container
         restoreHierarchicalContainers();
     }
     // update vehicle type selector if demand element is a VType and vehicle type Frame is shown
-    if ((myDemandElement->getTagProperty().getTag() == SUMO_TAG_VTYPE) && myDemandElement->getNet()->getViewNet()->getViewParent()->getVehicleTypeFrame()->shown()) {
-        myDemandElement->getNet()->getViewNet()->getViewParent()->getVehicleTypeFrame()->getVehicleTypeSelector()->refreshVehicleTypeSelector();
+    if ((myDemandElement->getTagProperty().getTag() == SUMO_TAG_VTYPE) && myDemandElement->getNet()->getViewNet()->getViewParent()->getTypeFrame()->shown()) {
+        myDemandElement->getNet()->getViewNet()->getViewParent()->getTypeFrame()->getTypeSelector()->refreshTypeSelector();
     }
     // update stack labels
-    if (myOriginalHierarchicalContainer.getParents<std::vector<GNEEdge*> >().size() > 0) {
-        myOriginalHierarchicalContainer.getParents<std::vector<GNEEdge*> >().front()->updateVehicleStackLabels();
+    const auto parentEdges = myOriginalHierarchicalContainer.getParents<std::vector<GNEEdge*> >();
+    if (parentEdges.size() > 0) {
+        parentEdges.front()->updateVehicleStackLabels();
+        parentEdges.front()->updatePersonStackLabels();
+        parentEdges.front()->updateContainerStackLabels();
     }
-    // Requiere always save elements
-    myDemandElement->getNet()->requireSaveDemandElements(true);
+    // require always save elements
+    myDemandElement->getNet()->getSavingStatus()->requireSaveDemandElements();
 }
 
 
@@ -123,8 +109,6 @@ GNEChange_DemandElement::redo() {
         }
         // insert demand element into net
         myDemandElement->getNet()->getAttributeCarriers()->insertDemandElement(myDemandElement);
-        // compute demand element path
-        myDemandElement->computePath();
         // add demand element in parents and children
         addElementInParentsAndChildren(myDemandElement);
     } else {
@@ -136,44 +120,40 @@ GNEChange_DemandElement::redo() {
         }
         // delete demand element from net
         myDemandElement->getNet()->getAttributeCarriers()->deleteDemandElement(myDemandElement);
-        // remove element from path
-        for (const auto& pathElement : myPath) {
-            pathElement.getLane()->removePathDemandElement(myDemandElement);
-            if (pathElement.getJunction()) {
-                pathElement.getJunction()->removePathDemandElement(myDemandElement);
-            }
-        }
         // remove demand element from parents and children
         removeElementFromParentsAndChildren(myDemandElement);
     }
     // update vehicle type selector if demand element is a VType and vehicle type Frame is shown
-    if ((myDemandElement->getTagProperty().getTag() == SUMO_TAG_VTYPE) && myDemandElement->getNet()->getViewNet()->getViewParent()->getVehicleTypeFrame()->shown()) {
-        myDemandElement->getNet()->getViewNet()->getViewParent()->getVehicleTypeFrame()->getVehicleTypeSelector()->refreshVehicleTypeSelector();
+    if ((myDemandElement->getTagProperty().getTag() == SUMO_TAG_VTYPE) && myDemandElement->getNet()->getViewNet()->getViewParent()->getTypeFrame()->shown()) {
+        myDemandElement->getNet()->getViewNet()->getViewParent()->getTypeFrame()->getTypeSelector()->refreshTypeSelector();
     }
     // update stack labels
-    if (myOriginalHierarchicalContainer.getParents<std::vector<GNEEdge*> >().size() > 0) {
-        myOriginalHierarchicalContainer.getParents<std::vector<GNEEdge*> >().front()->updateVehicleStackLabels();
+    const auto parentEdges = myOriginalHierarchicalContainer.getParents<std::vector<GNEEdge*> >();
+    if (parentEdges.size() > 0) {
+        parentEdges.front()->updateVehicleStackLabels();
+        parentEdges.front()->updatePersonStackLabels();
+        parentEdges.front()->updateContainerStackLabels();
     }
-    // Requiere always save elements
-    myDemandElement->getNet()->requireSaveDemandElements(true);
+    // require always save elements
+    myDemandElement->getNet()->getSavingStatus()->requireSaveDemandElements();
 }
 
 
-FXString
+std::string
 GNEChange_DemandElement::undoName() const {
     if (myForward) {
-        return ("Undo create " + myDemandElement->getTagStr()).c_str();
+        return (TL("Undo create ") + myDemandElement->getTagStr() + " '" + myDemandElement->getID() + "'");
     } else {
-        return ("Undo delete " + myDemandElement->getTagStr()).c_str();
+        return (TL("Undo delete ") + myDemandElement->getTagStr() + " '" + myDemandElement->getID() + "'");
     }
 }
 
 
-FXString
+std::string
 GNEChange_DemandElement::redoName() const {
     if (myForward) {
-        return ("Redo create " + myDemandElement->getTagStr()).c_str();
+        return (TL("Redo create ") + myDemandElement->getTagStr() + " '" + myDemandElement->getID() + "'");
     } else {
-        return ("Redo delete " + myDemandElement->getTagStr()).c_str();
+        return (TL("Redo delete ") + myDemandElement->getTagStr() + " '" + myDemandElement->getID() + "'");
     }
 }

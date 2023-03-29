@@ -1,6 +1,6 @@
 /****************************************************************************/
 // Eclipse SUMO, Simulation of Urban MObility; see https://eclipse.org/sumo
-// Copyright (C) 2001-2020 German Aerospace Center (DLR) and others.
+// Copyright (C) 2001-2023 German Aerospace Center (DLR) and others.
 // This program and the accompanying materials are made available under the
 // terms of the Eclipse Public License 2.0 which is available at
 // https://www.eclipse.org/legal/epl-2.0/
@@ -51,14 +51,14 @@ public:
 
     /// @brief constructor
     MSChargingStation(const std::string& chargingStationID, MSLane& lane, double startPos, double endPos,
-                      const std::string& name,
-                      double chargingPower, double efficency, bool chargeInTransit, double chargeDelay);
+                      const std::string& name, double chargingPower, double efficency, bool chargeInTransit,
+                      SUMOTime chargeDelay);
 
     /// @brief destructor
     ~MSChargingStation();
 
-    /// @brief Get charging station's charging power
-    double getChargingPower() const;
+    /// @brief Get charging station's charging power in the
+    double getChargingPower(bool usingFuel) const;
 
     /// @brief Get efficiency of the charging station
     double getEfficency() const;
@@ -67,19 +67,7 @@ public:
     bool getChargeInTransit() const;
 
     /// @brief Get Charge Delay
-    double getChargeDelay() const;
-
-    /// @brief Set charging station's charging power
-    void setChargingPower(double chargingPower);
-
-    /// @brief Set efficiency of the charging station
-    void setEfficency(double efficency);
-
-    /// @brief Set charge in transit of the charging station
-    void setChargeInTransit(bool chargeInTransit);
-
-    /// @brief Set charge delay of the charging station
-    void setChargeDelay(double chargeDelay);
+    SUMOTime getChargeDelay() const;
 
     /// @brief enable or disable charging vehicle
     void setChargingVehicle(bool value);
@@ -105,10 +93,10 @@ public:
 
 protected:
 
-    /// @brief struct to save information for the cahrgingStation output
-    struct charge {
+    /// @brief struct to save information for the chargingStation output
+    struct Charge {
         /// @brief constructor
-        charge(SUMOTime _timeStep, std::string _vehicleID, std::string _vehicleType, std::string _status,
+        Charge(SUMOTime _timeStep, std::string _vehicleID, std::string _vehicleType, std::string _status,
                double _WCharged, double _actualBatteryCapacity, double _maxBatteryCapacity, double _chargingPower,
                double _chargingEfficiency, double _totalEnergyCharged) :
             timeStep(_timeStep),
@@ -144,6 +132,8 @@ protected:
         double totalEnergyCharged;
     };
 
+    static void writeVehicle(OutputDevice& out, const std::vector<Charge>& chargeSteps, int iStart, int iEnd, double charged);
+
     /// @brief Charging station's charging power
     double myChargingPower;
 
@@ -154,7 +144,7 @@ protected:
     bool myChargeInTransit;
 
     /// @brief Charge Delay
-    double myChargeDelay;
+    SUMOTime myChargeDelay;
 
     /// @brief Check if in the current TimeStep chargingStation is charging a vehicle
     bool myChargingVehicle;
@@ -162,14 +152,16 @@ protected:
     /// @brief total energy charged by this charging station
     double myTotalCharge;
 
-    /// @brief vector with the charges of this charging station
-    std::vector<charge> myChargeValues;
+    /// @brief map with the charges of this charging station (key = vehicleID)
+    std::map<std::string, std::vector<Charge> > myChargeValues;
+    /// @brief order vehicles by time of first charge
+    std::vector<std::string> myChargedVehicles;
 
 private:
     /// @brief Invalidated copy constructor.
-    MSChargingStation(const MSChargingStation&);
+    MSChargingStation(const MSChargingStation&) = delete;
 
     /// @brief Invalidated assignment operator.
-    MSChargingStation& operator=(const MSChargingStation&);
+    MSChargingStation& operator=(const MSChargingStation&) = delete;
 };
 

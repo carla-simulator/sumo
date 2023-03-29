@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <xsd:schema elementFormDefault="qualified" xmlns:xsd="http://www.w3.org/2001/XMLSchema">
 
-    <xsd:include schemaLocation="taz_file.xsd" />
+    <xsd:include schemaLocation="tazTypes.xsd" />
 
     <xsd:element name="net" type="netType">
         <xsd:key name="edgeKey">
@@ -48,6 +48,8 @@
         <xsd:attribute name="tlsIgnoreInternalJunctionJam" type="boolType"/>
         <xsd:attribute name="spreadType" type="spreadTypeType"/>
         <xsd:attribute name="avoidOverlap" type="boolType"/>
+        <xsd:attribute name="junctionHigherSpeed" type="boolType"/>
+        <xsd:attribute name="internalJunctionsVehicleWidth" type="xsd:float"/>
     </xsd:complexType>
 
     <xsd:complexType name="edgeType">
@@ -101,6 +103,7 @@
         <xsd:attribute name="disallow" type="xsd:string" use="optional"/>
         <xsd:attribute name="prefer" type="xsd:string" use="optional"/>
         <xsd:attribute name="speed" type="positiveFloatType" use="required"/>
+        <xsd:attribute name="friction" type="positiveFloatType" use="optional"/>
         <xsd:attribute name="length" type="positiveFloatType" use="required"/>
         <xsd:attribute name="endOffset" type="positiveFloatType" use="optional"/>
         <xsd:attribute name="width" type="nonNegativeFloatType" use="optional"/>
@@ -108,6 +111,8 @@
         <xsd:attribute name="shape" type="shapeTypeTwo" use="required"/>
         <xsd:attribute name="customShape" type="boolType" use="optional"/>
         <xsd:attribute name="type" type="xsd:string" use="optional"/>
+        <xsd:attribute name="changeRight" type="xsd:string" use="optional"/>
+        <xsd:attribute name="changeLeft" type="xsd:string" use="optional"/>
     </xsd:complexType>
 
     <xsd:complexType name="junctionType">
@@ -129,6 +134,7 @@
                     <xsd:enumeration value="rail_crossing"/>
                     <xsd:enumeration value="priority"/>
                     <xsd:enumeration value="priority_stop"/>
+                    <xsd:enumeration value="left_before_right"/>
                     <xsd:enumeration value="right_before_left"/>
                     <xsd:enumeration value="allway_stop"/>
                     <xsd:enumeration value="zipper"/>
@@ -149,6 +155,8 @@
             <xsd:simpleType>
                 <xsd:restriction base="xsd:string">
                     <xsd:enumeration value="default"/>
+                    <xsd:enumeration value="mixedPriority"/>
+                    <xsd:enumeration value="allwayStop"/>
                     <xsd:enumeration value="edgePriority"/>
                 </xsd:restriction>
             </xsd:simpleType>
@@ -196,6 +204,7 @@
     <xsd:complexType name="connectionType">
         <xsd:choice  minOccurs="0" maxOccurs="unbounded">
             <xsd:element name="param" type="paramType" minOccurs="0" maxOccurs="unbounded"/>
+            <xsd:element name="conflict" type="conflictType" minOccurs="0" maxOccurs="unbounded"/>
         </xsd:choice>
         <xsd:attribute name="from" type="xsd:string" use="required"/>
         <xsd:attribute name="to" type="xsd:string" use="required"/>
@@ -215,6 +224,10 @@
         <xsd:attribute name="tl" type="xsd:string" use="optional"/>
         <xsd:attribute name="linkIndex" type="xsd:integer" use="optional"/>
         <xsd:attribute name="linkIndex2" type="xsd:integer" use="optional"/>
+        <xsd:attribute name="changeRight" type="xsd:string" use="optional"/>
+        <xsd:attribute name="changeLeft" type="xsd:string" use="optional"/>
+        <xsd:attribute name="indirect" type="boolType" use="optional"/>
+        <xsd:attribute name="type" type="xsd:string" use="optional"/>
         <xsd:attribute name="dir" use="required">
             <xsd:simpleType>
                 <xsd:restriction base="xsd:string">

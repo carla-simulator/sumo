@@ -1,6 +1,6 @@
 /****************************************************************************/
 // Eclipse SUMO, Simulation of Urban MObility; see https://eclipse.org/sumo
-// Copyright (C) 2001-2020 German Aerospace Center (DLR) and others.
+// Copyright (C) 2001-2023 German Aerospace Center (DLR) and others.
 // This program and the accompanying materials are made available under the
 // terms of the Eclipse Public License 2.0 which is available at
 // https://www.eclipse.org/legal/epl-2.0/
@@ -19,7 +19,7 @@
 /****************************************************************************/
 #include <config.h>
 
-#include <fx.h>
+#include <utils/foxtools/fxheader.h>
 #include <utils/vehicle/SUMOVehicle.h>
 #include <gui/GUIGlobals.h>
 #include <microsim/MSRouteHandler.h>
@@ -44,10 +44,11 @@ GUIMEVehicleControl::~GUIMEVehicleControl() {
 
 SUMOVehicle*
 GUIMEVehicleControl::buildVehicle(SUMOVehicleParameter* defs,
-                                  const MSRoute* route, MSVehicleType* type,
-                                  const bool ignoreStopErrors, const bool fromRouteFile) {
+                                  ConstMSRoutePtr route, MSVehicleType* type,
+                                  const bool ignoreStopErrors, const bool fromRouteFile,
+                                  bool addRouteStops) {
     MSBaseVehicle* built = new GUIMEVehicle(defs, route, type, type->computeChosenSpeedDeviation(fromRouteFile ? MSRouteHandler::getParsingRNG() : nullptr));
-    initVehicle(built, ignoreStopErrors);
+    initVehicle(built, ignoreStopErrors, addRouteStops);
     return built;
 }
 
@@ -79,6 +80,18 @@ GUIMEVehicleControl::insertVehicleIDs(std::vector<GUIGlID>& into) {
     }
 }
 
+std::pair<double, double>
+GUIMEVehicleControl::getVehicleMeanSpeeds() const {
+    FXMutexLock locker(myLock);
+    return MSVehicleControl::getVehicleMeanSpeeds();
+}
+
+
+int
+GUIMEVehicleControl::getHaltingVehicleNo() const {
+    FXMutexLock locker(myLock);
+    return MSVehicleControl::getHaltingVehicleNo();
+}
 
 
 void

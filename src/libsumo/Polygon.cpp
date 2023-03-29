@@ -1,6 +1,6 @@
 /****************************************************************************/
 // Eclipse SUMO, Simulation of Urban MObility; see https://eclipse.org/sumo
-// Copyright (C) 2017-2020 German Aerospace Center (DLR) and others.
+// Copyright (C) 2017-2023 German Aerospace Center (DLR) and others.
 // This program and the accompanying materials are made available under the
 // terms of the Eclipse Public License 2.0 which is available at
 // https://www.eclipse.org/legal/epl-2.0/
@@ -146,9 +146,9 @@ Polygon::addHighlightPolygon(const std::string& objectID, const int type, const 
 
 
 void
-Polygon::addDynamics(const std::string& polygonID, const std::string& trackedID, const std::vector<double>& timeSpan, const std::vector<double>& alphaSpan, bool looped, bool rotate) {
+Polygon::addDynamics(const std::string& polygonID, const std::string& trackedObjectID, const std::vector<double>& timeSpan, const std::vector<double>& alphaSpan, bool looped, bool rotate) {
     if (timeSpan.empty()) {
-        if (trackedID == "") {
+        if (trackedObjectID == "") {
             throw TraCIException("Could not add polygon dynamics for polygon '" + polygonID + "': dynamics underspecified (either a tracked object ID or a time span have to be provided).");
         }
         if (looped) {
@@ -171,7 +171,7 @@ Polygon::addDynamics(const std::string& polygonID, const std::string& trackedID,
         }
     }
 
-    SUMOTrafficObject* obj = getTrafficObject(trackedID);
+    SUMOTrafficObject* obj = getTrafficObject(trackedObjectID);
     ShapeContainer& shapeCont = MSNet::getInstance()->getShapeContainer();
     PolygonDynamics* pd = shapeCont.addPolygonDynamics(SIMTIME, polygonID, obj, timeSpan, alphaSpan, looped, rotate);
     if (pd == nullptr) {
@@ -296,7 +296,7 @@ Polygon::makeWrapper() {
 
 
 bool
-Polygon::handleVariable(const std::string& objID, const int variable, VariableWrapper* wrapper) {
+Polygon::handleVariable(const std::string& objID, const int variable, VariableWrapper* wrapper, tcpip::Storage* paramData) {
     switch (variable) {
         case TRACI_ID_LIST:
             return wrapper->wrapStringList(objID, variable, getIDList());
@@ -310,6 +310,14 @@ Polygon::handleVariable(const std::string& objID, const int variable, VariableWr
             return wrapper->wrapInt(objID, variable, getFilled(objID));
         case VAR_WIDTH:
             return wrapper->wrapDouble(objID, variable, getLineWidth(objID));
+        case VAR_SHAPE:
+            return wrapper->wrapPositionVector(objID, variable, getShape(objID));
+        case libsumo::VAR_PARAMETER:
+            paramData->readUnsignedByte();
+            return wrapper->wrapString(objID, variable, getParameter(objID, paramData->readString()));
+        case libsumo::VAR_PARAMETER_WITH_KEY:
+            paramData->readUnsignedByte();
+            return wrapper->wrapStringPair(objID, variable, getParameterWithKey(objID, paramData->readString()));
         default:
             return false;
     }

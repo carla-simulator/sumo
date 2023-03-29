@@ -1,6 +1,6 @@
 /****************************************************************************/
 // Eclipse SUMO, Simulation of Urban MObility; see https://eclipse.org/sumo
-// Copyright (C) 2001-2020 German Aerospace Center (DLR) and others.
+// Copyright (C) 2001-2023 German Aerospace Center (DLR) and others.
 // This program and the accompanying materials are made available under the
 // terms of the Eclipse Public License 2.0 which is available at
 // https://www.eclipse.org/legal/epl-2.0/
@@ -25,11 +25,12 @@
 #include <config.h>
 
 #include <iostream>
-#include "MSDetectorControl.h"
-#include "MSMeanData_Net.h"
 #include <utils/options/OptionsCont.h>
 #include <utils/options/Option.h>
 #include <utils/common/MsgHandler.h>
+#include "MSMeanData_Emissions.h"
+#include "MSMeanData_Net.h"
+#include "MSDetectorControl.h"
 
 
 // ===========================================================================
@@ -62,22 +63,24 @@ MSDetectorControl::close(SUMOTime step) {
 
 
 void
-MSDetectorControl::add(SumoXMLTag type, MSDetectorFileOutput* d, const std::string& device, SUMOTime splInterval, SUMOTime begin) {
+MSDetectorControl::add(SumoXMLTag type, MSDetectorFileOutput* d, const std::string& device, SUMOTime interval, SUMOTime begin) {
     if (!myDetectors[type].add(d->getID(), d)) {
-        throw ProcessError(toString(type) + " detector '" + d->getID() + "' could not be build (declared twice?).");
+        const std::string id = d->getID();
+        delete d;
+        throw ProcessError(toString(type) + " detector '" + id + "' could not be built (declared twice?).");
     }
-    addDetectorAndInterval(d, &OutputDevice::getDevice(device), splInterval, begin);
+    addDetectorAndInterval(d, &OutputDevice::getDevice(device), interval, begin);
 }
-
 
 
 void
 MSDetectorControl::add(SumoXMLTag type, MSDetectorFileOutput* d) {
     if (!myDetectors[type].add(d->getID(), d)) {
-        throw ProcessError(toString(type) + " detector '" + d->getID() + "' could not be build (declared twice?).");
+        const std::string id = d->getID();
+        delete d;
+        throw ProcessError(toString(type) + " detector '" + id + "' could not be built (declared twice?).");
     }
 }
-
 
 
 void
@@ -85,9 +88,10 @@ MSDetectorControl::add(MSMeanData* md, const std::string& device,
                        SUMOTime frequency, SUMOTime begin) {
     myMeanData[md->getID()].push_back(md);
     addDetectorAndInterval(md, &OutputDevice::getDevice(device), frequency, begin);
-    if (begin == string2time(OptionsCont::getOptions().getString("begin"))) {
+    if (begin <= string2time(OptionsCont::getOptions().getString("begin"))) {
         md->init();
     }
+    MSGlobals::gHaveEmissions |= typeid(*md) == typeid(MSMeanData_Emissions);
 }
 
 
@@ -148,8 +152,9 @@ MSDetectorControl::addDetectorAndInterval(MSDetectorFileOutput* det,
         OutputDevice* device,
         SUMOTime interval,
         SUMOTime begin) {
+    const SUMOTime simBegin = string2time(OptionsCont::getOptions().getString("begin"));
     if (begin == -1) {
-        begin = string2time(OptionsCont::getOptions().getString("begin"));
+        begin = simBegin;
     }
     IntervalsKey key = std::make_pair(interval, begin);
     Intervals::iterator it = myIntervals.find(key);
@@ -158,7 +163,12 @@ MSDetectorControl::addDetectorAndInterval(MSDetectorFileOutput* det,
         DetectorFileVec detAndFileVec;
         detAndFileVec.push_back(std::make_pair(det, device));
         myIntervals.insert(std::make_pair(key, detAndFileVec));
-        myLastCalls[key] = begin;
+        SUMOTime lastCall = begin;
+        if (begin < simBegin) {
+            SUMOTime divRest = (simBegin - begin) % interval;
+            lastCall = simBegin - divRest;
+        }
+        myLastCalls[key] = lastCall;
     } else {
         DetectorFileVec& detAndFileVec = it->second;
         if (find_if(detAndFileVec.begin(), detAndFileVec.end(), [&](const DetectorFilePair & pair) {
@@ -175,10 +185,10 @@ MSDetectorControl::addDetectorAndInterval(MSDetectorFileOutput* det,
 }
 
 void
-MSDetectorControl::clearState() {
+MSDetectorControl::clearState(SUMOTime step) {
     for (const auto& i : myDetectors) {
         for (const auto& j : getTypedDetectors(i.first)) {
-            j.second->clearState();
+            j.second->clearState(step);
         }
     }
 }

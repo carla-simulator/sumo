@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 # Eclipse SUMO, Simulation of Urban MObility; see https://eclipse.org/sumo
-# Copyright (C) 2011-2020 German Aerospace Center (DLR) and others.
+# Copyright (C) 2011-2023 German Aerospace Center (DLR) and others.
 # This program and the accompanying materials are made available under the
 # terms of the Eclipse Public License 2.0 which is available at
 # https://www.eclipse.org/legal/epl-2.0/
@@ -116,6 +116,13 @@ class EdgeDomain(Domain):
         """
         return self._getUniversal(tc.LAST_STEP_MEAN_SPEED, edgeID)
 
+    def getMeanFriction(self, edgeID):
+        """getMeanFriction(string) -> double
+
+        Returns the average friction [0..1] for the last time step over all lanes on the given edge.
+        """
+        return self._getUniversal(tc.VAR_FRICTION, edgeID)
+
     def getLastStepOccupancy(self, edgeID):
         """getLastStepOccupancy(string) -> double
 
@@ -180,6 +187,12 @@ class EdgeDomain(Domain):
         """
         return self._getUniversal(tc.LAST_STEP_PERSON_ID_LIST, edgeID)
 
+    def getPendingVehicles(self, edgeID):
+        """getPendingVehicles(string) -> list(string)
+        Returns a list of all vehicle ids waiting for insertion on this edge (with depart delay)
+        """
+        return self._getUniversal(tc.VAR_PENDING_VEHICLES, edgeID)
+
     def adaptTraveltime(self, edgeID, time, begin=None, end=None):
         """adaptTraveltime(string, double, double, double) -> None
 
@@ -234,3 +247,10 @@ class EdgeDomain(Domain):
         Set a new maximum speed (in m/s) for all lanes of the edge.
         """
         self._setCmd(tc.VAR_MAXSPEED, edgeID, "d", speed)
+
+    def setFriction(self, edgeID, friction):
+        """setFriction(string, double) -> None
+
+        Set a new friction value [0..1] for all lanes of the edge.
+        """
+        self._setCmd(tc.VAR_FRICTION, edgeID, "d", friction)

@@ -1,6 +1,6 @@
 /****************************************************************************/
 // Eclipse SUMO, Simulation of Urban MObility; see https://eclipse.org/sumo
-// Copyright (C) 2001-2020 German Aerospace Center (DLR) and others.
+// Copyright (C) 2001-2023 German Aerospace Center (DLR) and others.
 // This program and the accompanying materials are made available under the
 // terms of the Eclipse Public License 2.0 which is available at
 // https://www.eclipse.org/legal/epl-2.0/
@@ -31,6 +31,7 @@
 #include <utils/geom/Position.h>
 #include <utils/geom/PositionVector.h>
 #include <microsim/transportables/MSTransportable.h>
+#include <microsim/transportables/MSStageMoving.h>
 
 
 // ===========================================================================
@@ -45,7 +46,6 @@ class MSStoppingPlace;
 class SUMOVehicle;
 class MSVehicleType;
 class MSPModel;
-class MSTransportableStateAdapter;
 class MSMoveReminder;
 
 typedef std::vector<const MSEdge*> ConstMSEdgeVector;
@@ -69,7 +69,7 @@ public:
     public:
         /// constructor
         MSPersonStage_Walking(const std::string& personID, const ConstMSEdgeVector& route, MSStoppingPlace* toStop, SUMOTime walkingTime,
-                              double speed, double departPos, double arrivalPos, double departPosLat);
+                              double speed, double departPos, double arrivalPos, double departPosLat, int departLane = -1, const std::string& routeID = "");
 
         /// destructor
         ~MSPersonStage_Walking();
@@ -89,6 +89,9 @@ public:
         double getDistance() const {
             return walkDistance();
         }
+
+        /// @brief return index of current edge within route
+        int getRoutePosition() const;
 
         std::string getStageDescription(const bool isPerson) const {
             UNUSED_PARAMETER(isPerson);
@@ -119,7 +122,11 @@ public:
         virtual void routeOutput(const bool isPerson, OutputDevice& os, const bool withRouteLength, const MSStage* const previous) const;
 
         /// @brief move forward and return whether the person arrived
-        bool moveToNextEdge(MSTransportable* person, SUMOTime currentTime, MSEdge* nextInternal = nullptr);
+        bool moveToNextEdge(MSTransportable* person, SUMOTime currentTime, int prevDir, MSEdge* nextInternal = nullptr);
+
+        void activateEntryReminders(MSTransportable* person);
+
+        void activateLeaveReminders(MSTransportable* person, const MSLane* lane, double lastPos, SUMOTime t, bool arrived);
 
         /// @brief accessors to be used by MSPModel
         //@{
@@ -134,16 +141,13 @@ public:
         }
         //@}
 
-
     private:
-
         /// @brief compute total walking distance
-        double walkDistance() const;
+        double walkDistance(bool partial = false) const;
 
         /* @brief compute average speed if the total walking duration is given
          * @note Must be called when the previous stage changes myDepartPos from the default*/
         double computeAverageSpeed() const;
-
 
     private:
         /// the time the person is walking
@@ -155,20 +159,11 @@ public:
         /// @brief the MoveReminders encountered while walking
         std::vector<MSMoveReminder*> myMoveReminders;
 
-        class arrival_finder {
-        public:
-            /// constructor
-            explicit arrival_finder(SUMOTime time) : myTime(time) {}
+        /// @brief optional exit time tracking for vehroute output
+        std::vector<SUMOTime>* myExitTimes;
 
-            /// comparison operator
-            bool operator()(double t) const {
-                return myTime > t;
-            }
-
-        private:
-            /// the searched arrival time
-            SUMOTime myTime;
-        };
+        /// @brief distance walked on non-normal edges (i.e. walkingareas)
+        double myInternalDistance;
 
     private:
         /// @brief Invalidated copy constructor.
@@ -210,6 +205,9 @@ public:
             return myDist;
         }
 
+        /// @brief the speed of the person in this stage
+        double getSpeed() const;
+
         /** @brief Called on writing tripinfo output
         *
         * @param[in] os The stream to write the information into
@@ -249,7 +247,9 @@ public:
     /// destructor
     virtual ~MSPerson();
 
-    void checkAccess(const MSStage* const prior, const bool isDisembark = true);
+    /* @brief check whether an access stage must be added and return whether a
+     * stage was added */
+    bool checkAccess(const MSStage* const prior, const bool waitAtStop = true);
 
     /// @brief return the list of internal edges if this person is walking and the pedestrian model allows it
     const std::string& getNextEdge() const;
@@ -262,9 +262,16 @@ public:
         return false;
     }
 
-    inline double getSpeedFactor() const {
+    inline double getChosenSpeedFactor() const {
         return myChosenSpeedFactor;
     }
+
+    inline void setChosenSpeedFactor(const double factor) {
+        myChosenSpeedFactor = factor;
+    }
+
+    /// @brief whether the person is jammed as defined by the current pedestrian model
+    bool isJammed() const;
 
     /// @brief set new walk and replace the stages with relative indices in the interval [firstIndex, nextIndex[
     void reroute(ConstMSEdgeVector& newEdges, double departPos, int firstIndex, int nextIndex);
@@ -329,7 +336,7 @@ private:
     /// @brief An instance of a speed/position influencing instance; built in "getInfluencer"
     Influencer* myInfluencer;
 
-    const double myChosenSpeedFactor;
+    double myChosenSpeedFactor;
 
 private:
     /// @brief Invalidated copy constructor.

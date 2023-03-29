@@ -1,6 +1,6 @@
 /****************************************************************************/
 // Eclipse SUMO, Simulation of Urban MObility; see https://eclipse.org/sumo
-// Copyright (C) 2004-2020 German Aerospace Center (DLR) and others.
+// Copyright (C) 2004-2023 German Aerospace Center (DLR) and others.
 // This program and the accompanying materials are made available under the
 // terms of the Eclipse Public License 2.0 which is available at
 // https://www.eclipse.org/legal/epl-2.0/
@@ -25,7 +25,7 @@
 
 #include <config.h>
 
-#include <fx.h>
+#include "fxheader.h"
 
 #ifdef WIN32
 #define NOMINMAX
@@ -42,13 +42,6 @@
  */
 using namespace FX;
 #endif
-
-// Disable warnings on extern before template instantiation for the Microsoft compiler.
-// see "HOWTO: Exporting STL Components Inside & Outside of a Class" on the microsoft website
-#if defined(WIN32) && defined(_MSC_VER)
-#pragma warning (disable : 4231)
-#endif
-
 
 // implement CALLBACK for unix
 #ifndef CALLBACK
@@ -76,19 +69,16 @@ namespace FXEX {
 #define FXEXTERN
 #endif
 
-
 // Valid compression factors for Bzip and Gzip compression libraries
 #define COMPRESS_MAX 9
 #define COMPRESS_NORMAL 6
 #define COMPRESS_FAST 1
 #define COMPRESS_NONE 0
 
-
 // Win32 defines INFINITE to be -1, we might as well do it too.
 #ifndef WIN32
 # define INFINITE (-1)
 #endif
-
 
 // determine the newline charater(s)
 #ifdef WIN32
@@ -100,7 +90,6 @@ namespace FXEX {
 #ifndef FXNEWLINE
 #define FXNEWLINE "\n"
 #endif
-
 
 // make a short from two chars
 #define MKUSHORT(l,h)  ((((FX::FXuchar)(l))&0xff) | (((FX::FXuchar)(h))<<8))
@@ -121,35 +110,33 @@ namespace FXEX {
  * posted to the FOX users list, by Dirk Zoller. I cleaned them up a little.
  */
 #define FXDeclare(Class) \
-    FXDECLARE(Class)
+        FXDECLARE(Class)
 #define FXDeclareAbstract(Class) \
-    FXDECLARE_ABSTRACT(Class)
+        FXDECLARE_ABSTRACT(Class)
 #define FXDefMap(Class) \
-    FXDEFMAP(Class) Class##Map[]
+        FXDEFMAP(Class) Class##Map[]
 #define FXImplementAbstract(Class,Parent) \
-    FXIMPLEMENT_ABSTRACT(Class,Parent,Class##Map,ARRAYNUMBER(Class##Map))
+        FXIMPLEMENT_ABSTRACT(Class,Parent,Class##Map,ARRAYNUMBER(Class##Map))
 #define FXImplement(Class,Parent) \
-    FXIMPLEMENT(Class,Parent,Class##Map,ARRAYNUMBER(Class##Map))
+        FXIMPLEMENT(Class,Parent,Class##Map,ARRAYNUMBER(Class##Map))
 #define FXFuncDecl(Func) \
-    long on##Func (FXObject*,FXSelector,void*)
+        long on##Func (FXObject*,FXSelector,void*)
 #define FXFuncImpl(Class,Func,tgt,sel,ptr) \
-    long Class::on##Func (FXOject *tgt,FXSelector sel, void *ptr)
+        long Class::on##Func (FXOject *tgt,FXSelector sel, void *ptr)
 #define FXMapTypes(Class,FromType,ToType,Func) \
-    FXMAPTYPES(SEL_##FromType,SEL_##ToType,Class::on##Func)
+        FXMAPTYPES(SEL_##FromType,SEL_##ToType,Class::on##Func)
 #define FXMapType(Class,SelType,Func) \
-    FXMAPTYPE(SEL_##SelType,Class::on##Func)
+        FXMAPTYPE(SEL_##SelType,Class::on##Func)
 #define FXMapFuncs(Class,SelType,FromId,ToId,Func) \
-    FXMAPFUNCS(SEL_##SelType,Class::ID_##FromId,Class::ID_##ToId,Class::on#Func)
+        FXMAPFUNCS(SEL_##SelType,Class::ID_##FromId,Class::ID_##ToId,Class::on#Func)
 #define FXMapFunc(Class,SelType,Id,Func) \
-    FXMAPFUNC(SEL_##SelType,Class::ID_##Id,Class::on##Func)
-
+        FXMAPFUNC(SEL_##SelType,Class::ID_##Id,Class::on##Func)
 
 /// Zed A Shaw posted these (09/09/02), or a variation of them
 #define FXSEND(tgt,sel,msg,ptr) \
-    (tgt->handle(this,FXSEL(sel,msg),ptr)
+        (tgt->handle(this,FXSEL(sel,msg),ptr)
 #define FXROUTE(src,tgt,sel,msg,ptr) \
-    (tgt->handle(src,FXSEL(sel,msg),ptr)
-
+        (tgt->handle(src,FXSEL(sel,msg),ptr)
 
 // debugging macros
 #ifndef NDEBUG
@@ -161,7 +148,6 @@ namespace FXEX {
 #  define FXMETHOD(methodname)
 #  define FXDTOR()
 #endif
-
 
 // New selector types
 enum {
@@ -187,7 +173,6 @@ enum {
     SEL_THREAD_EVENT
 };
 
-
 /// IO status definitions
 typedef FXint FXIOStatus;
 enum {
@@ -198,17 +183,16 @@ enum {
     FXIOStatusLast
 };
 #ifndef INVALID_HANDLE
-#  ifdef WIN32
-#    define INVALID_HANDLE INVALID_HANDLE_VALUE
-#  else
-#    define INVALID_HANDLE -1
-#  endif
+#ifdef WIN32
+#define INVALID_HANDLE INVALID_HANDLE_VALUE
+#else
+#define INVALID_HANDLE -1
+#endif
 #endif
 
 #ifndef VALID_RESULT
-#  define VALID_RESULT 0
+#define VALID_RESULT 0
 #endif
-
 
 /// IO state definitions
 typedef FXint FXIOState;
@@ -225,7 +209,6 @@ enum {
     FXIOStateDuplicated,
     FXIOStateLast
 };
-
 
 /**
  * Socket definitions, for types and families
@@ -249,7 +232,6 @@ enum FXSocketFamily {
     // to localhost, internet domain for internet sockets
     FXSocketFamilyUnix = FXSocketFamilyLocal
 };
-
 
 /**
  * File permissions:
@@ -293,22 +275,20 @@ enum FXFilePermission {
     FILEPERM_DEFAULT_EXEC = FILEPERM_READ | FILEPERM_USER_WRITE | FILEPERM_GROUP_WRITE | FILEPERM_EXEC // permissions suitable for all users to execute a file
 };
 
-
 // thread stuff
 #ifndef WIN32
 typedef void* FXThreadHandle;       // handle to a thread
 typedef void* FXThreadMutex;        // handle to a mutex
 typedef void* FXThreadCondition;    // handle to a condition variable
 typedef void* FXThreadSemaphore;    // handle to a semaphore
-typedef FXInputHandle* FXThreadEventHandle;  // handle to a thread event object
+typedef FXInputHandle* MFXThreadEventHandle;  // handle to a thread event object
 #else
 typedef HANDLE FXThreadHandle;       // handle to a thread
 typedef HANDLE FXThreadMutex;        // handle to a mutex
 typedef HANDLE FXThreadCondition;    // handle to a condition variable
 typedef HANDLE FXThreadSemaphore;    // handle to a semaphore
-typedef FXInputHandle FXThreadEventHandle;  // handle to a thread event object
+typedef FXInputHandle MFXThreadEventHandle;  // handle to a thread event object
 #endif
-
 
 // dynamic library loading
 #ifndef WIN32
@@ -317,31 +297,10 @@ typedef void*      FXDLLHandle;  // handle to a dynamically loaded file
 typedef HMODULE      FXDLLHandle;  // handle to a dynamically loaded file
 #endif
 
-
-// database interface handle
-//typedef void*                   FXDatabaseHandle;   // handle to a database connection
-
-
 namespace FXUtils {
-
-////////////// global variables ////////////////////
-
 /// Version number that the library version is compiled with
 extern FXAPI const FXuchar fxexversion[3];
-
-
-////////////// global functions ////////////////////
-
-/// time conversion routines
-#ifdef WIN32
-static void get_time_now(unsigned long* abs_sec, unsigned long* abs_nsec);
-static DWORD get_timeout(unsigned long secs, unsigned long nsecs, DWORD default_to);
-#else
-void convert_timeval(struct timeval* tv, FXuint ms);
-void convert_timespec(struct timespec* ts, FXuint ms);
-#endif
-
-} // namespace FXUtils
+}
 } // namespace FXEX
 
 #endif // FXEXDEFS_H

@@ -1,0 +1,4 @@
+Error: Could not build routeProbe with ID 'routeProbe_0' in netedit; attribute begin cannot be negative.
+Error: Attribute 'begin' in definition of routeProbe 'routeProbe_1' is not a valid time value.
+Error: Could not build routeProbe with ID 'routeProbe_2' in netedit; attribute begin cannot be negative.
+Error: Loading of /home/palcraft/.texttest/tmp/netedit.gui.09Feb092829.15607/netedit.gui/additionalelements/routeprobe/load/begin/additionals.add.xml failed.

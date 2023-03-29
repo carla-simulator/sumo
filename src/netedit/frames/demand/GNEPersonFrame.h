@@ -1,6 +1,6 @@
 /****************************************************************************/
 // Eclipse SUMO, Simulation of Urban MObility; see https://eclipse.org/sumo
-// Copyright (C) 2001-2020 German Aerospace Center (DLR) and others.
+// Copyright (C) 2001-2023 German Aerospace Center (DLR) and others.
 // This program and the accompanying materials are made available under the
 // terms of the Eclipse Public License 2.0 which is available at
 // https://www.eclipse.org/legal/epl-2.0/
@@ -18,8 +18,16 @@
 // The Widget for add person elements
 /****************************************************************************/
 #pragma once
+#include <config.h>
 
+#include <netedit/elements/demand/GNERouteHandler.h>
+#include <netedit/frames/GNEAttributesCreator.h>
+#include <netedit/frames/GNEDemandSelector.h>
 #include <netedit/frames/GNEFrame.h>
+#include <netedit/frames/GNENeteditAttributes.h>
+#include <netedit/frames/GNEPathCreator.h>
+#include <netedit/frames/GNEPathLegendModule.h>
+#include <netedit/frames/GNETagSelector.h>
 
 
 // ===========================================================================
@@ -32,10 +40,10 @@ class GNEPersonFrame : public GNEFrame {
 
 public:
     /**@brief Constructor
-     * @brief parent FXHorizontalFrame in which this GNEFrame is placed
+     * @brief viewParent GNEViewParent in which this GNEFrame is placed
      * @brief viewNet viewNet that uses this GNEFrame
      */
-    GNEPersonFrame(FXHorizontalFrame* horizontalFrameParent, GNEViewNet* viewNet);
+    GNEPersonFrame(GNEViewParent* viewParent, GNEViewNet* viewNet);
 
     /// @brief Destructor
     ~GNEPersonFrame();
@@ -48,45 +56,54 @@ public:
 
     /**@brief add vehicle element
      * @param objectsUnderCursor collection of objects under cursor after click over view
-     * @return true if vehicle was sucesfully added
+     * @return true if vehicle was successfully added
      */
     bool addPerson(const GNEViewNetHelper::ObjectsUnderCursor& objectsUnderCursor, const GNEViewNetHelper::MouseButtonKeyPressed& mouseButtonKeyPressed);
 
-    /// @brief get PathCreator modul
-    GNEFrameModuls::PathCreator* getPathCreator() const;
+    /// @brief get GNEPathCreator module
+    GNEPathCreator* getPathCreator() const;
 
 protected:
-    /// @brief Tag selected in TagSelector
+    /// @brief Tag selected in GNETagSelector
     void tagSelected();
 
     /// @brief selected demand element in DemandElementSelector
     void demandElementSelected();
 
     /// @brief create path
-    void createPath();
+    bool createPath(const bool useLastRoute);
 
 private:
+    /// @brief route handler
+    GNERouteHandler myRouteHandler;
+
+    /// @brief person base object
+    CommonXMLStructure::SumoBaseObject* myPersonBaseObject;
+
     /// @brief person tag selector (used to select diffent kind of persons)
-    GNEFrameModuls::TagSelector* myPersonTagSelector;
+    GNETagSelector* myPersonTagSelector;
 
     /// @brief Person Type selectors
-    GNEFrameModuls::DemandElementSelector* myPTypeSelector;
+    DemandElementSelector* myTypeSelector;
 
     /// @brief person plan selector (used to select diffent kind of person plan)
-    GNEFrameModuls::TagSelector* myPersonPlanTagSelector;
+    GNETagSelector* myPersonPlanTagSelector;
 
     /// @brief internal vehicle attributes
-    GNEFrameAttributesModuls::AttributesCreator* myPersonAttributes;
+    GNEAttributesCreator* myPersonAttributes;
 
     /// @brief internal person plan attributes
-    GNEFrameAttributesModuls::AttributesCreator* myPersonPlanAttributes;
+    GNEAttributesCreator* myPersonPlanAttributes;
 
     /// @brief Netedit parameter
-    GNEFrameAttributesModuls::NeteditAttributes* myNeteditAttributes;
+    GNENeteditAttributes* myNeteditAttributes;
 
     /// @brief edge path creator (used for Walks, rides and trips)
-    GNEFrameModuls::PathCreator* myPathCreator;
+    GNEPathCreator* myPathCreator;
 
-    /// @brief build person and return it (note: function includes a call to p_begin(...), but NOT a call to p_end(...))
+    /// @brief path legend modul
+    GNEPathLegendModule* myPathLegend;
+
+    /// @brief build person and return it (note: function includes a call to begin(...), but NOT a call to end(...))
     GNEDemandElement* buildPerson();
 };

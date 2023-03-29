@@ -1,6 +1,6 @@
 /****************************************************************************/
 // Eclipse SUMO, Simulation of Urban MObility; see https://eclipse.org/sumo
-// Copyright (C) 2001-2020 German Aerospace Center (DLR) and others.
+// Copyright (C) 2001-2023 German Aerospace Center (DLR) and others.
 // This program and the accompanying materials are made available under the
 // terms of the Eclipse Public License 2.0 which is available at
 // https://www.eclipse.org/legal/epl-2.0/
@@ -53,9 +53,22 @@ GUIBasePersonHelper::drawAction_drawAsTriangle(const double angle, const double 
 
 
 void
-GUIBasePersonHelper::drawAction_drawAsCircle(const double length, const double width) {
-    glScaled(length, width, 1);
-    GLHelper::drawFilledCircle(0.8);
+GUIBasePersonHelper::drawAction_drawAsCircle(const double angle, const double length, const double width, double detail) {
+    glRotated(RAD2DEG(angle), 0, 0, 1);
+    const double maxDim = MAX2(length, width);
+    const int steps = MIN2(MAX2(8, int(detail / 10)), 64);
+    glScaled(maxDim, maxDim, 1);
+    glTranslated(-0.8, 0, 0);
+    GLHelper::drawFilledCircle(0.8, steps);
+}
+
+
+void
+GUIBasePersonHelper::drawAction_drawAsCenteredCircle(const double length, const double width, double detail) {
+    const double maxDim = MAX2(length, width);
+    const int steps = MIN2(MAX2(8, int(detail / 10)), 64);
+    glScaled(maxDim, maxDim, 1);
+    GLHelper::drawFilledCircle(0.8, steps);
 }
 
 
@@ -66,6 +79,8 @@ GUIBasePersonHelper::drawAction_drawAsPoly(const double angle, const double leng
     glScaled(length, width, 1);
     RGBColor lighter = GLHelper::getColor().changedBrightness(51);
     glTranslated(0, 0, .045);
+    // front is at the nose
+    glTranslated(-0.5, 0, 0);
     // head
     glScaled(1, 0.5, 1.);
     GLHelper::drawFilledCircle(0.5);
@@ -90,7 +105,7 @@ GUIBasePersonHelper::drawAction_drawAsImage(const double angle, const double len
         const SUMOVehicleShape guiShape, const double exaggeration) {
     // first check if filename isn't empty
     if (file != "") {
-        if (guiShape == SVS_PEDESTRIAN) {
+        if (guiShape == SUMOVehicleShape::PEDESTRIAN) {
             glRotated(RAD2DEG(angle + M_PI / 2.), 0, 0, 1);
         }
         int textureID = GUITexturesHelper::getTextureID(file);

@@ -96,6 +96,14 @@ font-weight: 700;
 float: right;
 }
 
+.breadcrumbs li {
+display: inline-block;
+}
+
+ul.breadcrumbs {
+padding-left: 0 !important;
+}
+
 .table-striped tbody tr:nth-of-type(2n+1) {
 background-color: rgba(0,0,0,.05) !important; /* for incompatible Browsers  */
 background-color: var(--table-stripe-color) !important;
@@ -118,7 +126,7 @@ background-color: var(--toc-bg-color) !important;
 background: #fff; /* for incompatible Browsers  */
 background: var(--main-area-bg-color) !important;
 padding:20px;
-border-radius:8px;
+border-radius:8px 0 0 8px;
 margin-top:5px;
 }
 
@@ -454,6 +462,13 @@ background-color: #1b6618;
 font-size: 1rem !important;
 }
 
+.navbar-light .navbar-toggler {
+color: #495057; /* for incompatible Browsers  */
+color: var(--body-color);
+border-color: #495057; /* for incompatible Browsers  */
+border-color: var(--body-color);
+}
+
 .dropdown-menu {
 background-color: #abdd8b;
 }
@@ -514,6 +529,7 @@ border-radius: 3px;
 border: 1px solid #ddd !important;
 padding: 12px 8px;
 color: var(--hljs-color);
+min-height: 37px;
 }
 
 .hljs-tag,
@@ -550,17 +566,18 @@ background: var(--hljs-addition-bg);
 h1, h2 {
 border-bottom: 1px solid #919699;
 padding-bottom: 1px;
-font-weight: 400;
 margin-bottom: .4em;
 }
 
 h1 {
-font-size: 1.8em;
+font-size: 1.9em;
+font-weight: 700;
 }
 
 h2 {
 font-size: 1.5em;
 margin-top: 1em;
+font-weight: 400;
 }
 
 h3 {
@@ -620,11 +637,21 @@ td {
 border: 1px solid #dee2e6;
 }
 
+td:nth-child(1) {  
+word-break: keep-all !important;
+white-space: nowrap;
+}
+
+.cellNoWrap {
+white-space:nowrap !important;
+}
+
 thead th {
 vertical-align: center;
 text-align: center;
 background: #dfd; /* for incompatible Browsers  */
 background: var(--thead-color);
+word-break: keep-all !important;
 }
 
 .table th, .table td {
@@ -639,6 +666,9 @@ color: var(--a-color);
 @media (max-width: 768px) {
 .col-md-3 {
 max-width: 800px;
+}
+.main-area {
+border-radius:0;
 }
 }
 
@@ -698,4 +728,53 @@ color: #338033;
 .task-list-item {
 position: relative;
 list-style-type: none;
+}
+
+/* COPY CODE BLOCKS - based on https://www.roboleary.net/2022/01/13/copy-code-to-clipboard-blog.html */
+.codehilite > pre {
+position:relative;
+}
+
+.copyCodeButton {
+position:absolute;
+top:5px;
+right:5px;
+
+padding:.15rem;
+background-color:#bcbabb30;
+color: #1e1e1e;
+border:ridge 1px #7b7b7c;
+border-radius:5px;
+text-shadow:#c4c4c4 0 0 2px;
+}
+
+.copyCodeButton:hover {
+cursor:pointer;
+background-color:#bcbabb;
+}
+/* ---- */
+
+.tutorial-video {
+width: 560px;
+/* height: 315px; */
+}
+
+.video-container {
+position: relative;
+text-decoration: none;
+display: inline-block;
+text-align: center;
+}
+
+.centered {
+position: absolute;
+top: 50%;
+left: 50%;
+transform: translate(-50%, -50%);
+}
+
+.video-text {
+background-color:rgba(0, 0, 0, 0.5);
+color: #fff;
+padding: 3px;
 }

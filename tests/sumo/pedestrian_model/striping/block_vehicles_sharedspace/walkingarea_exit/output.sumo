@@ -1,13 +1,13 @@
-Loading net-file from 'net.net.xml' ... done (3ms).
+Loading net-file from 'net.net.xml' ... done (2ms).
 Loading done.
-Simulation version v1_4_0+0445-9b28cc45c1 started with time: 0.00
-Simulation ended at time: 237.00
+Simulation version v1_16_0+0848-f2e27d9 started with time: 0.00.
+Simulation ended at time: 232.00
 Reason: All vehicles have left the simulation.
 Performance: 
- Duration: 43ms
- Real time factor: 5511.63
- UPS: 39930.232558
- UPS-Persons: 31674.418605
+ Duration: 0.02s
+ Real time factor: 14500
+ UPS: 50187.500000
+ UPS-Persons: 82937.500000
 Vehicles: 
  Inserted: 20
  Running: 0
@@ -15,21 +15,21 @@ Vehicles:
 Persons: 
  Inserted: 34
  Running: 0
-Statistics (avg):
+Statistics (avg of 20):
  RouteLength: 194.78
- Speed: 3.33
- Duration: 85.85
- WaitingTime: 36.60
- TimeLoss: 71.26
+ Speed: 5.76
+ Duration: 40.15
+ WaitingTime: 13.60
+ TimeLoss: 25.65
  DepartDelay: 0.00
 Pedestrian Statistics (avg of 34 walks):
  RouteLength: 53.20
- Duration: 40.06
- TimeLoss: 1.75
+ Duration: 39.03
+ TimeLoss: 0.72
 
-DijkstraRouter answered 34 queries and explored 8.47 edges on average.
-DijkstraRouter spent 0ms answering queries (0.00ms on average).
+DijkstraRouter answered 34 queries and explored 7.47 edges on average.
+DijkstraRouter spent 0.00s answering queries (0.00ms on average).
 DijkstraRouter answered 34 queries and explored 16.00 edges on average.
-DijkstraRouter spent 0ms answering queries (0.00ms on average).
+DijkstraRouter spent 0.00s answering queries (0.03ms on average).
 DijkstraRouter answered 20 queries and explored 3.00 edges on average.
-DijkstraRouter spent 0ms answering queries (0.00ms on average).
+DijkstraRouter spent 0.00s answering queries (0.00ms on average).

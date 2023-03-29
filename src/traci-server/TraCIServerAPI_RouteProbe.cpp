@@ -1,6 +1,6 @@
 /****************************************************************************/
 // Eclipse SUMO, Simulation of Urban MObility; see https://eclipse.org/sumo
-// Copyright (C) 2001-2020 German Aerospace Center (DLR) and others.
+// Copyright (C) 2001-2023 German Aerospace Center (DLR) and others.
 // This program and the accompanying materials are made available under the
 // terms of the Eclipse Public License 2.0 which is available at
 // https://www.eclipse.org/legal/epl-2.0/
@@ -15,7 +15,7 @@
 /// @author  Jakob Erdmann
 /// @date    16.03.2020
 ///
-// APIs for getting/setting busstop values via TraCI
+// APIs for getting/setting RouteProbe values via TraCI
 /****************************************************************************/
 #include <config.h>
 
@@ -37,33 +37,8 @@ TraCIServerAPI_RouteProbe::processGet(TraCIServer& server, tcpip::Storage& input
     const std::string id = inputStorage.readString();
     server.initWrapper(libsumo::RESPONSE_GET_ROUTEPROBE_VARIABLE, variable, id);
     try {
-        if (!libsumo::RouteProbe::handleVariable(id, variable, &server)) {
-            switch (variable) {
-                case libsumo::VAR_PARAMETER: {
-                    std::string paramName = "";
-                    if (!server.readTypeCheckingString(inputStorage, paramName)) {
-                        return server.writeErrorStatusCmd(libsumo::CMD_GET_ROUTEPROBE_VARIABLE, "Retrieval of a parameter requires its name.", outputStorage);
-                    }
-                    server.getWrapperStorage().writeUnsignedByte(libsumo::TYPE_STRING);
-                    server.getWrapperStorage().writeString(libsumo::RouteProbe::getParameter(id, paramName));
-                    break;
-                }
-                case libsumo::VAR_PARAMETER_WITH_KEY: {
-                    std::string paramName = "";
-                    if (!server.readTypeCheckingString(inputStorage, paramName)) {
-                        return server.writeErrorStatusCmd(libsumo::CMD_GET_ROUTEPROBE_VARIABLE, "Retrieval of a parameter requires its name.", outputStorage);
-                    }
-                    server.getWrapperStorage().writeUnsignedByte(libsumo::TYPE_COMPOUND);
-                    server.getWrapperStorage().writeInt(2);  /// length
-                    server.getWrapperStorage().writeUnsignedByte(libsumo::TYPE_STRING);
-                    server.getWrapperStorage().writeString(paramName);
-                    server.getWrapperStorage().writeUnsignedByte(libsumo::TYPE_STRING);
-                    server.getWrapperStorage().writeString(libsumo::RouteProbe::getParameter(id, paramName));
-                    break;
-                }
-                default:
-                    return server.writeErrorStatusCmd(libsumo::CMD_GET_ROUTEPROBE_VARIABLE, "Get RouteProbe Variable: unsupported variable " + toHex(variable, 2) + " specified", outputStorage);
-            }
+        if (!libsumo::RouteProbe::handleVariable(id, variable, &server, &inputStorage)) {
+            return server.writeErrorStatusCmd(libsumo::CMD_GET_ROUTEPROBE_VARIABLE, "Get RouteProbe Variable: unsupported variable " + toHex(variable, 2) + " specified", outputStorage);
         }
     } catch (libsumo::TraCIException& e) {
         return server.writeErrorStatusCmd(libsumo::CMD_GET_ROUTEPROBE_VARIABLE, e.what(), outputStorage);

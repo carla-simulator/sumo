@@ -18,6 +18,7 @@ set(utils_common_STAT_SRCS
    RandHelper.cpp
    RGBColor.cpp
    RGBColor.h
+   ScopedLocker.h
    StaticCommand.h
    StdDefs.h
    StdDefs.cpp
@@ -41,7 +42,6 @@ set(utils_common_STAT_SRCS
    ValueTimeLine.h
    VectorHelper.h
    WrappingCommand.h
-   SwarmDebug.h
 )
 
 add_library(utils_common STATIC ${utils_common_STAT_SRCS})

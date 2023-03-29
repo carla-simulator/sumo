@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 # Eclipse SUMO, Simulation of Urban MObility; see https://eclipse.org/sumo
-# Copyright (C) 2019-2020 German Aerospace Center (DLR) and others.
+# Copyright (C) 2019-2023 German Aerospace Center (DLR) and others.
 # This program and the accompanying materials are made available under the
 # terms of the Eclipse Public License 2.0 which is available at
 # https://www.eclipse.org/legal/epl-2.0/
@@ -23,26 +23,25 @@ import os
 import subprocess
 import sys
 import time
-if 'SUMO_HOME' in os.environ:
-    tools = os.path.join(os.environ['SUMO_HOME'], 'tools')
-    sys.path.append(tools)
-else:
-    sys.exit("please declare environment variable 'SUMO_HOME'")
+if "SUMO_HOME" in os.environ:
+    sys.path.append(os.path.join(os.environ["SUMO_HOME"], "tools"))
 from sumolib import checkBinary  # noqa
 
 javac = "javac"
+java = "java"
 if 'JAVA_HOME' in os.environ:
     javac = os.path.join(os.environ['JAVA_HOME'], "bin", javac)
+    java = os.path.join(os.environ['JAVA_HOME'], "bin", java)
 
 traasJar = os.path.join(os.environ['SUMO_HOME'], "bin", "TraaS.jar")
 assert(os.path.exists(traasJar))
 
 for f in sys.argv[1:]:
     subprocess.check_call([javac, "-cp", traasJar, "data/%s.java" % f])
-procs = [subprocess.Popen(["java", "-cp", os.pathsep.join([traasJar, "data"]), sys.argv[1],
+procs = [subprocess.Popen([java, "-cp", os.pathsep.join([traasJar, "data"]), sys.argv[1],
                            checkBinary('sumo'), "data/config.sumocfg"])]
 if len(sys.argv) > 2:
     time.sleep(10)  # give sumo some time to start
-    procs += [subprocess.Popen(["java", "-cp", os.pathsep.join([traasJar, "data"]), f]) for f in sys.argv[2:]]
+    procs += [subprocess.Popen([java, "-cp", os.pathsep.join([traasJar, "data"]), f]) for f in sys.argv[2:]]
 for p in procs:
     p.wait()

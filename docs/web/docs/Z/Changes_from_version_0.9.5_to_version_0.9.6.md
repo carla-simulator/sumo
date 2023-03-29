@@ -1,7 +1,8 @@
 ---
-title: Z/Changes from version 0.9.5 to version 0.9.6
-permalink: /Z/Changes_from_version_0.9.5_to_version_0.9.6/
+title: Changes from version 0.9.5 to version 0.9.6
 ---
+
+**Release date: 23.05.2007**
 
 - polyconvert: possibility to prune the polygons to import on a
   bounding box added

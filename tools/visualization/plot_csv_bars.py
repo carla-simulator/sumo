@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 # Eclipse SUMO, Simulation of Urban MObility; see https://eclipse.org/sumo
-# Copyright (C) 2008-2020 German Aerospace Center (DLR) and others.
+# Copyright (C) 2008-2023 German Aerospace Center (DLR) and others.
 # This program and the accompanying materials are made available under the
 # terms of the Eclipse Public License 2.0 which is available at
 # https://www.eclipse.org/legal/epl-2.0/
@@ -29,7 +29,6 @@ import os
 import sys
 
 sys.path.append(os.path.dirname(os.path.dirname(os.path.realpath(__file__))))
-import sumolib  # noqa
 from sumolib.visualization import helpers  # noqa
 import matplotlib.pyplot as plt  # noqa
 
@@ -66,10 +65,8 @@ def main(args=None):
     options, remaining_args = optParser.parse_args(args=args)
 
     if options.input is None:
-        print("Error: at least one csv file must be given")
-        sys.exit(1)
+        raise ValueError("Error: at least one csv file must be given")
 
-    fd = open(options.input)
     labels = []
     vlabels = []
     vals = []
@@ -79,19 +76,20 @@ def main(args=None):
     s = options.width + options.space
     t = options.width / 2. + options.space / 2.
     x = options.space / 2.
-    for line in fd:
-        v = line.strip().split(";")
-        if len(v) < 2:
-            continue
-        labels.append(v[0].replace("\\n", "\n"))
-        value = float(v[options.column]) / options.norm
-        vals.append(value)
-        vlabels.append(str(value) + "%")
-        total += value
-        xs.append(x)
-        ts.append(t)
-        x = x + s
-        t = t + s
+    with open(options.input) as fd:
+        for line in fd:
+            v = line.strip().split(";")
+            if len(v) < 2:
+                continue
+            labels.append(v[0].replace("\\n", "\n"))
+            value = float(v[options.column]) / options.norm
+            vals.append(value)
+            vlabels.append(str(value) + "%")
+            total += value
+            xs.append(x)
+            ts.append(t)
+            x = x + s
+            t = t + s
 
     if options.revert:
         labels.reverse()
@@ -128,4 +126,7 @@ def main(args=None):
 
 
 if __name__ == "__main__":
-    sys.exit(main(sys.argv))
+    try:
+        main(sys.argv)
+    except ValueError as e:
+        sys.exit(e)

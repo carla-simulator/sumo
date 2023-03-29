@@ -1,6 +1,6 @@
 /****************************************************************************/
 // Eclipse SUMO, Simulation of Urban MObility; see https://eclipse.org/sumo
-// Copyright (C) 2004-2020 German Aerospace Center (DLR) and others.
+// Copyright (C) 2004-2023 German Aerospace Center (DLR) and others.
 // This program and the accompanying materials are made available under the
 // terms of the Eclipse Public License 2.0 which is available at
 // https://www.eclipse.org/legal/epl-2.0/
@@ -59,7 +59,7 @@ class OutputDevice;
  * @see MSDetectorFileOutput
  */
 class MSInductLoop
-    : public MSMoveReminder, public MSDetectorFileOutput, public Parameterised {
+    : public MSMoveReminder, public MSDetectorFileOutput {
 public:
     /**
      * @brief Constructor.
@@ -74,7 +74,10 @@ public:
      */
     MSInductLoop(const std::string& id, MSLane* const lane,
                  double positionInMeters,
+                 double length, std::string name,
                  const std::string& vTypes,
+                 const std::string& nextEdges,
+                 int detectPersons,
                  const bool needLocking);
 
 
@@ -82,16 +85,26 @@ public:
     ~MSInductLoop();
 
 
-    /** @brief Resets all generated values to allow computation of next interval
-     */
+    /// @brief Resets all generated values to allow computation of next interval
     virtual void reset();
 
+    /// @brief get name
+    std::string getName() const {
+        return myName;
+    }
 
     /** @brief Returns the position of the detector on the lane
      * @return The detector's position in meters
      */
     double getPosition() const {
         return myPosition;
+    }
+
+    /** @brief Returns the end position of the detector on the lane
+     * @return The detector's end position in meters
+     */
+    double getEndPosition() const {
+        return myEndPosition;
     }
 
 
@@ -183,7 +196,6 @@ public:
      */
     double getOccupancy() const;
 
-
     /** @brief Returns the number of vehicles that have passed the detector
      *
      * If a vehicle is on the detector, 1 is returned. If a vehicle has passed the detector
@@ -203,6 +215,10 @@ public:
      */
     std::vector<std::string> getVehicleIDs(const int offset) const;
 
+    double getIntervalOccupancy(bool lastInterval = false) const;
+    double getIntervalMeanSpeed(bool lastInterval = false) const;
+    int getIntervalVehicleNumber(bool lastInterval = false) const;
+    std::vector<std::string> getIntervalVehicleIDs(bool lastInterval = false) const;
 
     /** @brief Returns the time since the last vehicle left the detector
      *
@@ -210,11 +226,24 @@ public:
      */
     double getTimeSinceLastDetection() const;
 
+    /** @brief Returns the time of continous occupation by the same vehicle in seconds
+     * or 0 if there is no vehicle on the detector
+     */
+    double getOccupancyTime() const;
+
     ///@brief return last time a vehicle was on the detector
     SUMOTime getLastDetectionTime() const;
+
+    double getOverrideTime() const {
+        return myOverrideTime;
+    }
     //@}
 
 
+    /* @brief Persistently overrides the measured time since detection with the given value.
+     * Setting a negative value resets the override
+     */
+    void overrideTimeSinceDetection(double time);
 
     /// @name Methods inherited from MSDetectorFileOutput.
     /// @{
@@ -237,6 +266,13 @@ public:
      * @exception IOError If an error on writing occurs (!!! not yet implemented)
      */
     void writeXMLDetectorProlog(OutputDevice& dev) const;
+
+    /** @brief Updates the detector (computes values)
+     * only used when detecting persons
+     *
+     * @param[in] step The current time step
+     */
+    void detectorUpdate(const SUMOTime step);
     /// @}
 
 
@@ -282,7 +318,7 @@ public:
      *            (the latter gives a more complete picture but may include vehicles in multiple steps even if they did not stay on the detector)
      * @return The list of vehicles
      */
-    std::vector<VehicleData> collectVehiclesOnDet(SUMOTime t, bool includeEarly = false, bool leaveTime = false, bool forOccupancy = false) const;
+    std::vector<VehicleData> collectVehiclesOnDet(SUMOTime t, bool includeEarly = false, bool leaveTime = false, bool forOccupancy = false, bool lastInterval = false) const;
 
     /// @brief allows for special color in the gui version
     virtual void setSpecialColor(const RGBColor* /*color*/) {};
@@ -290,7 +326,7 @@ public:
     virtual void setVisible(bool /*show*/) {};
 
     /** @brief Remove all vehicles before quick-loading state */
-    virtual void clearState();
+    virtual void clearState(SUMOTime time);
 
 protected:
     /// @name Function for summing up values
@@ -307,16 +343,30 @@ protected:
     }
     ///@}
 
+    /// @brief helper function for mapping person movement
+    void notifyMovePerson(MSTransportable* p, int dir, double pos);
 
 protected:
+    /// @brief detecto name
+    std::string myName;
+
     /// @brief Detector's position on lane [m]
     const double myPosition;
+
+    /// @brief Detector's end position (defaults to myPosition)
+    const double myEndPosition;
 
     /// @brief whether internals need to be guarded against concurrent access (GUI or multi threading)
     const bool myNeedLock;
 
     /// @brief Leave-time of the last vehicle detected [s]
     double myLastLeaveTime;
+
+    /// @brief overrides the time since last detection
+    double myOverrideTime;
+
+    /// @brief records the time at which overrideTimeSinceDetection was activated
+    double myOverrideEntryTime;
 
     /// @brief The number of entered vehicles
     int myEnteredVehicleNumber;
@@ -332,6 +382,9 @@ protected:
 
     /// @brief Data for vehicles that have entered the detector (vehicle -> enter time)
     std::map<SUMOTrafficObject*, double> myVehiclesOnDet;
+
+    SUMOTime myLastIntervalEnd;
+    SUMOTime myLastIntervalBegin;
 
 private:
     /// @brief Invalidated copy constructor.

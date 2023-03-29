@@ -1,5 +1,5 @@
 # Eclipse SUMO, Simulation of Urban MObility; see https://eclipse.org/sumo
-# Copyright (C) 2013-2020 German Aerospace Center (DLR) and others.
+# Copyright (C) 2013-2023 German Aerospace Center (DLR) and others.
 # This program and the accompanying materials are made available under the
 # terms of the Eclipse Public License 2.0 which is available at
 # https://www.eclipse.org/legal/epl-2.0/
@@ -14,6 +14,7 @@
 # @author  Daniel Krajzewicz
 # @author  Laura Bieker
 # @author  Michael Behrisch
+# @author  Mirko Barthauer
 # @date    2013-11-11
 
 from __future__ import absolute_import
@@ -32,6 +33,11 @@ from matplotlib.ticker import FuncFormatter as ff  # noqa
 from matplotlib.collections import LineCollection  # noqa
 
 # http://datadebrief.blogspot.de/2010/10/plotting-sunrise-sunset-times-in-python.html
+
+
+def m2hm0(x, i):
+    h = int(x / 3600)
+    return '%(h)02d' % {'h': h}
 
 
 def m2hm1(x, i):
@@ -55,13 +61,21 @@ def addPlotOptions(optParser):
     optParser.add_option("-l", "--labels", dest="labels",
                          default=None, help="Defines the labels to use")
     optParser.add_option("--xlim", dest="xlim",
-                         default=None, help="Defines x-limits of the figure <XMIN>,<XMAX>")
+                         default=None, help="Defines x-limits of the figure XMIN,XMAX")
     optParser.add_option("--ylim", dest="ylim",
-                         default=None, help="Defines y-limits of the figure <YMIN>,<YMAX>")
+                         default=None, help="Defines y-limits of the figure YMIN,YMAX")
     optParser.add_option("--xticks", dest="xticks",
-                         default=None, help="Set x-axis ticks <XMIN>,<XMAX>,<XSTEP>,<XSIZE> or <XSIZE>")
+                         default=None, help="Set x-axis ticks XMIN,XMAX,XSTEP,XSIZE or XSIZE")
     optParser.add_option("--yticks", dest="yticks",
-                         default=None, help="Set y-axis ticks <YMIN>,<YMAX>,<YSTEP>,<YSIZE> or <YSIZE>")
+                         default=None, help="Set y-axis ticks YMIN,YMAX,YSTEP,YSIZE or YSIZE")
+    optParser.add_option("--xticks-file", dest="xticksFile",
+                         default=None, help="Load x-axis ticks from file (LABEL or FLOAT:LABEL per line)")
+    optParser.add_option("--yticks-file", dest="yticksFile",
+                         default=None, help="Load y-axis ticks from file (LABEL or FLOAT:LABEL per line)")
+    optParser.add_option("--xtime0", dest="xtime0", action="store_true",
+                         default=False, help="Use a time formatter for x-ticks (hh)")
+    optParser.add_option("--ytime0", dest="ytime0", action="store_true",
+                         default=False, help="Use a time formatter for y-ticks (hh)")
     optParser.add_option("--xtime1", dest="xtime1", action="store_true",
                          default=False, help="Use a time formatter for x-ticks (hh:mm)")
     optParser.add_option("--ytime1", dest="ytime1", action="store_true",
@@ -75,29 +89,37 @@ def addPlotOptions(optParser):
     optParser.add_option("--ygrid", dest="ygrid", action="store_true",
                          default=False, help="Enable grid on y-axis")
     optParser.add_option("--xticksorientation", dest="xticksorientation",
-                         type="float", default=None, help="Set the orientation of the x-axis ticks")
+                         type=float, default=None, help="Set the orientation of the x-axis ticks")
     optParser.add_option("--yticksorientation", dest="yticksorientation",
-                         type="float", default=None, help="Set the orientation of the x-axis ticks")
+                         type=float, default=None, help="Set the orientation of the x-axis ticks")
     optParser.add_option("--xlabel", dest="xlabel",
                          default=None, help="Set the x-axis label")
     optParser.add_option("--ylabel", dest="ylabel",
                          default=None, help="Set the y-axis label")
     optParser.add_option("--xlabelsize", dest="xlabelsize",
-                         type="int", default=16, help="Set the size of the x-axis label")
+                         type=int, default=16, help="Set the size of the x-axis label")
     optParser.add_option("--ylabelsize", dest="ylabelsize",
-                         type="int", default=16, help="Set the size of the x-axis label")
+                         type=int, default=16, help="Set the size of the x-axis label")
+    optParser.add_option("--marker", dest="marker", default=None,
+                         help="marker for single points (default o for scatter, None otherwise)")
+    optParser.add_option("--linestyle", dest="linestyle", default="-",
+                         help="plot line style (default -)")
     optParser.add_option("--title", dest="title",
                          default=None, help="Set the title")
     optParser.add_option("--titlesize", dest="titlesize",
-                         type="int", default=16, help="Set the title size")
+                         type=int, default=16, help="Set the title size")
     optParser.add_option("--adjust", dest="adjust",
-                         default=None, help="Adjust the subplots <LEFT>,<BOTTOM> or <LEFT>,<BOTTOM>,<RIGHT>,<TOP>")
+                         default=None, help="Adjust the subplots LEFT,BOTTOM or LEFT,BOTTOM,RIGHT,TOP")
     optParser.add_option("-s", "--size", dest="size",
-                         default=False, help="Defines the figure size <X>,<Y>")
+                         default=False, help="Defines the figure size X,Y")
     optParser.add_option("--no-legend", dest="nolegend", action="store_true",
                          default=False, help="Disables the legend")
     optParser.add_option("--legend-position", dest="legendposition",
                          default=None, help="Sets the legend position")
+    optParser.add_option("--dpi", dest="dpi", type=float,
+                         default=None, help="Define dpi resolution for figures")
+    optParser.add_option("--alpha", type=float,
+                         default=1., help="Define background transparency of the figure in the range 0..1")
 
 
 def addInteractionOptions(optParser):
@@ -109,7 +131,7 @@ def addInteractionOptions(optParser):
 
 def addNetOptions(optParser):
     optParser.add_option("-w", "--default-width", dest="defaultWidth",
-                         type="float", default=.1, help="Defines the default edge width")
+                         type=float, default=.1, help="Defines the default edge width")
     optParser.add_option("-c", "--default-color", dest="defaultColor",
                          default='k', help="Defines the default edge color")
 
@@ -126,13 +148,19 @@ def applyPlotOptions(fig, ax, options):
         if len(vals) == 1:
             ax.tick_params(axis='x', which='major', labelsize=float(vals[0]))
         elif len(vals) == 4:
-            xticks(
-                arange(float(vals[0]), float(vals[1]), float(vals[2])), size=float(vals[3]))
+            xticks(arange(float(vals[0]), float(vals[1]), float(vals[2])), size=float(vals[3]))
         else:
-            print(
+            raise ValueError(
                 "Error: ticks must be given as one float (<SIZE>) or four floats (<MIN>,<MAX>,<STEP>,<SIZE>)")
-            sys.exit()
+    if options.xticksFile:
+        xticks(*parseTicks(options.xticksFile))
+    if options.xtime0:
+        if max(ax.get_xticks()) < 3600:
+            print("Warning: x ticks not suited for hh format.")
+        ax.xaxis.set_major_formatter(ff(m2hm0))
     if options.xtime1:
+        if max(ax.get_yticks()) < 60:
+            print("Warning: x ticks not suited for hh:mm format.")
         ax.xaxis.set_major_formatter(ff(m2hm1))
     if options.xtime2:
         ax.xaxis.set_major_formatter(ff(m2hm2))
@@ -156,10 +184,17 @@ def applyPlotOptions(fig, ax, options):
             yticks(
                 arange(float(vals[0]), float(vals[1]), float(vals[2])), size=float(vals[3]))
         else:
-            print(
+            raise ValueError(
                 "Error: ticks must be given as one float (<SIZE>) or four floats (<MIN>,<MAX>,<STEP>,<SIZE>)")
-            sys.exit()
+    if options.yticksFile:
+        yticks(*parseTicks(options.yticksFile))
+    if options.ytime0:
+        if max(ax.get_yticks()) < 3600:
+            print("Warning: y ticks not suited for hh format.")
+        ax.yaxis.set_major_formatter(ff(m2hm0))
     if options.ytime1:
+        if max(ax.get_yticks()) < 60:
+            print("Warning: y ticks not suited for hh:mm format.")
         ax.yaxis.set_major_formatter(ff(m2hm1))
     if options.ytime2:
         ax.yaxis.set_major_formatter(ff(m2hm2))
@@ -182,10 +217,13 @@ def applyPlotOptions(fig, ax, options):
             fig.subplots_adjust(left=float(vals[0]), bottom=float(
                 vals[1]), right=float(vals[2]), top=float(vals[3]))
         else:
-            print(
+            raise ValueError(
                 "Error: adjust must be given as two floats (<LEFT>,<BOTTOM>) or four floats " +
                 "(<LEFT>,<BOTTOM>,<RIGHT>,<TOP>)")
-            sys.exit()
+    if options.alpha is not None:
+        alpha = max(0., min(1., options.alpha))
+        fig.patch.set_alpha(alpha)
+        ax.patch.set_alpha(alpha)
 
 
 def plotNet(net, colors, widths, options):
@@ -203,7 +241,7 @@ def plotNet(net, colors, widths, options):
         else:
             w.append(options.defaultWidth)
 
-    line_segments = LineCollection(shapes, linewidths=w, colors=c)
+    line_segments = LineCollection(shapes, linewidths=w, colors=c, linestyles=options.linestyle)
     ax = plt.gca()
     ax.add_collection(line_segments)
     ax.set_xmargin(0.1)
@@ -215,8 +253,7 @@ def getColor(options, i, a):
     if options.colors:
         v = options.colors.split(",")
         if i >= len(v):
-            print("Error: not enough colors given")
-            sys.exit(1)
+            raise ValueError("Error: not enough colors given")
         return v[i]
     if options.colormap[0] == '#':
         colormap = parseColorMap(options.colormap[1:])
@@ -256,13 +293,19 @@ def closeFigure(fig, ax, options, haveLabels=True, optOut=None):
     applyPlotOptions(fig, ax, options)
     if options.output or optOut is not None:
         n = options.output
+        myDpi = options.dpi
+        if myDpi is not None:
+            myDpi = float(myDpi)
         if optOut is not None:
             n = optOut
         for o in n.split(","):
-            savefig(o)
+            savefig(o, dpi=myDpi)
     if not options.blind:
         show()
-    fig.clf()
+    try:
+        fig.clf()
+    except:  # noqa
+        pass
     close()
     gc.collect()
 
@@ -281,14 +324,21 @@ def logNormalise(values, maxValue):
             emin = values[e]
         if not emax or emax < values[e]:
             emax = values[e]
-    for e in values:
-        values[e] = (values[e] - emin) / (emax - emin)
+    if emax is not None and emin is not None:
+        valRange = emax - emin
+        if valRange == 0:
+            valRange = 1
+        for e in values:
+            values[e] = (values[e] - emin) / valRange
 
 
 def linNormalise(values, minColorValue, maxColorValue):
-    for e in values:
-        values[e] = (values[e] - minColorValue) / \
-            (maxColorValue - minColorValue)
+    if minColorValue is not None and maxColorValue is not None:
+        valRange = maxColorValue - minColorValue
+        if valRange == 0:
+            valRange = 1
+        for e in values:
+            values[e] = (values[e] - minColorValue) / valRange
 
 
 def toHex(val):
@@ -336,3 +386,31 @@ def parseColorMap(mapDef):
         # ret.append( (value, color) )
     colormap = matplotlib.colors.LinearSegmentedColormap("CUSTOM", ret, 1024)
     return colormap
+
+
+def parseTicks(tickfile):
+    # whether we're loading <FLOAT>:<LABEL> instead of <LABEL>
+    haveOffsets = True
+    offsets = []
+    labels = []
+    with open(tickfile) as tf:
+        for line in tf:
+            line = line.strip()
+            if not line:
+                continue
+            of_label = line.split(':')
+            try:
+                of = float(of_label[0])
+                offsets.append(of)
+                if len(of_label) > 1:
+                    labels.append(' '.join(of_label[1:]))
+                else:
+                    # also accept <FLOAT> format
+                    labels.append(str(of))
+            except ValueError:
+                haveOffsets = False
+                labels.append(line)
+
+    if not haveOffsets:
+        offsets = range(len(labels))
+    return offsets, labels

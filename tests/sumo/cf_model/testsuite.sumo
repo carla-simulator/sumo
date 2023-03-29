@@ -1,8 +1,15 @@
 # test the use of model-specific parameters
 parameters
 
+# create fundamental diagram. to plot:
+# visualization/plotXMLAttributes.py edgedata.xml -i id -x density -y left -s --scatterplot --yfactor 60 --ylabel vehs/hour
+fundamental
+
 # show that each model allows vehicles to follow each other around a circular track
 drive_in_circles
+
+# updated version with simplified inputs and density control
+drive_in_circles_small
 
 # show that each model allows vehicles to follow each other around a circular track (with lower steplength)
 drive_in_circles_steplength
@@ -18,6 +25,15 @@ stop_at_position_slack
 
 # 10 vehicles driving in a queue. The first one stops for a while and then all vehicles start up again
 queue_stop_start
+
+# 10 vehicles driving in a queue. The first one stops for a while and then all vehicles start up again
+queue_stop_start_subsecond
+
+# a platton of vehicles follows a slow leader
+follow_slow
+
+# 10 queue vehicles drive off after a traffic light turns green	
+tls_driveOff
 
 # test model behaviour in jam situations
 jam_resolution
@@ -40,11 +56,19 @@ collisions
 # tests for setting apparentDecel  and emergentDecel to be distinct from decel
 apparentDecel_emergencyDecel
 
+# Krauss-specific model tests
+Krauss
+
 # tests for specific aspects of IDM and IDMM
 IDM
+EIDM
 
 # tests for the Wiedemann model
 Wiedemann
 W99
 KraussPS
+ACC
+
+# CACC model tests
+CACC
 bugs

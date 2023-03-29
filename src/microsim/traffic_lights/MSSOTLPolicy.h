@@ -1,6 +1,6 @@
 /****************************************************************************/
 // Eclipse SUMO, Simulation of Urban MObility; see https://eclipse.org/sumo
-// Copyright (C) 2013-2020 German Aerospace Center (DLR) and others.
+// Copyright (C) 2013-2023 German Aerospace Center (DLR) and others.
 // This program and the accompanying materials are made available under the
 // terms of the Eclipse Public License 2.0 which is available at
 // https://www.eclipse.org/legal/epl-2.0/
@@ -24,8 +24,6 @@
 #pragma once
 #include <config.h>
 
-//#define SWARM_DEBUG
-#include <utils/common/SwarmDebug.h>
 #include <sstream>
 #include <cmath>
 #include <utility>
@@ -86,7 +84,7 @@ public:
      * @param[in] parameters Parameters defined for the policy
      */
     MSSOTLPolicy(std::string name,
-                 const std::map<std::string, std::string>& parameters);
+                 const Parameterised::Map& parameters);
     /** @brief Constructor when the policy is a low-level policy used by an high level policy
      * @param[in] name The name of the policy
      * @param[in] desirabilityAlgorithm The desirability algorithm to be used for this policy
@@ -98,7 +96,7 @@ public:
      * @param[in] parameters Parameters defined for the policy
      */
     MSSOTLPolicy(std::string name, MSSOTLPolicyDesirability* desirabilityAlgorithm,
-                 const std::map<std::string, std::string>& parameters);
+                 const Parameterised::Map& parameters);
     virtual ~MSSOTLPolicy();
 
     virtual bool canRelease(SUMOTime elapsed, bool thresholdPassed, bool pushButtonPressed,

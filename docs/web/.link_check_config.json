@@ -1,0 +1,39 @@
+{
+  "replacementPatterns": [
+    {
+      "pattern": "{{Source}}",
+      "replacement": "https://github.com/eclipse/sumo/blob/main/"
+    }
+  ],
+  "ignorePatterns": [
+    {
+      "pattern": "{{Version}}"
+    },
+    {
+      "pattern": "https://wiki.openstreetmap.org/wiki/"
+    },
+    {
+      "pattern": "https://build.opensuse.org/project/show/science:dlr"
+    },
+    {
+      "pattern": "https://github.com/eclipse/sumo/blob/main/"
+    },
+    {
+      "pattern": "https://elib.dlr.de/94006/1/Proceeding_SUMO2014_15%2B16May2014_Berlin-Adlershof.pdf"
+    },
+    {
+      "pattern": "https://doi.org/10.3141/2623-01"
+    },
+    {
+      "pattern": "^https://www.baua.de/"
+    },
+    {
+      "pattern": "https://www.colliseum.eu/wiki/images/b/bf/Geschwindigkeiten%2C_Verz%C3%B6gerungen_und_Beschleunigungen_nicht_motorisierter%2C_ungesch%C3%BCtzter_Verkehrsteilnehmer_am_Beispiel_Fahrrad_und_Inlineskates.pdf"
+    }
+  ],
+  "timeout": "10s",
+  "retryOn429": true,
+  "retryCount": 3,
+  "fallbackRetryDelay": "30s",
+  "aliveStatusCodes": [0, 200, 206, 400, 403]
+}

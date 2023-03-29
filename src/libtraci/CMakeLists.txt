@@ -8,19 +8,20 @@ if (${CMAKE_VERSION} VERSION_GREATER 3.14.0)
 endif()
 set(libtracistatic_STAT_SRCS
     Connection.cpp
-	Connection.h
-	Domain.h
+    Connection.h
+    Domain.h
     Edge.cpp
+    GUI.cpp
     InductionLoop.cpp
     Junction.cpp
     Lane.cpp
     LaneArea.cpp
     MultiEntryExit.cpp
     Person.cpp
-#    POI.cpp
-#    Polygon.cpp
+    POI.cpp
+    Polygon.cpp
     Route.cpp
-#    Calibrator.cpp
+    Calibrator.cpp
     BusStop.cpp
     ParkingArea.cpp
     ChargingStation.cpp
@@ -35,14 +36,37 @@ set(libtracistatic_STAT_SRCS
     VehicleType.cpp
 )
 
+set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY_DEBUG ${CMAKE_SOURCE_DIR}/bin)
+set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY_RELEASE ${CMAKE_SOURCE_DIR}/bin)
 add_library(libtracistatic STATIC ${libtracistatic_STAT_SRCS})
-add_dependencies(libtracistatic generate-version-h)
-set_property(TARGET libtracistatic PROPERTY FOLDER "libtraci")
+add_dependencies(libtracistatic generate-version-h install_dll)
+set_target_properties(libtracistatic PROPERTIES FOLDER "libtraci" PREFIX ""
+    OUTPUT_NAME libtracistatic${BINARY_SUFFIX}
+    OUTPUT_NAME_DEBUG libtracistatic${BINARY_SUFFIX}D)
 
-if (MSVC)
+if (WIN32)
     set(libtcpip foreign_tcpip ws2_32)
 else()
     set(libtcpip foreign_tcpip)
+endif()
+
+add_library(libtracicpp SHARED ${libtracistatic_STAT_SRCS})
+set_target_properties(libtracicpp PROPERTIES FOLDER "libtraci" PREFIX ""
+    OUTPUT_NAME libtracicpp${BINARY_SUFFIX}
+    OUTPUT_NAME_DEBUG libtracicpp${BINARY_SUFFIX}D)
+target_include_directories(libtracicpp PUBLIC $<BUILD_INTERFACE:${CMAKE_SOURCE_DIR}/src>)
+install(TARGETS libtracicpp EXPORT SUMOConfig
+    DESTINATION bin
+    RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
+    LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
+    INCLUDES DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}
+)
+export(TARGETS libtracicpp NAMESPACE SUMO:: APPEND FILE "${CMAKE_BINARY_DIR}/SUMOConfig.cmake")
+
+if ((GNU_COMPILER OR CLANG_COMPILER) AND NOT APPLE)
+    target_link_libraries(libtracicpp PRIVATE -Wl,--whole-archive ${libtcpip} -Wl,--no-whole-archive)
+else ()
+    target_link_libraries(libtracicpp PRIVATE ${libtcpip})
 endif()
 
 if(SWIG_FOUND)
@@ -57,31 +81,55 @@ if(SWIG_FOUND)
             include_directories(${JNI_INCLUDE_DIRS})
             set(CMAKE_SWIG_FLAGS -package org.eclipse.sumo.libtraci)
             set(CMAKE_SWIG_OUTDIR ${CMAKE_CURRENT_BINARY_DIR}/java)
-            set(SWIG_MODULE_libtracijni_EXTRA_DEPS ${libtraci_HEADERS})
+            set(SWIG_MODULE_libtracijni_EXTRA_DEPS ${libtraci_HEADERS} ../libsumo/libsumo_typemap.i)
             if (${CMAKE_VERSION} VERSION_GREATER 3.8.0)
                 SWIG_ADD_LIBRARY(libtracijni LANGUAGE java SOURCES libtraci.i)
             else()
                 SWIG_ADD_MODULE(libtracijni java libtraci.i)
             endif()
-            if (MSVC OR APPLE)
-                swig_link_libraries(libtracijni libtracistatic ${libtcpip})
-            else()
+            if ((GNU_COMPILER OR CLANG_COMPILER) AND NOT APPLE)
                 set_source_files_properties(${swig_generated_file_fullname} PROPERTIES COMPILE_FLAGS "-Wno-strict-aliasing")
                 swig_link_libraries(libtracijni -Wl,--whole-archive libtracistatic ${libtcpip} -Wl,--no-whole-archive)
+            else()
+                swig_link_libraries(libtracijni libtracistatic ${libtcpip})
             endif()
-            FILE(MAKE_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/classes")
-            ADD_CUSTOM_COMMAND(TARGET libtracijni POST_BUILD
-                COMMAND "${Java_JAVAC_EXECUTABLE}" -d classes java/*.java
-                COMMAND "${Java_JAR_EXECUTABLE}" -cfM ${CMAKE_SOURCE_DIR}/bin/libtracijni.jar -C classes .
-                COMMAND "${Java_JAR_EXECUTABLE}" -cfM ${CMAKE_SOURCE_DIR}/bin/libtracijni_src.jar -C java .
-            )
+            if (MVN_EXECUTABLE)
+                ADD_CUSTOM_COMMAND(TARGET libtracijni POST_BUILD
+                    COMMAND ${PYTHON_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/../../tools/traci/rebuildConstants.py -o java/Constants.java -j org.eclipse.sumo.libtraci.Constants
+                    COMMAND ${CMAKE_COMMAND} -E make_directory src/main/java/org/eclipse/sumo/libtraci
+                    COMMAND ${CMAKE_COMMAND} -E copy_directory java src/main/java/org/eclipse/sumo/libtraci
+                    COMMAND ${PYTHON_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/../../tools/build/pom.py libtraci
+                    COMMAND ${MVN_COMMAND_PREFIX} ${MVN_EXECUTABLE} ${MVN_REPO} --batch-mode package source:jar
+                )
+            else()
+                message(WARNING "Could not build libtraci jar, maven was not found.")
+            endif()
             set_property(TARGET libtracijni PROPERTY FOLDER "libtraci")
+            install(TARGETS libtracijni DESTINATION bin LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR})
         else()
             message(WARNING "ENABLE_JAVA_BINDINGS is set but Java or JNI was not found.")
         endif()
     endif()
 
-    find_package(PythonLibs)
+    if(ENABLE_CS_BINDINGS)
+        set(CMAKE_SWIG_FLAGS "") # reset from Java
+        set(CMAKE_SWIG_OUTDIR ${CMAKE_CURRENT_BINARY_DIR}/cs)
+        set(SWIG_MODULE_libtracics_EXTRA_DEPS ${libtraci_HEADERS} ../libsumo/libsumo_typemap.i)
+        if (${CMAKE_VERSION} VERSION_GREATER 3.8.0)
+            SWIG_ADD_LIBRARY(libtracics LANGUAGE CSharp SOURCES libtraci.i)
+        else()
+            SWIG_ADD_MODULE(libtracics CSharp libtraci.i)
+        endif()
+        if ((GNU_COMPILER OR CLANG_COMPILER) AND NOT APPLE)
+            set_source_files_properties(${swig_generated_file_fullname} PROPERTIES COMPILE_FLAGS "-Wno-strict-aliasing")
+            swig_link_libraries(libtracics -Wl,--whole-archive libtracistatic ${libtcpip} -Wl,--no-whole-archive)
+        else()
+            swig_link_libraries(libtracics libtracistatic ${libtcpip})
+        endif()
+        set_property(TARGET libtracics PROPERTY FOLDER "libtraci")
+        install(TARGETS libtracics DESTINATION bin LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR})
+    endif()
+
     if(ENABLE_PYTHON_BINDINGS)
         if (MSVC)
             # recheck that the platform of the generator and python matches
@@ -98,39 +146,51 @@ if(SWIG_FOUND)
                     set(PYTHONLIBS_FOUND OFF)
                 endif()
             endif()
+            if (NOT PYTHON_DEBUG_LIBRARY AND "${CMAKE_BUILD_TYPE}" STREQUAL "Debug")
+                message(STATUS "Did not find Python debug library. Please reinstall your python and enable the python debug libraries in the installer.")
+                set(PYTHONLIBS_FOUND OFF)
+            endif()
         endif()
         if(PYTHONLIBS_FOUND)
-            if (PYTHON_DEBUG_LIBRARY OR NOT "${CMAKE_BUILD_TYPE}" STREQUAL "Debug")
-                include_directories(${PYTHON_INCLUDE_PATH})
+            include_directories(${PYTHON_INCLUDE_DIRS})
 #                set(CMAKE_SWIG_FLAGS "")
-                set(CMAKE_SWIG_FLAGS "-keyword") # is necessary for using keyword args, but generates lots of warnings
+            set(CMAKE_SWIG_FLAGS "-keyword") # is necessary for using keyword args
 # other options which should be evaluated: -builtin, -modern, -extranative
-                set(CMAKE_SWIG_OUTDIR ${CMAKE_SOURCE_DIR}/tools/libtraci)
-                set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${CMAKE_SOURCE_DIR}/tools/libtraci)
-                set(CMAKE_LIBRARY_OUTPUT_DIRECTORY_DEBUG ${CMAKE_SOURCE_DIR}/tools/libtraci)
-                set(CMAKE_LIBRARY_OUTPUT_DIRECTORY_RELEASE ${CMAKE_SOURCE_DIR}/tools/libtraci)
-                set(SWIG_MODULE_libtraci_EXTRA_DEPS ${libtraci_HEADERS})
-                if (${CMAKE_VERSION} VERSION_GREATER 3.8.0)
-                    SWIG_ADD_LIBRARY(libtraci LANGUAGE python SOURCES libtraci.i)
-                else()
-                    SWIG_ADD_MODULE(libtraci python libtraci.i)
+            set(SWIG_OUTFILE_DIR ${CMAKE_CURRENT_BINARY_DIR})
+            set(CMAKE_SWIG_OUTDIR ${CMAKE_SOURCE_DIR}/tools/libtraci)
+            set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${CMAKE_SOURCE_DIR}/tools/libtraci)
+#            set(CMAKE_LIBRARY_OUTPUT_DIRECTORY_DEBUG ${CMAKE_SOURCE_DIR}/tools/libtraci)
+            set(CMAKE_LIBRARY_OUTPUT_DIRECTORY_RELEASE ${CMAKE_SOURCE_DIR}/tools/libtraci)
+            set(SWIG_MODULE_libtraci_EXTRA_DEPS ${libtraci_HEADERS} ../libsumo/libsumo_typemap.i)
+            if (${CMAKE_VERSION} VERSION_GREATER 3.8.0)
+                if (CLANG_COMPILER)
+                    set_property(SOURCE libtraci.i PROPERTY GENERATED_COMPILE_OPTIONS "-Wno-deprecated-declarations")
                 endif()
-                if (NOT DEFAULT_LIBSUMO_PYTHON)
-                    # needed to selectively build the python module on the build server
-                    set_property(TARGET ${SWIG_MODULE_libtraci_REAL_NAME} PROPERTY EXCLUDE_FROM_ALL TRUE)
-                endif()
-                if (MSVC OR APPLE)
-                    # disable python module for the debug build because virtually no one has a python debug dll to link against
-#                    set_property(TARGET ${SWIG_MODULE_libtraci_REAL_NAME} PROPERTY EXCLUDE_FROM_DEFAULT_BUILD_DEBUG TRUE)
-                    set_property(TARGET ${SWIG_MODULE_libtraci_REAL_NAME} PROPERTY FOLDER "libtraci")
+                SWIG_ADD_LIBRARY(libtraci LANGUAGE python SOURCES libtraci.i)
+            else()
+                SWIG_ADD_MODULE(libtraci python libtraci.i)
+            endif()
+            if ((GNU_COMPILER OR CLANG_COMPILER) AND NOT APPLE)
+                swig_link_libraries(libtraci -Wl,--whole-archive libtracistatic ${libtcpip} -Wl,--no-whole-archive)
+            else()
+                set_target_properties(${SWIG_MODULE_libtraci_REAL_NAME} PROPERTIES FOLDER "libtraci")
+                if (SKBUILD OR ${CMAKE_VERSION} VERSION_LESS 3.14.0)
                     swig_link_libraries(libtraci libtracistatic ${libtcpip} ${PYTHON_LIBRARIES})
                 else()
-                    swig_link_libraries(libtraci -Wl,--whole-archive libtracistatic ${commonlibs} -Wl,--no-whole-archive)
+                    # using target fixes segfault in macos, swig_link_libraries is also deprecated
+                    target_link_libraries(libtraci libtracistatic ${libtcpip} Python::Module)
                 endif()
-                if (NOT ${SETUPTOOLS_MISSING})
-                    install(
-                        CODE "execute_process(COMMAND ${PYTHON_EXECUTABLE} ${CMAKE_SOURCE_DIR}/tools/build/setup-libtraci.py clean --all install --root=\$ENV{DESTDIR}/ --prefix=${CMAKE_INSTALL_PREFIX} --optimize=1)"
-                        COMPONENT pylibtraci)
+            endif()
+            if (WIN32)
+                swig_link_libraries(libtraci ${PYTHON_LIBRARIES})
+            endif()
+            if (NOT ${PYTHON_SETUPTOOLS_MISSING})
+                if (${PYTHON_BUILD_MISSING})
+                    install(CODE "execute_process(COMMAND ${PYTHON_EXECUTABLE} ${TOOLS_DIR}/build/setup-libtraci.py clean --all install --root=\$ENV{DESTDIR}/ --prefix=${CMAKE_INSTALL_PREFIX} --optimize=1)"
+                            COMPONENT pylibtraci)
+                else ()
+                    install(CODE "execute_process(COMMAND ${PYTHON_EXECUTABLE} ./build/version.py ./build/setup-libtraci.py ./setup.py COMMAND ${PYTHON_EXECUTABLE} -m pip install --root=\$ENV{DESTDIR}/ --prefix=${CMAKE_INSTALL_PREFIX} . WORKING_DIRECTORY ${TOOLS_DIR})"
+                            COMPONENT pylibtraci)
                 endif()
             endif()
         else()
@@ -138,16 +198,4 @@ if(SWIG_FOUND)
         endif()
     endif()
 
-endif()
-
-set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY_DEBUG ${CMAKE_SOURCE_DIR}/bin)
-set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY_RELEASE ${CMAKE_SOURCE_DIR}/bin)
-add_library(libtracicpp SHARED ${libtracistatic_STAT_SRCS})
-set_property(TARGET libtracicpp PROPERTY FOLDER "libtraci")
-set_target_properties(libtracicpp PROPERTIES PREFIX "")
-install(TARGETS libtracicpp DESTINATION ${CMAKE_INSTALL_LIBDIR})
-if (MSVC OR APPLE)
-    target_link_libraries(libtracicpp PRIVATE ${libtcpip})
-else ()
-    target_link_libraries(libtracicpp PRIVATE -Wl,--whole-archive ${libtcpip} -Wl,--no-whole-archive)
 endif()

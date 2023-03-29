@@ -14,7 +14,7 @@ Feel free to contribute and improve the SUMO Documentation. All changes need to 
 <br><br>
 # **Creating an article**
 
-To creat a new article (or page) just create a Markdown (.md) file in the [documentation directory]({{Source}}docs/web/docs).
+To create a new article (or page) just create a Markdown (.md) file in the [documentation directory]({{Source}}docs/web/docs).
 
 !!! note
     Please capitalize the very first letter of the name and use `_` (underscores) instead of leaving a ` ` (space) between words in the filename.
@@ -50,7 +50,20 @@ Sections and subsections in a document are marked by using the `#` character.
 #### This is a sub section, equivalent to <h4\>
 
 
+<br><br>
+# **CSS classes, IDs and key/value pairs**
 
+Markdown allows to use css classes, ids and key/value pairs: <https://python-markdown.github.io/extensions/attr_list/>
+
+Custom classes:
+
+- `.cellNoWrap` : Avoid a line break (useful in tables).
+
+## Example
+
+```
+{: #someid .someclass somekey='some value' }
+```
 
 <br><br>
 # **Styling text**
@@ -108,7 +121,7 @@ Here are some expressions that need an escape character:
 # **Images**
 
 All images must be saved in the [images directory]({{Source}}docs/web/docs/images).
-To insert an image, just use the usual Markdown sytax: 
+To insert an image, just use the usual Markdown syntax: 
 
 ```
 ![<alt>](images/Wikicommons_rail_fast.jpg "<title>")
@@ -206,7 +219,7 @@ In order to make writing this Documentation easier, we implemented some Macros. 
 {{Version}}
 
 !!! note
-    The full list of available Macros can be found [here](https://github.com/eclipse/sumo/blob/master/docs/web/mkdocs.yml) at the end in the `extra` section.
+    The full list of available Macros can be found [here](https://github.com/eclipse/sumo/blob/main/docs/web/mkdocs.yml) at the end in the `extra` section.
 
 !!! caution
     Macros do not work inside inline code or code blocks.
@@ -227,7 +240,7 @@ Using the \{\{Source\}\} Macro, linking to files in the official SUMO repository
 - \[Read the gitignore file\](\{\{Source\}\}.gitignore) [Read the gitignore file]({{Source}}.gitignore)
 
 !!! note
-    The \{\{Source\}\} macro is equivalent to https://github.com/eclipse/sumo/blob/master/ including the `/` at the end. Please analyze the following example:
+    The \{\{Source\}\} macro is equivalent to https://github.com/eclipse/sumo/blob/main/ including the `/` at the end. Please analyze the following example:
 
 - \[\{\{SUMO\}\}/src/sumo_main.cpp\](\{\{Source\}\}src/sumo_main.cpp) [{{SUMO}}/src/sumo_main.cpp]({{Source}}src/sumo_main.cpp)
 

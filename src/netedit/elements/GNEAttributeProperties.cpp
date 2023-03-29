@@ -1,6 +1,6 @@
 /****************************************************************************/
 // Eclipse SUMO, Simulation of Urban MObility; see https://eclipse.org/sumo
-// Copyright (C) 2001-2020 German Aerospace Center (DLR) and others.
+// Copyright (C) 2001-2023 German Aerospace Center (DLR) and others.
 // This program and the accompanying materials are made available under the
 // terms of the Eclipse Public License 2.0 which is available at
 // https://www.eclipse.org/legal/epl-2.0/
@@ -26,21 +26,14 @@
 #include "GNEAttributeProperties.h"
 #include "GNETagProperties.h"
 
+#include "GNEAttributeCarrier.h"
+
 
 // ===========================================================================
 // method definitions
 // ===========================================================================
 
-GNEAttributeProperties::GNEAttributeProperties() :
-    myAttribute(SUMO_ATTR_NOTHING),
-    myTagPropertyParent(nullptr),
-    myAttrStr(toString(SUMO_ATTR_NOTHING)),
-    myAttributeProperty(STRING),
-    myDefinition(""),
-    myDefaultValue(""),
-    myAttrSynonym(SUMO_ATTR_NOTHING),
-    myMinimumRange(0),
-    myMaximumRange(0) {}
+GNEAttributeProperties::GNEAttributeProperties() {}
 
 
 GNEAttributeProperties::GNEAttributeProperties(const SumoXMLAttr attribute, const int attributeProperty, const std::string& definition, std::string defaultValue) :
@@ -50,6 +43,7 @@ GNEAttributeProperties::GNEAttributeProperties(const SumoXMLAttr attribute, cons
     myAttributeProperty(attributeProperty),
     myDefinition(definition),
     myDefaultValue(defaultValue),
+    myDefaultActivated(false),
     myAttrSynonym(SUMO_ATTR_NOTHING),
     myMinimumRange(0),
     myMaximumRange(0) {
@@ -58,16 +52,8 @@ GNEAttributeProperties::GNEAttributeProperties(const SumoXMLAttr attribute, cons
         throw FormatException("Missing definition for AttributeProperty '" + toString(attribute) + "'");
     }
     // if default value isn't empty, but attribute doesn't support default values, throw exception.
-    if (!defaultValue.empty() && !(attributeProperty & DEFAULTVALUESTATIC)) {
+    if (!defaultValue.empty() && !(attributeProperty & DEFAULTVALUE)) {
         throw FormatException("AttributeProperty for '" + toString(attribute) + "' doesn't support default values");
-    }
-    // default value cannot be static and mutables at the same time
-    if ((attributeProperty & DEFAULTVALUESTATIC) && (attributeProperty & DEFAULTVALUEMUTABLE)) {
-        throw FormatException("Default value for attribute '" + toString(attribute) + "' cannot be static and mutable at the same time");
-    }
-    // Attributes that can write optionally their values in XML must have either a static or a mutable efault value
-    if ((attributeProperty & XMLOPTIONAL) && !((attributeProperty & DEFAULTVALUESTATIC) || (attributeProperty & DEFAULTVALUEMUTABLE))) {
-        throw FormatException("Attribute '" + toString(attribute) + "' requires a either static or mutable default value");
     }
     // Attributes cannot be flowdefinition and enabilitablet at the same time
     if ((attributeProperty & FLOWDEFINITION) && (attributeProperty & ACTIVATABLE)) {
@@ -80,7 +66,30 @@ GNEAttributeProperties::~GNEAttributeProperties() {}
 
 
 void
-GNEAttributeProperties::checkAttributeIntegrity() {
+GNEAttributeProperties::checkAttributeIntegrity() const {
+    // check integrity only in debug mode
+#ifdef DEBUG
+    // check that default values can be parsed (only in debug mode)
+    if (hasDefaultValue()) {
+        if (isInt() && !GNEAttributeCarrier::canParse<int>(myDefaultValue)) {
+            throw FormatException("Default value cannot be parsed to int");
+        }
+        if (isFloat() && !GNEAttributeCarrier::canParse<double>(myDefaultValue)) {
+            throw FormatException("Default value cannot be parsed to float");
+        }
+        if (isSUMOTime() && !GNEAttributeCarrier::canParse<SUMOTime>(myDefaultValue)) {
+            throw FormatException("Default value cannot be parsed to SUMOTime");
+        }
+        if (isBool() && !GNEAttributeCarrier::canParse<bool>(myDefaultValue)) {
+            throw FormatException("Default value cannot be parsed to bool");
+        }
+        if (isPosition() && (myDefaultValue.size() > 0) && !GNEAttributeCarrier::canParse<Position>(myDefaultValue)) {
+            throw FormatException("Default value cannot be parsed to position");
+        }
+        if (isColor() && !GNEAttributeCarrier::canParse<RGBColor>(myDefaultValue)) {
+            throw FormatException("Default value cannot be parsed to color");
+        }
+    }
     // check that positive attributes correspond only to a int, floats or SUMOTimes
     if (isPositive() && !(isInt() || isFloat() || isSUMOTime())) {
         throw FormatException("Only int, floats or SUMOTimes can be positive");
@@ -103,19 +112,27 @@ GNEAttributeProperties::checkAttributeIntegrity() {
             throw FormatException("invalid range");
         }
     }
-    // check that positive attributes correspond only to a int, floats or SUMOTimes
-    if (isOptional() && !(hasStaticDefaultValue() || hasMutableDefaultValue())) {
-        throw FormatException("if attribute is optional, must have either a static or dynamic default value");
+#endif // DEBUG
+}
+
+
+void
+GNEAttributeProperties::setDiscreteValues(const std::vector<std::string>& discreteValues, bool showAll) {
+    if (isDiscrete()) {
+        myDiscreteValues = discreteValues;
+        myShowAllDiscreteValues = showAll;
+    } else {
+        throw FormatException("AttributeProperty doesn't support discrete values");
     }
 }
 
 
 void
-GNEAttributeProperties::setDiscreteValues(const std::vector<std::string>& discreteValues) {
-    if (isDiscrete()) {
-        myDiscreteValues = discreteValues;
+GNEAttributeProperties::setDefaultActivated(const bool value) {
+    if (isActivatable()) {
+        myDefaultActivated = value;
     } else {
-        throw FormatException("AttributeProperty doesn't support discrete values values");
+        throw FormatException("AttributeProperty doesn't support default activated");
     }
 }
 
@@ -196,6 +213,12 @@ GNEAttributeProperties::getDefaultValue() const {
 }
 
 
+bool
+GNEAttributeProperties::getDefaultActivated() const {
+    return myDefaultActivated;
+}
+
+
 std::string
 GNEAttributeProperties::getDescription() const {
     std::string pre;
@@ -216,9 +239,6 @@ GNEAttributeProperties::getDescription() const {
     }
     if ((myAttributeProperty & DISCRETE) != 0) {
         pre += "discrete ";
-    }
-    if ((myAttributeProperty & XMLOPTIONAL) != 0) {
-        pre += "optional ";
     }
     if ((myAttributeProperty & UNIQUE) != 0) {
         pre += "unique ";
@@ -303,14 +323,8 @@ GNEAttributeProperties::getMaximumRange() const {
 
 
 bool
-GNEAttributeProperties::hasStaticDefaultValue() const {
-    return (myAttributeProperty & DEFAULTVALUESTATIC) != 0;
-}
-
-
-bool
-GNEAttributeProperties::hasMutableDefaultValue() const {
-    return (myAttributeProperty & DEFAULTVALUEMUTABLE) != 0;
+GNEAttributeProperties::hasDefaultValue() const {
+    return (myAttributeProperty & DEFAULTVALUE) != 0;
 }
 
 
@@ -356,7 +370,7 @@ GNEAttributeProperties::isString() const {
 
 
 bool
-GNEAttributeProperties::isposition() const {
+GNEAttributeProperties::isPosition() const {
     return (myAttributeProperty & POSITION) != 0;
 }
 
@@ -382,6 +396,12 @@ GNEAttributeProperties::isPositive() const {
 bool
 GNEAttributeProperties::isColor() const {
     return (myAttributeProperty & COLOR) != 0;
+}
+
+
+bool
+GNEAttributeProperties::isVType() const {
+    return (myAttributeProperty & VTYPE) != 0;
 }
 
 
@@ -422,13 +442,14 @@ GNEAttributeProperties::isUnique() const {
 
 
 bool
-GNEAttributeProperties::isOptional() const {
-    return (myAttributeProperty & XMLOPTIONAL) != 0;
-}
-
-bool
 GNEAttributeProperties::isDiscrete() const {
     return (myAttributeProperty & DISCRETE) != 0;
+}
+
+
+bool
+GNEAttributeProperties::showAllDiscreteValues() const {
+    return myShowAllDiscreteValues;
 }
 
 
@@ -457,14 +478,14 @@ GNEAttributeProperties::isActivatable() const {
 
 
 bool
-GNEAttributeProperties::isComplex() const {
-    return (myAttributeProperty & COMPLEX) != 0;
+GNEAttributeProperties::isFlowDefinition() const {
+    return (myAttributeProperty & FLOWDEFINITION) != 0;
 }
 
 
 bool
-GNEAttributeProperties::isFlowDefinition() const {
-    return (myAttributeProperty & FLOWDEFINITION) != 0;
+GNEAttributeProperties::hasAutomaticID() const {
+    return (myAttributeProperty & AUTOMATICID) != 0;
 }
 
 /****************************************************************************/

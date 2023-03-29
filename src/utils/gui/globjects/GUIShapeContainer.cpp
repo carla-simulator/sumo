@@ -1,6 +1,6 @@
 /****************************************************************************/
 // Eclipse SUMO, Simulation of Urban MObility; see https://eclipse.org/sumo
-// Copyright (C) 2001-2020 German Aerospace Center (DLR) and others.
+// Copyright (C) 2001-2023 German Aerospace Center (DLR) and others.
 // This program and the accompanying materials are made available under the
 // terms of the Eclipse Public License 2.0 which is available at
 // https://www.eclipse.org/legal/epl-2.0/
@@ -43,9 +43,9 @@ GUIShapeContainer::~GUIShapeContainer() {}
 
 bool
 GUIShapeContainer::addPOI(const std::string& id, const std::string& type, const RGBColor& color, const Position& pos, bool geo,
-                          const std::string& lane, double posOverLane, double posLat, double layer, double angle,
+                          const std::string& lane, double posOverLane, bool friendlyPos, double posLat, double layer, double angle,
                           const std::string& imgFile, bool relativePath, double width, double height, bool /* ignorePruning */) {
-    GUIPointOfInterest* p = new GUIPointOfInterest(id, type, color, pos, geo, lane, posOverLane, posLat, layer, angle, imgFile, relativePath, width, height);
+    GUIPointOfInterest* p = new GUIPointOfInterest(id, type, color, pos, geo, lane, posOverLane, friendlyPos, posLat, layer, angle, imgFile, relativePath, width, height);
     FXMutexLock locker(myLock);
     if (!myPOIs.add(id, p)) {
         if (myAllowReplacement) {
@@ -53,7 +53,7 @@ GUIShapeContainer::addPOI(const std::string& id, const std::string& type, const 
             myVis.removeAdditionalGLObject(oldP);
             myPOIs.remove(id);
             myPOIs.add(id, p);
-            WRITE_WARNING("Replacing POI '" + id + "'");
+            WRITE_WARNINGF(TL("Replacing POI '%'"), id);
         } else {
             delete p;
             return false;
@@ -68,8 +68,9 @@ bool
 GUIShapeContainer::addPolygon(const std::string& id, const std::string& type,
                               const RGBColor& color, double layer,
                               double angle, const std::string& imgFile, bool relativePath,
-                              const PositionVector& shape, bool geo, bool fill, double lineWidth, bool /* ignorePruning */) {
-    GUIPolygon* p = new GUIPolygon(id, type, color, shape, geo, fill, lineWidth, layer, angle, imgFile, relativePath);
+                              const PositionVector& shape, bool geo, bool fill, double lineWidth, bool /* ignorePruning */,
+                              const std::string& name) {
+    GUIPolygon* p = new GUIPolygon(id, type, color, shape, geo, fill, lineWidth, layer, angle, imgFile, relativePath, name);
     FXMutexLock locker(myLock);
     if (!myPolygons.add(id, p)) {
         if (myAllowReplacement) {
@@ -77,7 +78,7 @@ GUIShapeContainer::addPolygon(const std::string& id, const std::string& type,
             myVis.removeAdditionalGLObject(oldP);
             myPolygons.remove(id);
             myPolygons.add(id, p);
-            WRITE_WARNING("Replacing polygon '" + id + "'");
+            WRITE_WARNINGF(TL("Replacing polygon '%'"), id);
         } else {
             delete p;
             return false;
@@ -194,5 +195,10 @@ GUIShapeContainer::getPolygonIDs() const {
     return ret;
 }
 
+
+void
+GUIShapeContainer::allowReplacement() {
+    myAllowReplacement = true;
+}
 
 /****************************************************************************/

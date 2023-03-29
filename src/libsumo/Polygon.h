@@ -1,6 +1,6 @@
 /****************************************************************************/
 // Eclipse SUMO, Simulation of Urban MObility; see https://eclipse.org/sumo
-// Copyright (C) 2017-2020 German Aerospace Center (DLR) and others.
+// Copyright (C) 2017-2023 German Aerospace Center (DLR) and others.
 // This program and the accompanying materials are made available under the
 // terms of the Eclipse Public License 2.0 which is available at
 // https://www.eclipse.org/legal/epl-2.0/
@@ -18,8 +18,6 @@
 // C++ TraCI client API implementation
 /****************************************************************************/
 #pragma once
-#include <config.h>
-
 #include <string>
 #include <vector>
 #include <libsumo/TraCIDefs.h>
@@ -29,24 +27,22 @@
 // ===========================================================================
 // class declarations
 // ===========================================================================
+#ifndef LIBTRACI
 class NamedRTree;
 class SUMOPolygon;
 class SUMOTrafficObject;
-class NamedRTree;
-namespace libsumo {
-class VariableWrapper;
-}
+#endif
 
 
 // ===========================================================================
 // class definitions
 // ===========================================================================
-namespace libsumo {
+namespace LIBSUMO_NAMESPACE {
 class Polygon {
 public:
     static std::string getType(const std::string& polygonID);
-    static TraCIPositionVector getShape(const std::string& polygonID);
-    static TraCIColor getColor(const std::string& polygonID);
+    static libsumo::TraCIPositionVector getShape(const std::string& polygonID);
+    static libsumo::TraCIColor getColor(const std::string& polygonID);
     static bool getFilled(const std::string& polygonID);
     static double getLineWidth(const std::string& polygonID);
 
@@ -54,18 +50,20 @@ public:
     LIBSUMO_SUBSCRIPTION_API
 
     static void setType(const std::string& polygonID, const std::string& setType);
-    static void setShape(const std::string& polygonID, const TraCIPositionVector& shape);
-    static void setColor(const std::string& polygonID, const TraCIColor& color);
-    static void add(const std::string& polygonID, const TraCIPositionVector& shape, const TraCIColor& color, bool fill = false, const std::string& polygonType = "", int layer = 0, double lineWidth = 1);
+    static void setShape(const std::string& polygonID, const libsumo::TraCIPositionVector& shape);
+    static void setColor(const std::string& polygonID, const libsumo::TraCIColor& color);
+    static void add(const std::string& polygonID, const libsumo::TraCIPositionVector& shape, const libsumo::TraCIColor& color, bool fill = false, const std::string& polygonType = "", int layer = 0, double lineWidth = 1);
 
-    static void addDynamics(const std::string& polygonID, const std::string& trackedID = "", const std::vector<double>& timeSpan = std::vector<double>(), const std::vector<double>& alphaSpan = std::vector<double>(), bool looped = false, bool rotate = true);
+    static void addDynamics(const std::string& polygonID, const std::string& trackedObjectID = "", const std::vector<double>& timeSpan = std::vector<double>(), const std::vector<double>& alphaSpan = std::vector<double>(), bool looped = false, bool rotate = true);
     static void remove(const std::string& polygonID, int layer = 0);
 
     static void setFilled(std::string polygonID, bool filled);
     static void setLineWidth(std::string polygonID, double lineWidth);
 
+#ifndef LIBTRACI
+#ifndef SWIG
     // currently only used as a Helper function by POI and Vehicle, not part of the public API (and the clients)
-    static void addHighlightPolygon(const std::string& objectID, const int type, const std::string& polygonID, const TraCIPositionVector& shape, const TraCIColor& color, bool fill, const std::string& polygonType, int layer, double lineWidth);
+    static void addHighlightPolygon(const std::string& objectID, const int type, const std::string& polygonID, const libsumo::TraCIPositionVector& shape, const libsumo::TraCIColor& color, bool fill, const std::string& polygonType, int layer, double lineWidth);
 
     /** @brief Returns a tree filled with polygon instances
      * @return The rtree of polygons
@@ -81,7 +79,7 @@ public:
 
     static std::shared_ptr<VariableWrapper> makeWrapper();
 
-    static bool handleVariable(const std::string& objID, const int variable, VariableWrapper* wrapper);
+    static bool handleVariable(const std::string& objID, const int variable, VariableWrapper* wrapper, tcpip::Storage* paramData);
 
     /// Checks if a polygon of the given name exists already in the simulation
     static bool exists(std::string polyID);
@@ -97,6 +95,8 @@ private:
     static SubscriptionResults mySubscriptionResults;
     static ContextSubscriptionResults myContextSubscriptionResults;
     static NamedRTree* myTree;
+#endif
+#endif
 
     /// @brief invalidated standard constructor
     Polygon() = delete;

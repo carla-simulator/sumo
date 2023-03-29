@@ -1,6 +1,6 @@
 /****************************************************************************/
 // Eclipse SUMO, Simulation of Urban MObility; see https://eclipse.org/sumo
-// Copyright (C) 2002-2020 German Aerospace Center (DLR) and others.
+// Copyright (C) 2002-2023 German Aerospace Center (DLR) and others.
 // This program and the accompanying materials are made available under the
 // terms of the Eclipse Public License 2.0 which is available at
 // https://www.eclipse.org/legal/epl-2.0/
@@ -34,7 +34,7 @@
 #include "RORouteDef.h"
 
 #ifdef HAVE_FOX
-#include <utils/foxtools/FXWorkerThread.h>
+#include <utils/foxtools/MFXWorkerThread.h>
 #endif
 
 
@@ -164,10 +164,14 @@ public:
      * @param[in] laneID The name of the lane to retrieve the edge for
      * @return The edge of the named lane if known, otherwise 0
      */
-    ROEdge* getEdgeForLaneID(const std::string& laneID) const {
-        return getEdge(laneID.substr(0, laneID.rfind("_")));
-    }
+    ROEdge* getEdgeForLaneID(const std::string& laneID) const;
 
+    /** @brief Retrieves a lane rom the network given it's id
+     *
+     * @param[in] laneID The name of the lane to retrieve the edge for
+     * @return The lane object
+     */
+    ROLane* getLane(const std::string& laneID) const;
 
     /* @brief Adds a read node to the network
      *
@@ -218,6 +222,9 @@ public:
 
     /// @brief return the name for the given stopping place id
     const std::string getStoppingPlaceName(const std::string& id) const;
+
+    /// @brief return the element name for the given stopping place id
+    const std::string getStoppingPlaceElement(const std::string& id) const;
     //@}
 
 
@@ -314,7 +321,10 @@ public:
     virtual bool addVehicle(const std::string& id, ROVehicle* veh);
 
     /// @brief returns whether a vehicle with the given id was already loaded
-    bool knowsVehicle(const std::string& id);
+    bool knowsVehicle(const std::string& id) const;
+
+    /// @brief returns departure time for the given vehicle id
+    SUMOTime getDeparture(const std::string& vehID) const;
 
     /* @brief Adds a flow of vehicles to the network
      *
@@ -422,25 +432,25 @@ public:
     }
 
 #ifdef HAVE_FOX
-    FXWorkerThread::Pool& getThreadPool() {
+    MFXWorkerThread::Pool& getThreadPool() {
         return myThreadPool;
     }
 
-    class WorkerThread : public FXWorkerThread, public RORouterProvider {
+    class WorkerThread : public MFXWorkerThread, public RORouterProvider {
     public:
-        WorkerThread(FXWorkerThread::Pool& pool,
+        WorkerThread(MFXWorkerThread::Pool& pool,
                      const RORouterProvider& original)
-            : FXWorkerThread(pool), RORouterProvider(original) {}
+            : MFXWorkerThread(pool), RORouterProvider(original) {}
         virtual ~WorkerThread() {
             stop();
         }
     };
 
-    class BulkmodeTask : public FXWorkerThread::Task {
+    class BulkmodeTask : public MFXWorkerThread::Task {
     public:
         BulkmodeTask(const bool value) : myValue(value) {}
-        void run(FXWorkerThread* context) {
-            static_cast<WorkerThread*>(context)->getVehicleRouter(SVC_IGNORING).setBulkMode(myValue);
+        void run(MFXWorkerThread* context) {
+            static_cast<WorkerThread*>(context)->setBulkMode(myValue);
         }
     private:
         const bool myValue;
@@ -460,8 +470,8 @@ private:
     /// @brief Unique instance of RONet
     static RONet* myInstance;
 
-    /// @brief Known vehicle ids
-    std::set<std::string> myVehIDs;
+    /// @brief Known vehicle ids and their departure
+    std::map<std::string, SUMOTime> myVehIDs;
 
     /// @brief Known person ids
     std::set<std::string> myPersonIDs;
@@ -550,16 +560,19 @@ private:
     /// @brief whether to keep the the vtype distribution in output
     const bool myKeepVTypeDist;
 
+    /// @brief whether to calculate routes for public transport
+    const bool myDoPTRouting;
+
     /// @brief whether the network contains bidirectional railway edges
     bool myHasBidiEdges;
 
 #ifdef HAVE_FOX
 private:
-    class RoutingTask : public FXWorkerThread::Task {
+    class RoutingTask : public MFXWorkerThread::Task {
     public:
         RoutingTask(RORoutable* v, const bool removeLoops, MsgHandler* errorHandler)
             : myRoutable(v), myRemoveLoops(removeLoops), myErrorHandler(errorHandler) {}
-        void run(FXWorkerThread* context);
+        void run(MFXWorkerThread* context);
     private:
         RORoutable* const myRoutable;
         const bool myRemoveLoops;
@@ -572,7 +585,7 @@ private:
 
 private:
     /// @brief for multi threaded routing
-    FXWorkerThread::Pool myThreadPool;
+    MFXWorkerThread::Pool myThreadPool;
 #endif
 
 private:

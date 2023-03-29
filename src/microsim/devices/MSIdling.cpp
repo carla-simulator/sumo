@@ -1,6 +1,6 @@
 /****************************************************************************/
 // Eclipse SUMO, Simulation of Urban MObility; see https://eclipse.org/sumo
-// Copyright (C) 2007-2020 German Aerospace Center (DLR) and others.
+// Copyright (C) 2007-2023 German Aerospace Center (DLR) and others.
 // This program and the accompanying materials are made available under the
 // terms of the Eclipse Public License 2.0 which is available at
 // https://www.eclipse.org/legal/epl-2.0/
@@ -22,18 +22,17 @@
 #include <limits>
 #include <microsim/MSNet.h>
 #include <microsim/MSEdge.h>
+#include <microsim/MSLane.h>
 #include <microsim/MSStop.h>
 #include <microsim/transportables/MSTransportable.h>
+#include <mesosim/MELoop.h>
 #include "MSRoutingEngine.h"
 #include "MSIdling.h"
 
-//#define DEBUG_RESERVATION
-//#define DEBUG_Idling
-//#define DEBUG_SERVABLE
-//#define DEBUG_TRAVELTIME
-//#define DEBUG_DETOUR
-//#define DEBUG_COND2(obj) (obj->getID() == "p0")
-#define DEBUG_COND2(obj) (true)
+//#define DEBUG_IDLING
+//#define DEBUG_COND(obj) (obj->getHolder().getID() == "p0")
+//#define DEBUG_COND(obj) (obj->getHolder().isSelected())
+#define DEBUG_COND(obj) (true)
 
 
 // ===========================================================================
@@ -42,36 +41,74 @@
 
 void
 MSIdling_Stop::idle(MSDevice_Taxi* taxi) {
-    MSVehicle& veh = dynamic_cast<MSVehicle&>(taxi->getHolder());
-    if (!veh.hasStops()) {
-        //std::cout << SIMTIME << " MSIdling_Stop add stop\n";
-        // add stop
+    if (!taxi->getHolder().hasStops()) {
+#ifdef DEBUG_IDLING
+        if (DEBUG_COND(taxi)) {
+            std::cout << SIMTIME << " taxi=" << taxi->getHolder().getID() << " MSIdling_Stop add stop\n";
+        }
+#endif
         std::string errorOut;
-        const double brakeGap = veh.getCarFollowModel().brakeGap(veh.getSpeed());
-        std::pair<const MSLane*, double> stopPos = veh.getLanePosAfterDist(brakeGap);
+        double brakeGap = 0;
+        std::pair<const MSLane*, double> stopPos;
+        if (MSGlobals::gUseMesoSim) {
+            // stops are only checked in MESegment::receive so we need to put this onto the next segment
+            MSBaseVehicle& veh = dynamic_cast<MSBaseVehicle&>(taxi->getHolder());
+            MSRouteIterator ri = veh.getCurrentRouteEdge();
+            MESegment* curSeg = MSGlobals::gMesoNet->getSegmentForEdge(**ri, veh.getPositionOnLane());
+            MESegment* stopSeg = curSeg->getNextSegment();
+            if (stopSeg == nullptr) {
+                if ((ri + 1) != veh.getRoute().end()) {
+                    stopSeg = MSGlobals::gMesoNet->getSegmentForEdge(**(ri + 1), 0);
+                } else {
+                    WRITE_WARNINGF(TL("Idle taxi '%' has no next segment to stop. time=%."), taxi->getHolder().getID(), time2string(SIMSTEP));
+                    return;
+                }
+            }
+            // determine offset of stopSeg
+            double stopOffset = 0;
+            const MSEdge& stopEdge = stopSeg->getEdge();
+            MESegment* seg = MSGlobals::gMesoNet->getSegmentForEdge(stopEdge);
+            while (seg != stopSeg) {
+                stopOffset += seg->getLength();
+                seg = seg->getNextSegment();
+            }
+            stopPos = std::make_pair(stopEdge.getLanes()[0], stopOffset);
+        } else {
+            MSVehicle& veh = dynamic_cast<MSVehicle&>(taxi->getHolder());
+            brakeGap = veh.getCarFollowModel().brakeGap(veh.getSpeed());
+            stopPos = veh.getLanePosAfterDist(brakeGap);
+        }
         if (stopPos.first != nullptr) {
             SUMOVehicleParameter::Stop stop;
-            stop.lane = stopPos.first->getID();
+            if (MSGlobals::gUseMesoSim) {
+                stop.edge = stopPos.first->getEdge().getID();
+            } else {
+                stop.lane = stopPos.first->getID();
+            }
             stop.startPos = stopPos.second;
             stop.endPos = stopPos.second + POSITION_EPS;
-            if (veh.getVehicleType().getContainerCapacity() > 0) {
+            if (taxi->getHolder().getVehicleType().getContainerCapacity() > 0) {
                 stop.containerTriggered = true;
             } else {
                 stop.triggered = true;
             }
             stop.actType = "idling";
-            stop.parking = true;
-            veh.addTraciStop(stop, errorOut);
+            stop.parking = ParkingType::OFFROAD;
+            taxi->getHolder().addTraciStop(stop, errorOut);
             if (errorOut != "") {
                 WRITE_WARNING(errorOut);
             }
         } else {
-            WRITE_WARNING("Idle taxi '" + veh.getID() + "' could not stop within " + toString(brakeGap) + "m");
+            WRITE_WARNINGF(TL("Idle taxi '%' could not stop within %m"), taxi->getHolder().getID(), toString(brakeGap));
         }
     } else {
-        //std::cout << SIMTIME << " MSIdling_Stop reuse stop\n";
-        MSStop& stop = veh.getNextStop();
-        if (veh.getVehicleType().getContainerCapacity() > 0) {
+        MSStop& stop = taxi->getHolder().getNextStop();
+#ifdef DEBUG_IDLING
+        if (DEBUG_COND(taxi)) {
+            std::cout << SIMTIME << " taxi=" << taxi->getHolder().getID() << " MSIdling_Stop reusing stop with duration " << time2string(stop.duration) << "\n";
+        }
+#endif
+        if (taxi->getHolder().getVehicleType().getContainerCapacity() > 0) {
             stop.containerTriggered = true;
         } else {
             stop.triggered = true;
@@ -79,13 +116,14 @@ MSIdling_Stop::idle(MSDevice_Taxi* taxi) {
     }
 }
 
+
 // ===========================================================================
 // MSIdling_RandomCircling methods
 // ===========================================================================
 
 void
 MSIdling_RandomCircling::idle(MSDevice_Taxi* taxi) {
-    MSVehicle& veh = dynamic_cast<MSVehicle&>(taxi->getHolder());
+    SUMOVehicle& veh = taxi->getHolder();
     ConstMSEdgeVector edges = veh.getRoute().getEdges();
     ConstMSEdgeVector newEdges;
     double remainingDist = -veh.getPositionOnLane();
@@ -94,7 +132,7 @@ MSIdling_RandomCircling::idle(MSDevice_Taxi* taxi) {
     const int routeLength = (int)edges.size();
     while (routePos + 1 < routeLength && (remainingEdges < 2 || remainingDist < 200)) {
         const MSEdge* edge = edges[routePos];
-        remainingDist = edge->getLength();
+        remainingDist += edge->getLength();
         remainingEdges++;
         routePos++;
         newEdges.push_back(edge);
@@ -106,8 +144,15 @@ MSIdling_RandomCircling::idle(MSDevice_Taxi* taxi) {
         remainingDist += lastEdge->getLength();
         remainingEdges++;
         MSEdgeVector successors = lastEdge->getSuccessors(veh.getVClass());
+        for (auto it = successors.begin(); it != successors.end();) {
+            if ((*it)->getFunction() == SumoXMLEdgeFunc::CONNECTOR) {
+                it = successors.erase(it);
+            } else {
+                it++;
+            }
+        }
         if (successors.size() == 0) {
-            WRITE_WARNING("Vehicle '" + veh.getID() + "' ends idling in a cul-de-sac");
+            WRITE_WARNINGF(TL("Vehicle '%' ends idling in a cul-de-sac"), veh.getID());
             break;
         } else {
             int nextIndex = RandHelper::rand((int)successors.size(), veh.getRNG());

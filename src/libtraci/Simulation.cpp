@@ -1,6 +1,6 @@
 /****************************************************************************/
 // Eclipse SUMO, Simulation of Urban MObility; see https://eclipse.org/sumo
-// Copyright (C) 2017-2020 German Aerospace Center (DLR) and others.
+// Copyright (C) 2017-2023 German Aerospace Center (DLR) and others.
 // This program and the accompanying materials are made available under the
 // terms of the Eclipse Public License 2.0 which is available at
 // https://www.eclipse.org/legal/epl-2.0/
@@ -25,6 +25,8 @@
 #define LIBTRACI 1
 #include "Connection.h"
 #include "Domain.h"
+#include <libsumo/StorageHelper.h>
+#include <libsumo/GUI.h>
 #include <libsumo/Simulation.h>
 
 
@@ -45,7 +47,8 @@ Simulation::init(int port, int numRetries, const std::string& host, const std::s
 
 
 std::pair<int, std::string>
-Simulation::start(const std::vector<std::string>& cmd, int port, int numRetries, const std::string& label, const bool verbose) {
+Simulation::start(const std::vector<std::string>& cmd, int port, int numRetries, const std::string& label, const bool verbose,
+                  const std::string& /* traceFile */, bool /* traceGetters */, void* /* _stdout */) {
     if (port == -1) {
         port = tcpip::Socket::getFreeSocketPort();
     }
@@ -77,7 +80,12 @@ Simulation::isLibsumo() {
 
 bool
 Simulation::hasGUI() {
-    return true;
+    try {
+        GUI::getIDList();
+        return true;
+    } catch (libsumo::TraCIException&) {
+        return false;
+    }
 }
 
 
@@ -95,13 +103,17 @@ Simulation::getLabel() {
 
 void
 Simulation::setOrder(int order) {
-    Connection::getActive().send_commandSetOrder(order);
+    Connection::getActive().setOrder(order);
 }
 
 
 void
 Simulation::load(const std::vector<std::string>& args) {
-    Connection::getActive().setStringVector(libsumo::CMD_LOAD, -1, "", args);
+    std::unique_lock<std::mutex> lock{ libtraci::Connection::getActive().getMutex() };
+    tcpip::Storage content;
+    content.writeUnsignedByte(libsumo::TYPE_STRINGLIST);
+    content.writeStringList(args);
+    Connection::getActive().doCommand(libsumo::CMD_LOAD, -1, "", &content);
 }
 
 
@@ -118,6 +130,13 @@ Simulation::step(const double time) {
 
 
 void
+Simulation::executeMove() {
+    std::unique_lock<std::mutex> lock{ libtraci::Connection::getActive().getMutex() };
+    Connection::getActive().doCommand(libsumo::CMD_EXECUTEMOVE);
+}
+
+
+void
 Simulation::close(const std::string& /* reason */) {
     Connection::getActive().close();
 }
@@ -125,11 +144,18 @@ Simulation::close(const std::string& /* reason */) {
 
 std::pair<int, std::string>
 Simulation::getVersion() {
-    tcpip::Storage& inMsg = Connection::getActive().doCommand(libsumo::CMD_GETVERSION, -1, "");
+    std::unique_lock<std::mutex> lock{ libtraci::Connection::getActive().getMutex() };
+    tcpip::Storage& inMsg = Connection::getActive().doCommand(libsumo::CMD_GETVERSION);
     inMsg.readUnsignedByte(); // msg length
     inMsg.readUnsignedByte(); // libsumo::CMD_GETVERSION again, see #7284
     const int traciVersion = inMsg.readInt(); // to fix evaluation order
     return std::make_pair(traciVersion, inMsg.readString());
+}
+
+
+std::string
+Simulation::getOption(const std::string& option) {
+    return Dom::getString(libsumo::VAR_OPTION, option);
 }
 
 
@@ -142,6 +168,12 @@ Simulation::getCurrentTime() {
 double
 Simulation::getTime() {
     return Dom::getDouble(libsumo::VAR_TIME, "");
+}
+
+
+double
+Simulation::getEndTime() {
+    return Dom::getDouble(libsumo::VAR_END, "");
 }
 
 
@@ -277,6 +309,30 @@ Simulation::getEndingTeleportIDList() {
 }
 
 
+int
+Simulation::getDepartedPersonNumber() {
+    return Dom::getInt(libsumo::VAR_DEPARTED_PERSONS_NUMBER, "");
+}
+
+
+std::vector<std::string>
+Simulation::getDepartedPersonIDList() {
+    return Dom::getStringVector(libsumo::VAR_DEPARTED_PERSONS_IDS, "");
+}
+
+
+int
+Simulation::getArrivedPersonNumber() {
+    return Dom::getInt(libsumo::VAR_ARRIVED_PERSONS_NUMBER, "");
+}
+
+
+std::vector<std::string>
+Simulation::getArrivedPersonIDList() {
+    return Dom::getStringVector(libsumo::VAR_ARRIVED_PERSONS_IDS, "");
+}
+
+
 std::vector<std::string>
 Simulation::getBusStopIDList() {
     return Dom::getStringVector(libsumo::VAR_BUS_STOP_ID_LIST, "");
@@ -290,6 +346,42 @@ Simulation::getBusStopWaiting(const std::string& stopID) {
 std::vector<std::string>
 Simulation::getBusStopWaitingIDList(const std::string& stopID) {
     return Dom::getStringVector(libsumo::VAR_BUS_STOP_WAITING_IDS, stopID);
+}
+
+
+std::vector<std::string>
+Simulation::getPendingVehicles() {
+    return Dom::getStringVector(libsumo::VAR_PENDING_VEHICLES, "");
+}
+
+
+std::vector<libsumo::TraCICollision>
+Simulation::getCollisions() {
+    std::unique_lock<std::mutex> lock{ libtraci::Connection::getActive().getMutex() };
+    tcpip::Storage& ret = Dom::get(libsumo::VAR_COLLISIONS, "");
+    std::vector<libsumo::TraCICollision> result;
+    StoHelp::readCompound(ret);
+    int numCollisions = ret.readInt();
+    while (numCollisions-- > 0) {
+        libsumo::TraCICollision c;
+        c.collider = StoHelp::readTypedString(ret);
+        c.victim = StoHelp::readTypedString(ret);
+        c.colliderType = StoHelp::readTypedString(ret);
+        c.victimType = StoHelp::readTypedString(ret);
+        c.colliderSpeed = StoHelp::readTypedDouble(ret);
+        c.victimSpeed = StoHelp::readTypedDouble(ret);
+        c.type = StoHelp::readTypedString(ret);
+        c.lane = StoHelp::readTypedString(ret);
+        c.pos = StoHelp::readTypedDouble(ret);
+        result.emplace_back(c);
+    }
+    return result;
+}
+
+
+double
+Simulation::getScale() {
+    return Dom::getDouble(libsumo::VAR_SCALE, "");
 }
 
 
@@ -310,57 +402,164 @@ Simulation::getMinExpectedNumber() {
     return Dom::getInt(libsumo::VAR_MIN_EXPECTED_VEHICLES, "");
 }
 
-/*
+
 libsumo::TraCIPosition
 Simulation::convert2D(const std::string& edgeID, double pos, int laneIndex, bool toGeo) {
+    tcpip::Storage content;
+    StoHelp::writeCompound(content, 2);
+    content.writeUnsignedByte(libsumo::POSITION_ROADMAP);
+    content.writeString(edgeID);
+    content.writeDouble(pos);
+    content.writeUnsignedByte(laneIndex);
+    content.writeUnsignedByte(libsumo::TYPE_UBYTE);
+    content.writeUnsignedByte(toGeo ? libsumo::POSITION_LON_LAT : libsumo::POSITION_2D);
+    return Dom::getPos(libsumo::POSITION_CONVERSION, "", &content, toGeo);
 }
 
 
 libsumo::TraCIPosition
 Simulation::convert3D(const std::string& edgeID, double pos, int laneIndex, bool toGeo) {
+    tcpip::Storage content;
+    StoHelp::writeCompound(content, 2);
+    content.writeUnsignedByte(libsumo::POSITION_ROADMAP);
+    content.writeString(edgeID);
+    content.writeDouble(pos);
+    content.writeUnsignedByte(laneIndex);
+    content.writeUnsignedByte(libsumo::TYPE_UBYTE);
+    content.writeUnsignedByte(toGeo ? libsumo::POSITION_LON_LAT_ALT : libsumo::POSITION_3D);
+    return Dom::getPos3D(libsumo::POSITION_CONVERSION, "", &content, toGeo);
 }
 
 
 libsumo::TraCIRoadPosition
 Simulation::convertRoad(double x, double y, bool isGeo, const std::string& vClass) {
+    tcpip::Storage content;
+    StoHelp::writeCompound(content, 3);
+    content.writeUnsignedByte(isGeo ? libsumo::POSITION_LON_LAT : libsumo::POSITION_2D);
+    content.writeDouble(x);
+    content.writeDouble(y);
+    content.writeUnsignedByte(libsumo::TYPE_UBYTE);
+    content.writeUnsignedByte(libsumo::POSITION_ROADMAP);
+    StoHelp::writeTypedString(content, vClass);
+    std::unique_lock<std::mutex> lock{ libtraci::Connection::getActive().getMutex() };
+    tcpip::Storage& ret = Dom::get(libsumo::POSITION_CONVERSION, "", &content, libsumo::POSITION_ROADMAP);
+    libsumo::TraCIRoadPosition result;
+    result.edgeID = ret.readString();
+    result.pos = ret.readDouble();
+    result.laneIndex = ret.readByte();
+    return result;
 }
 
 
 libsumo::TraCIPosition
 Simulation::convertGeo(double x, double y, bool fromGeo) {
+    tcpip::Storage content;
+    StoHelp::writeCompound(content, 2);
+    content.writeUnsignedByte(fromGeo ? libsumo::POSITION_LON_LAT : libsumo::POSITION_2D);
+    content.writeDouble(x);
+    content.writeDouble(y);
+    content.writeUnsignedByte(libsumo::TYPE_UBYTE);
+    content.writeUnsignedByte(fromGeo ? libsumo::POSITION_2D : libsumo::POSITION_LON_LAT);
+    return Dom::getPos(libsumo::POSITION_CONVERSION, "", &content, !fromGeo);
 }
 
 
 double
 Simulation::getDistance2D(double x1, double y1, double x2, double y2, bool isGeo, bool isDriving) {
+    tcpip::Storage content;
+    StoHelp::writeCompound(content, 3);
+    content.writeUnsignedByte(isGeo ? libsumo::POSITION_LON_LAT : libsumo::POSITION_2D);
+    content.writeDouble(x1);
+    content.writeDouble(y1);
+    content.writeUnsignedByte(isGeo ? libsumo::POSITION_LON_LAT : libsumo::POSITION_2D);
+    content.writeDouble(x2);
+    content.writeDouble(y2);
+    content.writeUnsignedByte(isDriving ? libsumo::REQUEST_DRIVINGDIST : libsumo::REQUEST_AIRDIST);
+    return Dom::getDouble(libsumo::DISTANCE_REQUEST, "", &content);
 }
 
 
 double
 Simulation::getDistanceRoad(const std::string& edgeID1, double pos1, const std::string& edgeID2, double pos2, bool isDriving) {
+    tcpip::Storage content;
+    StoHelp::writeCompound(content, 3);
+    content.writeUnsignedByte(libsumo::POSITION_ROADMAP);
+    content.writeString(edgeID1);
+    content.writeDouble(pos1);
+    content.writeUnsignedByte(0);
+    content.writeUnsignedByte(libsumo::POSITION_ROADMAP);
+    content.writeString(edgeID2);
+    content.writeDouble(pos2);
+    content.writeUnsignedByte(0);
+    content.writeUnsignedByte(isDriving ? libsumo::REQUEST_DRIVINGDIST : libsumo::REQUEST_AIRDIST);
+    return Dom::getDouble(libsumo::DISTANCE_REQUEST, "", &content);
 }
 
 
 libsumo::TraCIStage
-Simulation::findRoute(const std::string& from, const std::string& to, const std::string& typeID, const double depart, const int routingMode) {
+Simulation::findRoute(const std::string& fromEdge, const std::string& toEdge, const std::string& vType, const double depart, const int routingMode) {
+    tcpip::Storage content;
+    StoHelp::writeCompound(content, 5);
+    StoHelp::writeTypedString(content, fromEdge);
+    StoHelp::writeTypedString(content, toEdge);
+    StoHelp::writeTypedString(content, vType);
+    StoHelp::writeTypedDouble(content, depart);
+    StoHelp::writeTypedInt(content, routingMode);
+    return Dom::getTraCIStage(libsumo::FIND_ROUTE, "", &content);
 }
 
 
 std::vector<libsumo::TraCIStage>
-Simulation::findIntermodalRoute(const std::string& from, const std::string& to,
+Simulation::findIntermodalRoute(const std::string& fromEdge, const std::string& toEdge,
                                 const std::string& modes, double depart, const int routingMode, double speed, double walkFactor,
                                 double departPos, double arrivalPos, const double departPosLat,
                                 const std::string& pType, const std::string& vType, const std::string& destStop) {
+    tcpip::Storage content;
+    StoHelp::writeCompound(content, 13);
+    StoHelp::writeTypedString(content, fromEdge);
+    StoHelp::writeTypedString(content, toEdge);
+    StoHelp::writeTypedString(content, modes);
+    StoHelp::writeTypedDouble(content, depart);
+    StoHelp::writeTypedInt(content, routingMode);
+    StoHelp::writeTypedDouble(content, speed);
+    StoHelp::writeTypedDouble(content, walkFactor);
+    StoHelp::writeTypedDouble(content, departPos);
+    StoHelp::writeTypedDouble(content, arrivalPos);
+    StoHelp::writeTypedDouble(content, departPosLat);
+    StoHelp::writeTypedString(content, pType);
+    StoHelp::writeTypedString(content, vType);
+    StoHelp::writeTypedString(content, destStop);
+    std::unique_lock<std::mutex> lock{ libtraci::Connection::getActive().getMutex() };
+    tcpip::Storage& result = Dom::get(libsumo::FIND_INTERMODAL_ROUTE, "", &content);
+    int numStages = result.readInt();
+    std::vector<libsumo::TraCIStage> ret;
+    while (numStages-- > 0) {
+        libsumo::TraCIStage s;
+        StoHelp::readCompound(result, 13);
+        s.type = StoHelp::readTypedInt(result);
+        s.vType = StoHelp::readTypedString(result);
+        s.line = StoHelp::readTypedString(result);
+        s.destStop = StoHelp::readTypedString(result);
+        s.edges = StoHelp::readTypedStringList(result);
+        s.travelTime = StoHelp::readTypedDouble(result);
+        s.cost = StoHelp::readTypedDouble(result);
+        s.length = StoHelp::readTypedDouble(result);
+        s.intended = StoHelp::readTypedString(result);
+        s.depart = StoHelp::readTypedDouble(result);
+        s.departPos = StoHelp::readTypedDouble(result);
+        s.arrivalPos = StoHelp::readTypedDouble(result);
+        s.description = StoHelp::readTypedString(result);
+        ret.emplace_back(s);
+    }
+    return ret;
 }
 
+LIBTRACI_PARAMETER_IMPLEMENTATION(Simulation, SIM)
 
-std::string
-Simulation::getParameter(const std::string& objectID, const std::string& key) {
+void
+Simulation::setScale(double value) {
+    Dom::setDouble(libsumo::VAR_SCALE, "", value);
 }
-
-
-LIBSUMO_GET_PARAMETER_WITH_KEY_IMPLEMENTATION(Simulation)
-*/
 
 void
 Simulation::clearPending(const std::string& routeID) {
@@ -384,6 +583,20 @@ Simulation::writeMessage(const std::string& msg) {
     Dom::setString(libsumo::CMD_MESSAGE, "", msg);
 }
 
+
+void
+Simulation::subscribe(const std::vector<int>& varIDs, double begin, double end, const libsumo::TraCIResults& params) {
+    libtraci::Connection::getActive().subscribe(libsumo::CMD_SUBSCRIBE_SIM_VARIABLE, "", begin, end, -1, -1, varIDs, params);
+}
+
+
+const libsumo::TraCIResults
+Simulation::getSubscriptionResults() {
+    return libtraci::Connection::getActive().getAllSubscriptionResults(libsumo::RESPONSE_SUBSCRIBE_SIM_VARIABLE)[""];
+}
+
+
+LIBTRACI_SUBSCRIPTION_IMPLEMENTATION(Simulation, SIM)
 
 }
 

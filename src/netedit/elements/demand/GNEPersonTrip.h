@@ -1,6 +1,6 @@
 /****************************************************************************/
 // Eclipse SUMO, Simulation of Urban MObility; see https://eclipse.org/sumo
-// Copyright (C) 2016-2020 German Aerospace Center (DLR) and others.
+// Copyright (C) 2016-2023 German Aerospace Center (DLR) and others.
 // This program and the accompanying materials are made available under the
 // terms of the Eclipse Public License 2.0 which is available at
 // https://www.eclipse.org/legal/epl-2.0/
@@ -18,6 +18,7 @@
 // A class for visualizing person trips in Netedit
 /****************************************************************************/
 #pragma once
+#include <config.h>
 #include "GNEDemandElement.h"
 #include <utils/gui/globjects/GUIGLObjectPopupMenu.h>
 
@@ -28,13 +29,15 @@ class GNEEdge;
 class GNEConnection;
 class GNEVehicle;
 
+
 // ===========================================================================
 // class definitions
 // ===========================================================================
-
 class GNEPersonTrip : public GNEDemandElement, public Parameterised {
-
 public:
+    /// @brief default constructor
+    GNEPersonTrip(SumoXMLTag tag, GNENet* net);
+
     /**@brief parameter constructor for person edge->edge
      * @param[in] viewNet view in which this PersonTrip is placed
      * @param[in] personParent person parent
@@ -43,56 +46,55 @@ public:
      * @param[in] arrivalPosition arrival position on the destination edge
      * @param[in] types list of possible vehicle types to take
      * @param[in] modes list of possible traffic modes
+     * @param[in] lines list of lines
      */
     GNEPersonTrip(GNENet* net, GNEDemandElement* personParent, GNEEdge* fromEdge, GNEEdge* toEdge,
-                  double arrivalPosition, const std::vector<std::string>& types, const std::vector<std::string>& modes);
+                  double arrivalPosition, const std::vector<std::string>& types, const std::vector<std::string>& modes,
+                  const std::vector<std::string>& lines);
 
     /**@brief parameter constructor for person edge->busStop
-    * @param[in] viewNet view in which this PersonTrip is placed
-    * @param[in] personParent person parent
-    * @param[in] fromEdge from edge
-    * @param[in] toBusStop to busStop
-    * @param[in] arrivalPosition arrival position on the destination edge
-    * @param[in] types list of possible vehicle types to take
-    * @param[in] modes list of possible traffic modes
-    */
+     * @param[in] viewNet view in which this PersonTrip is placed
+     * @param[in] personParent person parent
+     * @param[in] fromEdge from edge
+     * @param[in] toBusStop to busStop
+     * @param[in] arrivalPosition arrival position on the destination edge
+     * @param[in] types list of possible vehicle types to take
+     * @param[in] modes list of possible traffic modes
+     * @param[in] lines list of lines
+     */
     GNEPersonTrip(GNENet* net, GNEDemandElement* personParent, GNEEdge* fromEdge, GNEAdditional* toBusStop,
-                  double arrivalPosition, const std::vector<std::string>& types, const std::vector<std::string>& modes);
+                  double arrivalPosition, const std::vector<std::string>& types, const std::vector<std::string>& modes,
+                  const std::vector<std::string>& lines);
 
-    /**@brief parameter constructor for person edge->edge
-    * @param[in] viewNet view in which this PersonTrip is placed
-    * @param[in] personParent person parent
-    * @param[in] fromBusStop from busStop
-    * @param[in] toEdge to edge
-    * @param[in] arrivalPosition arrival position on the destination edge
-    * @param[in] types list of possible vehicle types to take
-    * @param[in] modes list of possible traffic modes
-    */
-    GNEPersonTrip(GNENet* net, GNEDemandElement* personParent, GNEAdditional* fromBusStop, GNEEdge* toEdge,
-                  double arrivalPosition, const std::vector<std::string>& types, const std::vector<std::string>& modes);
-
-    /**@brief parameter constructor for person edge->edge
-    * @param[in] viewNet view in which this PersonTrip is placed
-    * @param[in] personParent person parent
-    * @param[in] fromBusStop from busStop
-    * @param[in] toBusStop to busStop
-    * @param[in] arrivalPosition arrival position on the destination edge
-    * @param[in] types list of possible vehicle types to take
-    * @param[in] modes list of possible traffic modes
-    */
-    GNEPersonTrip(GNENet* net, GNEDemandElement* personParent, GNEAdditional* fromBusStop, GNEAdditional* toBusStop,
-                  double arrivalPosition, const std::vector<std::string>& types, const std::vector<std::string>& modes);
+    /**@brief parameter constructor for person junction->junction
+     * @param[in] viewNet view in which this PersonTrip is placed
+     * @param[in] personParent person parent
+     * @param[in] fromJunction from junction
+     * @param[in] toJunction to junction
+     * @param[in] arrivalPosition arrival position on the destination junction
+     * @param[in] types list of possible vehicle types to take
+     * @param[in] modes list of possible traffic modes
+     * @param[in] lines list of lines
+     */
+    GNEPersonTrip(GNENet* net, GNEDemandElement* personParent, GNEJunction* fromJunction, GNEJunction* toJunction,
+                  double arrivalPosition, const std::vector<std::string>& types, const std::vector<std::string>& modes,
+                  const std::vector<std::string>& lines);
 
     /// @brief destructor
     ~GNEPersonTrip();
 
-    /**@brief writte demand element element into a xml file
+    /**@brief get move operation
+     * @note returned GNEMoveOperation can be nullptr
+     */
+    GNEMoveOperation* getMoveOperation();
+
+    /**@brief write demand element element into a xml file
      * @param[in] device device in which write parameters of demand element element
      */
     void writeDemandElement(OutputDevice& device) const;
 
     /// @brief check if current demand element is valid to be writed into XML (by default true, can be reimplemented in children)
-    bool isDemandElementValid() const;
+    Problem isDemandElementValid() const;
 
     /// @brief return a string with the current demand element problem (by default empty, can be reimplemented in children)
     std::string getDemandElementProblem() const;
@@ -112,30 +114,8 @@ public:
 
     /// @name Functions related with geometry of element
     /// @{
-    /// @brief begin geometry movement
-    void startGeometryMoving();
-
-    /// @brief end geometry movement
-    void endGeometryMoving();
-
-    /**@brief change the position of the element geometry without saving in undoList
-     * @param[in] offset Position used for calculate new position of geometry without updating RTree
-     */
-    void moveGeometry(const Position& offset);
-
-    /**@brief commit geometry changes in the attributes of an element after use of moveGeometry(...)
-     * @param[in] undoList The undoList on which to register changes
-     */
-    void commitGeometryMoving(GNEUndoList* undoList);
-
     /// @brief update pre-computed geometry information
     void updateGeometry();
-
-    /// @brief compute path
-    void computePath();
-
-    /// @brief invalidate path
-    void invalidatePath();
 
     /// @brief Returns position of additional in view
     Position getPositionInView() const;
@@ -172,28 +152,44 @@ public:
      */
     void drawGL(const GUIVisualizationSettings& s) const;
 
+    /// @}
+
+    /// @name inherited from GNEPathManager::PathElement
+    /// @{
+
+    /// @brief compute pathElement
+    void computePathElement();
+
     /**@brief Draws partial object
      * @param[in] s The settings for the current view (may influence drawing)
      * @param[in] lane lane in which draw partial
-     * @param[in] offsetFront offset for drawing element front (needed for selected elements)
+     * @param[in] segment PathManager segment (used for segment options)
+     * @param[in] offsetFront extra front offset (used for drawing partial gl above other elements)
      */
-    void drawPartialGL(const GUIVisualizationSettings& s, const GNELane* lane, const double offsetFront) const;
+    void drawPartialGL(const GUIVisualizationSettings& s, const GNELane* lane, const GNEPathManager::Segment* segment, const double offsetFront) const;
 
     /**@brief Draws partial object (junction)
      * @param[in] s The settings for the current view (may influence drawing)
      * @param[in] fromLane from GNELane
      * @param[in] toLane to GNELane
-     * @param[in] offsetFront offset for drawing element front (needed for selected elements)
+     * @param[in] segment PathManager segment (used for segment options)
+     * @param[in] offsetFront extra front offset (used for drawing partial gl above other elements)
      */
-    void drawPartialGL(const GUIVisualizationSettings& s, const GNELane* fromLane, const GNELane* toLane, const double offsetFront) const;
+    void drawPartialGL(const GUIVisualizationSettings& s, const GNELane* fromLane, const GNELane* toLane, const GNEPathManager::Segment* segment, const double offsetFront) const;
+
+    /// @brief get first path lane
+    GNELane* getFirstPathLane() const;
+
+    /// @brief get last path lane
+    GNELane* getLastPathLane() const;
     /// @}
 
     /// @brief inherited from GNEAttributeCarrier
     /// @{
     /* @brief method for getting the Attribute of an XML key
-    * @param[in] key The attribute key
-    * @return string with the value associated to key
-    */
+     * @param[in] key The attribute key
+     * @return string with the value associated to key
+     */
     std::string getAttribute(SumoXMLAttr key) const;
 
     /* @brief method for getting the Attribute of an XML key in double format (to avoid unnecessary parse<double>(...) for certain attributes)
@@ -202,34 +198,26 @@ public:
      */
     double getAttributeDouble(SumoXMLAttr key) const;
 
+    /* @brief method for getting the Attribute of an XML key in Position format (used in person plans)
+     * @param[in] key The attribute key
+     * @return double with the value associated to key
+     */
+    Position getAttributePosition(SumoXMLAttr key) const;
+
     /* @brief method for setting the attribute and letting the object perform additional changes
-    * @param[in] key The attribute key
-    * @param[in] value The new value
-    * @param[in] undoList The undoList on which to register changes
-    * @param[in] net optionally the GNENet to inform about gui updates
-    */
+     * @param[in] key The attribute key
+     * @param[in] value The new value
+     * @param[in] undoList The undoList on which to register changes
+     * @param[in] net optionally the GNENet to inform about gui updates
+     */
     void setAttribute(SumoXMLAttr key, const std::string& value, GNEUndoList* undoList);
 
     /* @brief method for setting the attribute and letting the object perform additional changes
-    * @param[in] key The attribute key
-    * @param[in] value The new value
-    * @param[in] undoList The undoList on which to register changes
-    */
+     * @param[in] key The attribute key
+     * @param[in] value The new value
+     * @param[in] undoList The undoList on which to register changes
+     */
     bool isValid(SumoXMLAttr key, const std::string& value);
-
-    /* @brief method for enable attribute
-     * @param[in] key The attribute key
-     * @param[in] undoList The undoList on which to register changes
-     * @note certain attributes can be only enabled, and can produce the disabling of other attributes
-     */
-    void enableAttribute(SumoXMLAttr key, GNEUndoList* undoList);
-
-    /* @brief method for disable attribute
-     * @param[in] key The attribute key
-     * @param[in] undoList The undoList on which to register changes
-     * @note certain attributes can be only enabled, and can produce the disabling of other attributes
-     */
-    void disableAttribute(SumoXMLAttr key, GNEUndoList* undoList);
 
     /* @brief method for check if the value for certain attribute is set
      * @param[in] key The attribute key
@@ -244,12 +232,9 @@ public:
     /// @}
 
     /// @brief get parameters map
-    const std::map<std::string, std::string>& getACParametersMap() const;
+    const Parameterised::Map& getACParametersMap() const;
 
 protected:
-    /// @brief variable for move person trips
-    DemandElementMove myPersonTripMove;
-
     /// @brief arrival position
     double myArrivalPosition;
 
@@ -259,12 +244,18 @@ protected:
     /// @brief valid line or modes
     std::vector<std::string> myModes;
 
+    /// @brief valid line or vehicle ids or ANY
+    std::vector<std::string> myLines;
+
 private:
     /// @brief method for setting the attribute and nothing else
     void setAttribute(SumoXMLAttr key, const std::string& value);
 
-    /// @brief method for enabling the attribute and nothing else (used in GNEChange_EnableAttribute)
-    void setEnabledAttribute(const int enabledAttributes);
+    /// @brief set move shape
+    void setMoveShape(const GNEMoveResult& moveResult);
+
+    /// @brief commit move shape
+    void commitMoveShape(const GNEMoveResult& moveResult, GNEUndoList* undoList);
 
     /// @brief Invalidated copy constructor.
     GNEPersonTrip(GNEPersonTrip*) = delete;

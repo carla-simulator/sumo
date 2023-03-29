@@ -1,12 +1,11 @@
 ---
-title: Installing/Linux Build
-permalink: /Installing/Linux_Build/
+title: Linux Build
 ---
 
 This document describes how to install SUMO on Linux from sources. If
 you don't want to **extend** SUMO, but merely **use** it, you might want
 to [download one of our pre-built binary
-packages](../Installing.md) instead.
+packages](index.md) instead.
 
 To be able to run SUMO on Linux, just follow these steps:
 
@@ -17,7 +16,7 @@ To be able to run SUMO on Linux, just follow these steps:
 For ubuntu this boils down to
 
 ```
- sudo apt-get install cmake python g++ libxerces-c-dev libfox-1.6-dev libgdal-dev libproj-dev libgl2ps-dev
+ sudo apt-get install git cmake python3 g++ libxerces-c-dev libfox-1.6-dev libgdal-dev libproj-dev libgl2ps-dev python3-dev swig default-jdk maven libeigen3-dev
  git clone --recursive https://github.com/eclipse/sumo
  export SUMO_HOME="$PWD/sumo"
  mkdir sumo/build/cmake-build && cd sumo/build/cmake-build
@@ -39,23 +38,37 @@ alternatives below.
   network import from shapefile (arcgis). This requires the GDAL
   library. To compile you will need the devel versions of all packages.
   For openSUSE this means installing libxerces-c-devel, libproj-devel,
-  libgdal-devel, and fox16-devel. For ubuntu the call is:
-  `sudo apt-get install cmake python g++ libxerces-c-dev libfox-1.6-dev libgdal-dev libproj-dev libgl2ps-dev`.
+  libgdal-devel, and fox16-devel. For ubuntu the call is above.
+  The installation of swig, python3-dev and the jdk enables also the build of libsumo
+  while eigen3 is necessary for the overheadwire model.
   There are some outdated [platform specific
   and manual build instructions for the
-  libraries](../Installing/Linux_Build_Libraries.md)
+  libraries](Linux_Build_Libraries.md)
 - Optionally you may want to add
+ - ccache (to speed up builds)
  - ffmpeg-devel (for video output),
  - libOpenSceneGraph-devel (for the experimental 3D GUI),
- - python-devel and swig (for running TraCI pythons scripts without a socket connection),
- - libeigen3 (for the overheadwire model)
  - gtest (for unit testing)
- - texttest (for the acceptance tests)
-  The package names above are for openSUSE, for ubuntu the call to get all optional libraries and tools is:
-  ```
-  sudo apt-get install libavformat-dev libswscale-dev libopenscenegraph-dev python3-dev swig libgtest-dev libeigen3-dev python3-pip python3-setuptools default-jdk
-  sudo pip3 install texttest
-  ```
+ - gettext (for internationalization)
+ - texttest, xvfb  and tkdiff (for the acceptance tests)
+ - flake, astyle and autopep for style checking
+ - see also further dependencies [for GUI testing](../Developer/GUI_Testing.md)
+
+The package names above are for openSUSE, for ubuntu the call to get the most important optional libraries and tools is:
+  
+```
+sudo apt-get install ccache libavformat-dev libswscale-dev libopenscenegraph-dev python3-pip python3-setuptools
+sudo apt-get install libgtest-dev gettext tkdiff xvfb flake8 astyle python3-autopep8
+pip3 install texttest
+```
+
+For the Python tools there are some requirements depending on which tools you want to use. If you want to install
+everything using pip do `pip install -r tools/requirements.txt`. To install the most common dependencies with your
+package manager on ubuntu do:
+
+```
+sudo apt-get install python3-pandas python3-rtree python3-pyproj
+```
 
 ## Getting the source code
 
@@ -118,6 +131,19 @@ echo $SUMO_HOME
 
 and console shows "/home/<user\>/sumo-<version\>"
 
+## Install python packages
+
+Compiling netedit requieres a list of python packages to generate templates. Install it using pip:
+
+```
+pip install google lxml rtree pandas matplotlib pulp pyproj ezdxf scipy fmpy ortools texttest pyautogui pyperclip
+```
+Or if you're using python3
+
+```
+pip3 install google lxml rtree pandas matplotlib pulp pyproj ezdxf scipy fmpy ortools texttest pyautogui pyperclip
+```
+
 ## Building the SUMO binaries with cmake
 
 To build with cmake version 3 or higher is required.
@@ -162,16 +188,17 @@ make -j $(grep -c ^processor /proc/cpuinfo)
 
 Other useful cmake options:
 
-- `-D PROFILING=ON` enable profiling instrumentation for gprof (gcc
-  build only)
-- `-D COVERAGE=ON` enable coverage instrumentation for lcov (gcc build
-  only)
+- `-D PROFILING=ON` enable profiling instrumentation for gprof (gcc build only)
+- `-D COVERAGE=ON` enable coverage instrumentation for lcov (gcc build only)
 - `-D CHECK_OPTIONAL_LIBS=OFF` disable all optional libraries (only
   include EPL compatible licensed code)
 - `-D CMAKE_BUILD_TYPE=RelWithDebInfo` enable debug symbols for
   debugging the release build or using a different profiler
 - `-D PROJ_LIBRARY=` disable PROJ
 - `-D FOX_CONFIG=` disable FOX toolkit (GUI and multithreading)
+- `-D PYTHON_EXECUTABLE=/usr/bin/python3` select a different python version (also for libsumo / libtraci)
+- `-D MVN_EXECUTABLE=` disable maven packaging (especially useful if you have no network connection)
+
 
 ## Building with clang
 
@@ -195,6 +222,17 @@ dir and use
 ```
 CXX=clang++ cmake -DCMAKE_BUILD_TYPE=Debug ../..
 ```
+
+The clang-debug-build will detect memory leaks (among other things)
+If the errors are reported with cryptic hexadecimal numbers as
+
+```
+Indirect leak of 72 byte(s) in 1 object(s) allocated from:
+    #0 0xa4ee2d  (.../sumo/bin/netconvertD+0xa4ee2d) 
+```
+
+set the following environment variable to point to the llvm-symbolizer executable:
+`export ASAN_SYMBOLIZER_PATH=/usr/bin/llvm-symbolizer` before running the executable.
 
 ## Installing the SUMO binaries
 
@@ -230,7 +268,7 @@ sudo xargs rm -r $SUMO_HOME
 ## (Frequent) Rebuilds
 
 If you did a repository clone you can simply update it by doing `git pull`
-from inside the SUMO_HOME folder. Then change to the buil directory and run
+from inside the SUMO_HOME folder. Then change to the build directory and run
 `make -j $(nproc)` again.
 
 If your underlying system changed (updated libraries) or you experience other

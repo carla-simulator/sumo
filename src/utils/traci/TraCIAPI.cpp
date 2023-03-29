@@ -1,6 +1,6 @@
 /****************************************************************************/
 // Eclipse SUMO, Simulation of Urban MObility; see https://eclipse.org/sumo
-// Copyright (C) 2012-2020 German Aerospace Center (DLR) and others.
+// Copyright (C) 2012-2023 German Aerospace Center (DLR) and others.
 // This program and the accompanying materials are made available under the
 // terms of the Eclipse Public License 2.0 which is available at
 // https://www.eclipse.org/legal/epl-2.0/
@@ -30,21 +30,15 @@
 // ---------------------------------------------------------------------------
 // TraCIAPI-methods
 // ---------------------------------------------------------------------------
-#ifdef _MSC_VER
-/* Disable "decorated name length exceeded, name was truncated" warnings for the whole file. */
-#pragma warning(disable: 4503)
-#pragma warning(push)
-/* Disable warning about using "this" in the constructor */
-#pragma warning(disable: 4355)
-#endif
-TraCIAPI::TraCIAPI()
-    : edge(*this), gui(*this), inductionloop(*this),
-      junction(*this), lane(*this), lanearea(*this), multientryexit(*this),
-      person(*this), poi(*this), polygon(*this),
-      rerouter(*this), route(*this), routeprobe(*this),
-      simulation(*this), trafficlights(*this),
-      vehicle(*this), vehicletype(*this),
-      mySocket(nullptr) {
+
+TraCIAPI::TraCIAPI() :
+    edge(*this), gui(*this), inductionloop(*this),
+    junction(*this), lane(*this), lanearea(*this), multientryexit(*this),
+    person(*this), poi(*this), polygon(*this),
+    rerouter(*this), route(*this), routeprobe(*this),
+    simulation(*this), trafficlights(*this),
+    vehicle(*this), vehicletype(*this),
+    mySocket(nullptr) {
     myDomains[libsumo::RESPONSE_SUBSCRIBE_EDGE_VARIABLE] = &edge;
     myDomains[libsumo::RESPONSE_SUBSCRIBE_GUI_VARIABLE] = &gui;
     myDomains[libsumo::RESPONSE_SUBSCRIBE_JUNCTION_VARIABLE] = &junction;
@@ -62,9 +56,6 @@ TraCIAPI::TraCIAPI()
     myDomains[libsumo::RESPONSE_SUBSCRIBE_VEHICLE_VARIABLE] = &vehicle;
     myDomains[libsumo::RESPONSE_SUBSCRIBE_VEHICLETYPE_VARIABLE] = &vehicletype;
 }
-#ifdef _MSC_VER
-#pragma warning(pop)
-#endif
 
 
 TraCIAPI::~TraCIAPI() {
@@ -1048,7 +1039,7 @@ TraCIAPI::MeMeScope::getLastStepVehicleNumber(const std::string& detID) const {
 
 double
 TraCIAPI::MeMeScope::getLastStepMeanSpeed(const std::string& detID) const {
-    return getInt(libsumo::LAST_STEP_MEAN_SPEED, detID);
+    return getDouble(libsumo::LAST_STEP_MEAN_SPEED, detID);
 }
 
 std::vector<std::string>
@@ -1061,7 +1052,25 @@ TraCIAPI::MeMeScope::getLastStepHaltingNumber(const std::string& detID) const {
     return getInt(libsumo::LAST_STEP_VEHICLE_HALTING_NUMBER, detID);
 }
 
+std::vector<std::string>
+TraCIAPI::MeMeScope::getEntryLanes(const std::string& detID) const {
+    return getStringVector(libsumo::VAR_LANES, detID);
+}
 
+std::vector<std::string>
+TraCIAPI::MeMeScope::getExitLanes(const std::string& detID) const {
+    return getStringVector(libsumo::VAR_EXIT_LANES, detID);
+}
+
+std::vector<double>
+TraCIAPI::MeMeScope::getEntryPositions(const std::string& detID) const {
+    return getDoubleVector(libsumo::VAR_POSITION, detID);
+}
+
+std::vector<double>
+TraCIAPI::MeMeScope::getExitPositions(const std::string& detID) const {
+    return getDoubleVector(libsumo::VAR_EXIT_POSITIONS, detID);
+}
 
 // ---------------------------------------------------------------------------
 // TraCIAPI::POIScope-methods
@@ -1203,6 +1212,11 @@ TraCIAPI::PolygonScope::getLineWidth(const std::string& polygonID) const {
     return getDouble(libsumo::VAR_WIDTH, polygonID);
 }
 
+bool
+TraCIAPI::PolygonScope::getFilled(const std::string& polygonID) const {
+    return getInt(libsumo::VAR_FILL, polygonID) != 0;
+}
+
 std::string
 TraCIAPI::PolygonScope::getType(const std::string& polygonID) const {
     return getString(libsumo::VAR_TYPE, polygonID);
@@ -1241,13 +1255,13 @@ void
 TraCIAPI::PolygonScope::setShape(const std::string& polygonID, const libsumo::TraCIPositionVector& shape) const {
     tcpip::Storage content;
     content.writeUnsignedByte(libsumo::TYPE_POLYGON);
-    if (shape.size() < 256) {
-        content.writeUnsignedByte((int)shape.size());
+    if (shape.value.size() < 256) {
+        content.writeUnsignedByte((int)shape.value.size());
     } else {
         content.writeUnsignedByte(0);
-        content.writeInt((int)shape.size());
+        content.writeInt((int)shape.value.size());
     }
-    for (const libsumo::TraCIPosition& pos : shape) {
+    for (const libsumo::TraCIPosition& pos : shape.value) {
         content.writeDouble(pos.x);
         content.writeDouble(pos.y);
     }
@@ -1286,10 +1300,10 @@ TraCIAPI::PolygonScope::add(const std::string& polygonID, const libsumo::TraCIPo
     content.writeUnsignedByte(libsumo::TYPE_INTEGER);
     content.writeInt(layer);
     content.writeUnsignedByte(libsumo::TYPE_POLYGON);
-    content.writeUnsignedByte((int)shape.size());
-    for (int i = 0; i < (int)shape.size(); ++i) {
-        content.writeDouble(shape[i].x);
-        content.writeDouble(shape[i].y);
+    content.writeUnsignedByte((int)shape.value.size());
+    for (int i = 0; i < (int)shape.value.size(); ++i) {
+        content.writeDouble(shape.value[i].x);
+        content.writeDouble(shape.value[i].y);
     }
     myParent.createCommand(libsumo::CMD_SET_POLYGON_VARIABLE, libsumo::ADD, polygonID, &content);
     myParent.processSet(libsumo::CMD_SET_POLYGON_VARIABLE);
@@ -1387,6 +1401,26 @@ TraCIAPI::SimulationScope::getEndingTeleportIDList() const {
     return getStringVector(libsumo::VAR_TELEPORT_ENDING_VEHICLES_IDS, "");
 }
 
+int
+TraCIAPI::SimulationScope::getDepartedPersonNumber() const {
+    return (int)getInt(libsumo::VAR_DEPARTED_PERSONS_NUMBER, "");
+}
+
+std::vector<std::string>
+TraCIAPI::SimulationScope::getDepartedPersonIDList() const {
+    return getStringVector(libsumo::VAR_DEPARTED_PERSONS_IDS, "");
+}
+
+int
+TraCIAPI::SimulationScope::getArrivedPersonNumber() const {
+    return (int)getInt(libsumo::VAR_ARRIVED_PERSONS_NUMBER, "");
+}
+
+std::vector<std::string>
+TraCIAPI::SimulationScope::getArrivedPersonIDList() const {
+    return getStringVector(libsumo::VAR_ARRIVED_PERSONS_IDS, "");
+}
+
 double
 TraCIAPI::SimulationScope::getDeltaT() const {
     return getDouble(libsumo::VAR_DELTA_T, "");
@@ -1401,6 +1435,11 @@ TraCIAPI::SimulationScope::getNetBoundary() const {
 int
 TraCIAPI::SimulationScope::getMinExpectedNumber() const {
     return getInt(libsumo::VAR_MIN_EXPECTED_VEHICLES, "");
+}
+
+std::string
+TraCIAPI::SimulationScope::getOption(const std::string& option) const {
+    return getString(libsumo::VAR_OPTION, option);
 }
 
 int
@@ -1563,6 +1602,23 @@ TraCIAPI::SimulationScope::findRoute(const std::string& fromEdge, const std::str
     return getTraCIStage(libsumo::FIND_ROUTE, "", &content);
 }
 
+void
+TraCIAPI::SimulationScope::loadState(const std::string& path) const {
+    tcpip::Storage content;
+    content.writeUnsignedByte(libsumo::TYPE_STRING);
+    content.writeString(path);
+    myParent.createCommand(libsumo::CMD_SET_SIM_VARIABLE, libsumo::CMD_LOAD_SIMSTATE, "", &content);
+    myParent.processSet(libsumo::CMD_SET_SIM_VARIABLE);
+}
+
+void
+TraCIAPI::SimulationScope::saveState(const std::string& destination) const {
+    tcpip::Storage content;
+    content.writeUnsignedByte(libsumo::TYPE_STRING);
+    content.writeString(destination);
+    myParent.createCommand(libsumo::CMD_SET_SIM_VARIABLE, libsumo::CMD_SAVE_SIMSTATE, "", &content);
+    myParent.processSet(libsumo::CMD_SET_SIM_VARIABLE);
+}
 
 void
 TraCIAPI::SimulationScope::writeMessage(const std::string msg) {
@@ -1761,7 +1817,7 @@ TraCIAPI::TrafficLightScope::setProgramLogic(const std::string& tlsID, const lib
     content.writeInt(logic.currentPhaseIndex);
     content.writeUnsignedByte(libsumo::TYPE_COMPOUND);
     content.writeInt((int)logic.phases.size());
-    for (const libsumo::TraCIPhase* p : logic.phases) {
+    for (const std::shared_ptr<libsumo::TraCIPhase>& p : logic.phases) {
         content.writeUnsignedByte(libsumo::TYPE_COMPOUND);
         content.writeInt(6);
         content.writeUnsignedByte(libsumo::TYPE_DOUBLE);
@@ -2386,7 +2442,7 @@ TraCIAPI::VehicleScope::getBestLanes(const std::string& vehicleID) const {
 
             myParent.myInput.readUnsignedByte();
             const int m = myParent.myInput.readInt();
-            for (int i = 0; i < m; ++i) {
+            for (int j = 0; j < m; ++j) {
                 info.continuationLanes.push_back(myParent.myInput.readString());
             }
 
@@ -2821,10 +2877,27 @@ TraCIAPI::VehicleScope::setSpeed(const std::string& vehicleID, double speed) con
 }
 
 void
-TraCIAPI::VehicleScope::setPreviousSpeed(const std::string& vehicleID, double prevspeed) const {
+TraCIAPI::VehicleScope::setAcceleration(const std::string& vehicleID, double accel, double duration) const {
     tcpip::Storage content;
+    content.writeUnsignedByte(libsumo::TYPE_COMPOUND);
+    content.writeInt(2);
     content.writeUnsignedByte(libsumo::TYPE_DOUBLE);
-    content.writeDouble(prevspeed);
+    content.writeDouble(accel);
+    content.writeUnsignedByte(libsumo::TYPE_DOUBLE);
+    content.writeDouble(duration);
+    myParent.createCommand(libsumo::CMD_SET_VEHICLE_VARIABLE, libsumo::VAR_ACCELERATION, vehicleID, &content);
+    myParent.processSet(libsumo::CMD_SET_VEHICLE_VARIABLE);
+}
+
+void
+TraCIAPI::VehicleScope::setPreviousSpeed(const std::string& vehicleID, double prevSpeed, double prevAcceleration) const {
+    tcpip::Storage content;
+    content.writeUnsignedByte(libsumo::TYPE_COMPOUND);
+    content.writeInt(2);
+    content.writeUnsignedByte(libsumo::TYPE_DOUBLE);
+    content.writeDouble(prevSpeed);
+    content.writeUnsignedByte(libsumo::TYPE_DOUBLE);
+    content.writeDouble(prevAcceleration);
     myParent.createCommand(libsumo::CMD_SET_VEHICLE_VARIABLE, libsumo::VAR_PREV_SPEED, vehicleID, &content);
     myParent.processSet(libsumo::CMD_SET_VEHICLE_VARIABLE);
 }
@@ -3045,13 +3118,10 @@ TraCIAPI::VehicleScope::addSubscriptionFilterLeadFollow(const std::vector<int>& 
 }
 
 void
-TraCIAPI::VehicleScope::addSubscriptionFilterTurn(double downstreamDist, double upstreamDist) const {
-    addSubscriptionFilterEmpty(libsumo::FILTER_TYPE_TURN);
+TraCIAPI::VehicleScope::addSubscriptionFilterTurn(double downstreamDist, double foeDistToJunction) const {
+    addSubscriptionFilterFloat(libsumo::FILTER_TYPE_TURN, foeDistToJunction);
     if (downstreamDist >= 0) {
         addSubscriptionFilterDownstreamDistance(downstreamDist);
-    }
-    if (upstreamDist >= 0) {
-        addSubscriptionFilterUpstreamDistance(upstreamDist);
     }
 }
 
@@ -3178,6 +3248,11 @@ TraCIAPI::PersonScope::getLaneID(const std::string& personID) const {
 std::string
 TraCIAPI::PersonScope::getTypeID(const std::string& personID) const {
     return getString(libsumo::VAR_TYPE, personID);
+}
+
+double
+TraCIAPI::PersonScope::getSpeedFactor(const std::string& personID) const {
+    return getDouble(libsumo::VAR_SPEED_FACTOR, personID);
 }
 
 double
@@ -3354,6 +3429,37 @@ TraCIAPI::PersonScope::removeStage(const std::string& personID, int nextStageInd
     myParent.processSet(libsumo::CMD_SET_PERSON_VARIABLE);
 }
 
+void
+TraCIAPI::PersonScope::moveTo(const std::string& personID, const std::string& edgeID, double position) const {
+    tcpip::Storage content;
+    content.writeUnsignedByte(libsumo::TYPE_COMPOUND);
+    content.writeInt(2);
+    content.writeUnsignedByte(libsumo::TYPE_STRING);
+    content.writeString(edgeID);
+    content.writeUnsignedByte(libsumo::TYPE_DOUBLE);
+    content.writeDouble(position);
+    myParent.createCommand(libsumo::CMD_SET_PERSON_VARIABLE, libsumo::VAR_MOVE_TO, personID, &content);
+    myParent.processSet(libsumo::CMD_SET_PERSON_VARIABLE);
+}
+
+void
+TraCIAPI::PersonScope::moveToXY(const std::string& personID, const std::string& edgeID, const double x, const double y, double angle, const int keepRoute) const {
+    tcpip::Storage content;
+    content.writeUnsignedByte(libsumo::TYPE_COMPOUND);
+    content.writeInt(5);
+    content.writeUnsignedByte(libsumo::TYPE_STRING);
+    content.writeString(edgeID);
+    content.writeUnsignedByte(libsumo::TYPE_DOUBLE);
+    content.writeDouble(x);
+    content.writeUnsignedByte(libsumo::TYPE_DOUBLE);
+    content.writeDouble(y);
+    content.writeUnsignedByte(libsumo::TYPE_DOUBLE);
+    content.writeDouble(angle);
+    content.writeUnsignedByte(libsumo::TYPE_BYTE);
+    content.writeByte(keepRoute);
+    myParent.createCommand(libsumo::CMD_SET_PERSON_VARIABLE, libsumo::MOVE_TO_XY, personID, &content);
+    myParent.processSet(libsumo::CMD_SET_PERSON_VARIABLE);
+}
 
 void
 TraCIAPI::PersonScope::setSpeed(const std::string& personID, double speed) const {
@@ -3371,6 +3477,15 @@ TraCIAPI::PersonScope::setType(const std::string& personID, const std::string& t
     content.writeUnsignedByte(libsumo::TYPE_STRING);
     content.writeString(typeID);
     myParent.createCommand(libsumo::CMD_SET_PERSON_VARIABLE, libsumo::VAR_TYPE, personID, &content);
+    myParent.processSet(libsumo::CMD_SET_PERSON_VARIABLE);
+}
+
+void
+TraCIAPI::PersonScope::setSpeedFactor(const std::string& personID, double factor) const {
+    tcpip::Storage content;
+    content.writeUnsignedByte(libsumo::TYPE_DOUBLE);
+    content.writeDouble(factor);
+    myParent.createCommand(libsumo::CMD_SET_PERSON_VARIABLE, libsumo::VAR_SPEED_FACTOR, personID, &content);
     myParent.processSet(libsumo::CMD_SET_PERSON_VARIABLE);
 }
 
@@ -3484,7 +3599,7 @@ TraCIAPI::TraCIScopeWrapper::getPolygon(int var, const std::string& id, tcpip::S
             p.x = myParent.myInput.readDouble();
             p.y = myParent.myInput.readDouble();
             p.z = 0.;
-            ret.push_back(p);
+            ret.value.push_back(p);
         }
     }
     return ret;
@@ -3535,6 +3650,20 @@ TraCIAPI::TraCIScopeWrapper::getStringVector(int var, const std::string& id, tcp
         const int size = myParent.myInput.readInt();
         for (int i = 0; i < size; ++i) {
             r.push_back(myParent.myInput.readString());
+        }
+    }
+    return r;
+}
+
+
+std::vector<double>
+TraCIAPI::TraCIScopeWrapper::getDoubleVector(int var, const std::string& id, tcpip::Storage* add) const {
+    std::vector<double> r;
+    myParent.createCommand(myCmdGetID, var, id, add);
+    if (myParent.processGet(myCmdGetID, libsumo::TYPE_DOUBLELIST)) {
+        const int size = myParent.myInput.readInt();
+        for (int i = 0; i < size; ++i) {
+            r.push_back(myParent.myInput.readDouble());
         }
     }
     return r;

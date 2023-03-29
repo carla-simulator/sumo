@@ -1,6 +1,5 @@
 ---
-title: Simulation/Railways
-permalink: /Simulation/Railways/
+title: Railways
 ---
 
 # Train Simulation
@@ -16,6 +15,10 @@ taken in comparison to a plain vehicular simulation.
 Railways can be imported from
 [OSM](../Networks/Import/OpenStreetMap.md). They can also be
 explicitly specified using the existing *vClasses*.
+
+### Parallel Tracks
+If a railway has parallel tracks, these must be modelled as distinct edge
+elements instead of a single edge with multiple "lanes".
 
 ### OSM
 
@@ -68,7 +71,7 @@ the time.
 
 Bidirectional track usage is modeled by two edges that have their
 geometries exactly reversed and using the attribute `spreadType="center"`. This will result
-in lane geometries that are overlayed exactly. These edges are referred
+in lane geometries that are overlaid exactly. These edges are referred
 to as *superposed* (alternatively as bidirectional rail edges). In the
 .net.xml file these edges are marked with `bidi="<REVERSE_EDGE_ID>"` but this is a generated
 attribute and not to be set by the user.
@@ -78,22 +81,31 @@ will restrict it's usage to one direction at a time.
 
 ### Bidirectional rails in [sumo-gui](../sumo-gui.md)
 
-sumo-gui automatically shows only one of both edges to avoid duplicate
-drawing of cross-ties. The visualisation option *show lane direction*
-can be used to identify superposed edges. (arrows in both directions
-will be show).
+Visualization of bidirectional tracks has a distinct [style and dedicated settings](#network).
 
-### Working with bidirectional tracks in [netedit](../netedit.md)
+### Working with bidirectional tracks in [netedit](../Netedit/index.md)
 
 - To show both edges that constitute a bidirectional track, activate
-  edge visualisation option *spread superposed*. Both edges will be
+  edge visualization option *spread bidirectional railways/roads*. Both edges will be
   drawn narrower and with a side-offset to make them both visible
   without overlap.
+   - this is highly recommended when using connection mode to define connections among bidirectional tracks as it's otherwise hard to distinguish the affected edges
+   - the pre-defined gui setting scheme 'rail' automatically activates the *spread ...* setting.
 - To find (and highlight) all bidirectional tracks, use [attribute
-  selection](../netedit.md#match_attribute) and search for
+  selection](../Netedit/index.md#match_attribute) and search for
   attribute *bidi* with a value of *1*
 - Create bidirectional tracks [as explained
-  here](../netedit.md#creating_bidirectional_railway_tracks)
+  here](../Netedit/neteditUsageExamples.md#creating_bidirectional_railway_tracks)
+
+### Routing in bidirectional networks
+When computing train routes in a network with parallel tracks which are usable in both directions, it may be
+desirable that trains preferentially use one of the tracks (i.e. to always keep on
+the right side) and thereby preventing conflicts between oncoming trains.
+
+To express this preference, the edges in the preferred direction and on the
+preferred side may be assigned a higher priority value. This value will be taken
+into account when setting option **--weights.priority-factor** which applies to
+[sumo](../sumo.md) and [duarouter](../duarouter.md).
 
 ### Importing bidirectional tracks from OSM
 
@@ -105,12 +117,15 @@ automatically imported as superposed edges.
 
 Commonly, rail networks import from OSM are incomplete in regard to
 bidirectional track usage. One example would be terminal tracks which a
-train can only leave by reversing direction. A large number of these
-issues can be fixed automatically be setting the
-[netconvert](../netconvert.md)-option **--railway.topology.repair**. To analyze problems with
-bidirectional tracks, the option **--railway.topology.output** {{DT_FILE}} can be used to identify problematic
-tracks. The option **--railway.topology.all-bidi** can be used to make all tracks usable in both
-directions.
+train can only leave by reversing direction. [netconvert](../netconvert.md) provides several options to deal with this problem:
+
+- **--railway.topology.output** {{DT_FILE}}: Identify problematic tracks (i.e. for manual correction).
+- **--railway.topology.repair** : Automatically fixes problems by analyzing rail network topology and adding bidirectional tracks
+- **--railway.topology.repair.minimal** : Apply automated fixes but only those which are needed for the operation loaded public transport lines
+- **--railway.topology.repair.connect-straight** : Allow bidirectional rail use wherever rails with opposite directions meet at a straight angle
+- **--railway.topology.repair.stop-turn** : Add turn-around connections at all loaded stops (to enable direction reversal).
+- **--railway.topology.all-bidi** : make all tracks usable in both directions.
+- **--railway.topology.all-bidi.input-file** : Load edge ids from text file and make those tracks usable in both directions. (one edge id per line, optionally prefixed with 'edge:' as in a [selection file created with netedit](../Netedit/editModesCommon.md#selection_operations)).
 
 ## Rail Signals
 
@@ -120,6 +135,8 @@ Signaling](https://en.wikipedia.org/wiki/Automatic_block_signaling).
 
 By setting the [netconvert](../netconvert.md)-option **--railway.signals.discard** all signals
 can be removed from a network.
+
+When working with bidirectional tracks, rail signals will affect both directions of travel by default. This can be [changed in netedit](../Netedit/neteditUsageExamples.md#define_rail_signals_that_only_affect_one_track_direction).
 
 ## Rail Crossings
 
@@ -133,7 +150,34 @@ When importing networks from
 crossings will be imported automatically. For other input data sources
 the crossings may have to be specified [via additional xml
 files](../Tutorials/ScenarioGuide.md#modifying_an_imported_network_via_plainxml)
-or set via [netedit](../netedit.md) after importing.
+or set via [netedit](../Netedit/index.md) after importing.
+
+### Rail Crossing Parameters
+
+The following parameters may be defined in an additional file to configure timing and behavior of a rail crossing (example below).
+Time values are in seconds.
+
+- time-gap : time headway of approaching train that triggers closing the crossing (default 15)
+- space-gap : space headway of approaching train that triggers closing the crossing (default -1, which disables this check)
+- min-green-time : minimum green time for opening the crossing when another train is approaching (default 5)
+- opening-delay : time after train has passed the crossing before the opening sequence starts (default 3)
+- opening-time : time for opening the crossing (indicated by red-yellow state 'u') (default 3)
+- yellow-time : time for closing the crossing (default 3)
+
+When setting parameters, `id` indicates the id of the rail-crossing junction and `programID` is always '0'.
+
+```
+<additional>
+    <tlLogic id="C" programID="0">
+        <param key="time-gap" value="15.0"/>
+        <param key="space-gap" value="-1.0"/>
+        <param key="min-green-time" value="5.0"/>
+        <param key="opening-delay" value="3.0"/>
+        <param key="opening-time" value="3.0"/>
+        <param key="yellow-time" value="5.0"/>
+    </tlLogic>
+</additional>
+```
 
 ## Kilometrage (Mileage, Chainage)
 
@@ -147,7 +191,9 @@ The distance value along an edge is computed as:
   |edgeDistance + vehiclePos|
 ```
 
-Edge distance is imported from OSM and can also be be set along a route in [netedit](../netedit.md#route)
+Edge distance is imported from OSM and can also be be set along a route in [netedit](../Netedit/index.md#route)
+
+The distances value can be written in [fcd-output](Output/FCDOutput.md#further_options) using option **--fcd-output.distance**. It may then be used for plotting by [plot_trajectories.py](../Tools/Visualization.md#plot_trajectoriespy) using the code `k` (i.e. -t kt). The distances can also be visualized in sumo-gui (color edges by distance).
 
 !!! note
     Negative distance values are not currently supported (pending introduction of another attribute)
@@ -156,7 +202,7 @@ Edge distance is imported from OSM and can also be be set along a route in [nete
 When train tracks can be used in both directions, there is considerable freedom for trains when search a path through the network. To reduce the number of conflicts (when two vehicles want to use the same track in opposite directions), the preferred direction for each track can be defined and factored into the routing decision.
 
 When routes are computed in the simulation, this is done by setting the option **--device.rerouting.priority-factor FLOAT**. This causes the priority values of edges to be factored into the routing decision with higher values being preferred. 
-At the default value of 0. Edge priority is ignored when routing. When setting a positive value, the edges with the lowest priority receive a penalty factor to their estimated travel time of 1 + FLOAT whereas the edges with the highest priority receive no penalty. Edges with medium priority will receive a penality of 1 + x * FLOAT where 
+At the default value of 0. Edge priority is ignored when routing. When setting a positive value, the edges with the lowest priority receive a penalty factor to their estimated travel time of 1 + FLOAT whereas the edges with the highest priority receive no penalty. Edges with medium priority will receive a penalty of 1 + x * FLOAT where 
 
 ```
   x = (edgePriority - minPriority) / (maxPriority - minPriority)
@@ -172,7 +218,7 @@ The priority values can either be assigned by the user or computed heuristically
 
 # Modelling Trains
 
-There is a dedicated carFollowMode for trains which can be actived by
+There is a dedicated carFollowMode for trains which can be activated by
 setting `carFollowModel="Rail" trainType="<TYPE>"` in the `<vType>` definition. Allowed values for trainType are
 
 - Freight
@@ -187,6 +233,14 @@ setting `carFollowModel="Rail" trainType="<TYPE>"` in the `<vType>` definition. 
 These types model traction and rolling resistance for particular trains.
 Alternatively, any other car following model may be used and configured
 with appropriate acceleration / deceleration parameters.
+
+# Train Schedules
+
+Train schedules are defined in the same way as for any other type of [public transport](Public_Transport.md#public_transport_schedules).
+
+<img src="../images/schedule_until.png" width="500px"/>
+
+Generated by [plotXMLAttrributes.py](../Tools/Visualization.md#public_transport_schedule).
 
 # Train Interaction
 
@@ -235,7 +289,7 @@ To split a train, the following input definition can be used. The rear half of t
 When defined this way, The rear part of the train will be created as a new simulation vehicle once the first part has reached the stop. After stopping, The front half of the train will continue with reduced length.
 
 ## Joining two trains
-To join two trains, the following input definition can be used. The front half of the train must define a stop trigger with value **join**. The rear half othe train must define attribute 'join' referencing the id of the front half.
+To join two trains, the following input definition can be used. The front half of the train must define a stop trigger with value **join**. The rear half of the other train must define the attribute 'join' referencing the id of the front half.
 
 ```
 <vType id="train" vClass="rail"/>
@@ -247,7 +301,7 @@ To join two trains, the following input definition can be used. The front half o
         <stop busStop="B" duration="5.00" join="t0"/>
     </trip>
 ```
-The rear part of the train will be joined to the front part if the followign conditions are met:
+The rear part of the train will be joined to the front part if the following conditions are met:
 - the rear part has fulfilled its stopping duration
 - the front part the train is present and it's back is on the same lane as the front of the rear part
 - the gap between the trains is less than 5 meters
@@ -255,15 +309,29 @@ After being joined to the front part, the rear part will no longer be part of th
 The front half of the train will stop until the rear part is joined to it. Afterwards it will continue with increased length. 
 
 # Rail Signal Behavior
+
 Rail signals perform the following safety functions automatically
 
-- guard the track up to the next rail signal (signal block) so that only one train can enter this section at a time. This prevents rear-end collisions.
-- guard the track so that vehicles from different branches (flanks) cannot enter the same section. This prevents flanking collisions.
-- guard the track so that vehicles cannot enter bidirectional sections at the same time. This prevents head-on collisions.
-- prevent deadlocks on bidirectional sections
+- a) guard the track up to the next rail signal (signal block) so that only one train can enter this section at a time. This prevents rear-end collisions.
+- b) guard the track so that vehicles from different branches (flanks) cannot enter the same section. This prevents flanking collisions.
+- c) guard the track so that vehicles cannot enter bidirectional sections at the same time. This prevents head-on collisions.
+- d) prevent deadlocks on bidirectional sections
+
+Functionality **a)** corresponds to the "classic" safety behavior of rail signals ([PZB](https://en.wikipedia.org/wiki/Punktf%C3%B6rmige_Zugbeeinflussung)). When option **--railsignal-moving-block** is set or individual signals are configured with parameter *moving-block* (see below), feature **a)** is disabled and trains will use their configured carFollowModel (i.e. 'Rail') for distance keeping. This is similar to the [LZB](https://en.wikipedia.org/wiki/Linienzugbeeinflussung) safety system when used with extremely short virtual blocks.
+
+To switch a single signal into moving-block-mode, the following additional file may be loaded:
+```
+<additional xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="https://sumo.dlr.de/xsd/additional_file.xsd">
+    <tlLogic id="gneJ8" programID="0">
+        <param key="moving-block" value="true"/>
+    </tlLogic>
+</additional>
+```
+
+Parameter *moving-block* may also be updated at runtime with `traci.trafficlight.setParameter`.
 
 ## Schedule Constraints
-Additionally rail signals can enforce train ordering to ensure that a scheduled order at stations can be kept.
+Additionally, rail signals can enforce train ordering to ensure that a [scheduled order at stations](Public_Transport.md#public_transport_schedules) can be kept.
 To make use of this, the following elements can be loaded from an additional file:
 
 ```
@@ -282,16 +350,19 @@ This constrain defines that a given vehicle id (or tripId) can only pass the cur
 ### insertionPredecessor constraint
 This constrain defines that a given vehicle id (or tripId) can only be inserted on the block leading up to the current signal after some other vehicle ('foe') with the given id or tripId has passed signal 'tl'. The foe vehicle must have been the last vehicle to do so or it must have been one of the last 'limit' vehicles at the time of switching green.
 
-### generateRailSignalConstraints.py
-Constraints can be generated using the tool `generateRailSignalConstraints.py`. Example:
+### Constraint Attributes
 
-```
-<SUMO_HOME>/tools/generateRailSignalConstraints.py -r <input-route-file> -n <input-net-file> -a <input-stop-file> -o <output-file>
-```
-The tool will analyze the order of arrival at stations (stops). 
+| Attribute Name  | Value Type             | Description                            |
+| --------------- | ---------------------- | -------------------------------------- |
+| **tripId**      | id (string)            | The 'tripId' param of a vehicle or the id of a vehicle to which this constraint applies   |
+| **tl**          | id (string)            | The id of a railSignal   |
+| **foes**        | ids (string list)      | The ids of one or more vehicles that must have passed **tl** before the parent rail signal permits **tripID** to pass   |
+| limit           | int                    | The number of intermediate vehicles that may pass **tl** after the **foes** before the consraint is evaluated for **tripId**.  default: number of given **foes**. (setting a high number has now downside besides memory use but setting a low number may cause the constraint to block **tripId** indefinitely because the ids of the passed foes were *overwritten* by later trains)     |
+| active         | bool                    |  Whether this constraint is active (inactive constraints may still be retrieved via TraCI) |         
 
-- If vehicles have successive stops at the same station but reach this station via different tracks, constraints will be generated for the signals ahead of the merging switch. The vehicle that comes later has to wait for the vehicle that comes earlier (`predecessorConstraint`).
-- If vehicles are inserted on the edge of their first stop, a `insertionPredecessor`-constraint is generated so that insertion is delayed until the train that stops earlier has passed the signal subsequent to the station.
+
+### constraints generation
+Constraints can be generated using the tool [generateRailSignalConstraints.py](../Tools/Railways.md#generaterailsignalconstraintspy) by using a route file with [stops that define a schedule](Public_Transport.md#public_transport_schedules).
 
 # TraCI
 
@@ -304,7 +375,21 @@ Furthermore the following functions are available for rail signals:
 - traci.trafficlight.getRivalVehicles(tlsID, linkIndex): Returns the list of vehicles that also wish to enter the subsequent block for the given tls-linkIndex (regardless of priority) from the perspective of the closest vehicle upstream of the signal
 - traci.trafficlight.getPriorityVehicles(tlsID, linkIndex): Returns the list of vehicles that also wish to enter the subsequent block for the given tls-linkIndex (only those with higher priority) from the perspective of the closest vehicle upstream of the signal
 
-# Visualisation
+## constraints
+
+Constraints can be queried and modified via TraCI:
+
+- getConstraints(tlsID, tripId=""): Returns the list of rail signal constraints for the given rail signal. If tripId is not "", only constraints with the given tripId are returned. Otherwise, all constraints are returned
+- getConstraintsByFoe(foeSignal, foeId=""): Returns the list of rail signal constraints that have the given rail signal id as their foeSignal. If foeId is not "", only constraints with the given foeId are returned. Otherwise, all constraints are returned
+- swapConstraints(tlsID, tripId, foeSignal, foeId):  Reverse the given constraint and return list of new constraints that were created (by swapping) to avoid deadlock.
+- removeConstraints(tlsID, tripId, foeSignal, foeId): remove constraints with the given values. Any combination of inputs may be set to "" to act as a wildcard filter """
+- updateConstraints(vehID, tripId=""): remove any constraints related to the given tripId if the vehicle with the given vehID no longer passes the respective rail signals (i.e. after rerouting).
+  - if tripId is the empty string, the current tripId param of the vehicle is used
+  - if the tripId would have changed in the part of the route affected by rerouting, the function must be called once for each individual tripId involved.
+
+# Visualization
+
+## Trains
 
 The length of railway carriages, locomotive and the gap between the
 carriages can be configured using the following [generic vType
@@ -313,6 +398,39 @@ parameters](../Simulation/GenericParameters.md):
 - carriageLength
 - locomotiveLength
 - carriageGap
+
+These parameters control the appearance of trains in [sumo-gui](../sumo-gui.md) when drawing vehicles with the style 'simple shapes'.
+
+## Network
+
+By default, railway tracks are shown in [sumo-gui](../sumo-gui.md) in a distinct style:
+
+- tracks and crossties are rendendered instead of filled shapes when zoomed in (configurable with visualization setting *show rails*)
+- turning arrows are not shown
+- the [white bar that indicates right of way](../sumo-gui.md#right_of_way) is not drawn
+- junction shapes are not shown and the internal edges that make up a railway switch are always visible (can be changed setting junction coloring to any scheme other than *uniform*)
+- traffic light (rail signal) indicators are drawn with an offset to the right to indicate the direction in which the signal is applied
+- for each pair of edges that make up a bidirectional track, only of is drawn to avoid artefacts. To make both edges visible (i.e. for selecting or otherwise interacting with that edge), the visualization setting *spread bidirectional railways/roads* in the *Streets* tab can be activated
+- the pre-defined gui setting scheme *"Rail"* can be used to activate the following settings that are helpful for diagnosing a railway simualation
+  - *spread bidirectional railways/roads*
+  - coloring junctions *by type* (making rail signals more visible)
+  - constant junction size (making rail signals bigger when zoomed out)
+  - show lane direction (direction is otherwise hard to judge for uni-directional tracks)
+  - vehicles are shown as *simple shapes* to ensure articulated train shapes follow curves
+
+## Abstract Networks
+
+Road networks are most often modelled according to their actual layout in [cartesian space](../Geo-Coordinates.md). Such networks have all distances and angles in the same proportions as those of geographical map.
+
+In the railway domain it is often useful to work with schematic (also called abstract) networks instead of (or in addition to) geographical networks.
+Such abstract networks can make it easiert so see all tracks and switches on a single screen without zooming and panning. SUMO supports working with abstract maps in the following ways:
+
+- all roads and tracks can have a custom "length" value that differs from their visual length. This allows to separate the visualization of the network from it's simulation behavior (w.r.t. distance travelled).
+- sumo-gui supports loading an abstract map of a network along with a geographical map by using options **-n geo.net.xml -N abstract.net.xml**. The two networks must have the exact same topology and may only differ in their geometry.
+  - The user may switch between the visualization of either geometry via the hotkey **CTRL+K** or by setting Street visualization setting *secondary shape*.
+  - All outputs that include geometry information (i.e. [fcd-output](Output/FCDOutput.md)) will be according the the network loaded with option **-n**
+ - the tool [abstractRail.py](../Tools/Net.md#abstractrailpy) can be used to convert geographic rail networks in abstract rail networks
+ 
 
 # Miscellaneous
 - Error checking for [railway schedules](Public_Transport.md#single_vehicles_and_trips) can be done with the tool [checkStopOrder.py](../Tools/Routes.md#checkstoporderpy) 

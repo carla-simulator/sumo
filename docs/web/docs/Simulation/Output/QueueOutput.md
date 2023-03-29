@@ -1,6 +1,5 @@
 ---
-title: Simulation/Output/QueueOutput
-permalink: /Simulation/Output/QueueOutput/
+title: QueueOutput
 ---
 
 The idea behind this output option is to detect the queue in front of
@@ -17,7 +16,7 @@ this name will be overwritten, the destination folder must exist.
 
 The generated XML file looks like this:
 
-```
+```xml
 <queue-export>
 
   <data timestep="<TIME_STEP>">
@@ -50,3 +49,11 @@ The generated XML file looks like this:
 This output option should offer some information about the queues in
 front of the junctions, which can be used in cases of routing or V2X
 communications.
+
+## Visualization example
+
+### Queuing times over time
+
+<img src="../../images/queue_out.png" width="500px"/>
+
+Generated with [plotXMLAttributes.py](../../Tools/Visualization.md#queuing_times_over_time).

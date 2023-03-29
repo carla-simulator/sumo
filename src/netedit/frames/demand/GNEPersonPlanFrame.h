@@ -1,6 +1,6 @@
 /****************************************************************************/
 // Eclipse SUMO, Simulation of Urban MObility; see https://eclipse.org/sumo
-// Copyright (C) 2001-2020 German Aerospace Center (DLR) and others.
+// Copyright (C) 2001-2023 German Aerospace Center (DLR) and others.
 // This program and the accompanying materials are made available under the
 // terms of the Eclipse Public License 2.0 which is available at
 // https://www.eclipse.org/legal/epl-2.0/
@@ -18,8 +18,15 @@
 // The Widget for add PersonPlan elements
 /****************************************************************************/
 #pragma once
+#include <config.h>
 
+#include <netedit/elements/demand/GNERouteHandler.h>
+#include <netedit/frames/GNEAttributesCreator.h>
+#include <netedit/frames/GNEDemandSelector.h>
+#include <netedit/frames/GNEElementTree.h>
 #include <netedit/frames/GNEFrame.h>
+#include <netedit/frames/GNEPathLegendModule.h>
+#include <netedit/frames/GNETagSelector.h>
 
 
 // ===========================================================================
@@ -33,10 +40,10 @@ class GNEPersonPlanFrame : public GNEFrame {
 public:
 
     /**@brief Constructor
-     * @brief parent FXHorizontalFrame in which this GNEFrame is placed
+     * @brief viewParent GNEViewParent in which this GNEFrame is placed
      * @brief viewNet viewNet that uses this GNEFrame
      */
-    GNEPersonPlanFrame(FXHorizontalFrame* horizontalFrameParent, GNEViewNet* viewNet);
+    GNEPersonPlanFrame(GNEViewParent* viewParent, GNEViewNet* viewNet);
 
     /// @brief Destructor
     ~GNEPersonPlanFrame();
@@ -50,36 +57,48 @@ public:
     /**@brief add person plan element
      * @param objectsUnderCursor collection of objects under cursor after click over view
      * @param mouseButtonKeyPressed key pressed during click
-     * @return true if element was sucesfully added
+     * @return true if element was successfully added
      */
     bool addPersonPlanElement(const GNEViewNetHelper::ObjectsUnderCursor& objectsUnderCursor, const GNEViewNetHelper::MouseButtonKeyPressed& mouseButtonKeyPressed);
 
-    /// @brief get path creator modul
-    GNEFrameModuls::PathCreator* getPathCreator() const;
+    /// @brief reset selected person
+    void resetSelectedPerson();
+
+    /// @brief get path creator module
+    GNEPathCreator* getPathCreator() const;
+
+    /// @brief get Person Hierarchy
+    GNEElementTree* getPersonHierarchy() const;
 
 protected:
-    /// @brief Tag selected in TagSelector
+    /// @brief Tag selected in GNETagSelector
     void tagSelected();
 
     /// @brief selected demand element in DemandElementSelector
     void demandElementSelected();
 
     /// @brief create path
-    void createPath();
+    bool createPath(const bool useLastRoute);
 
 private:
+    /// @brief route handler
+    GNERouteHandler myRouteHandler;
+
     /// @brief Person selectors
-    GNEFrameModuls::DemandElementSelector* myPersonSelector;
+    DemandElementSelector* myPersonSelector;
 
     /// @brief personPlan selector
-    GNEFrameModuls::TagSelector* myPersonPlanTagSelector;
+    GNETagSelector* myPersonPlanTagSelector;
 
     /// @brief internal vehicle attributes
-    GNEFrameAttributesModuls::AttributesCreator* myPersonPlanAttributes;
+    GNEAttributesCreator* myPersonPlanAttributes;
 
     /// @brief Path Creator
-    GNEFrameModuls::PathCreator* myPathCreator;
+    GNEPathCreator* myPathCreator;
 
     /// @brief Person Hierarchy
-    GNEFrameModuls::HierarchicalElementTree* myPersonHierarchy;
+    GNEElementTree* myPersonHierarchy;
+
+    /// @brief path legend modul
+    GNEPathLegendModule* myPathLegend;
 };

@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 # Eclipse SUMO, Simulation of Urban MObility; see https://eclipse.org/sumo
-# Copyright (C) 2008-2020 German Aerospace Center (DLR) and others.
+# Copyright (C) 2008-2023 German Aerospace Center (DLR) and others.
 # This program and the accompanying materials are made available under the
 # terms of the Eclipse Public License 2.0 which is available at
 # https://www.eclipse.org/legal/epl-2.0/
@@ -23,8 +23,8 @@ from __future__ import absolute_import
 import os
 import sys
 
-SUMO_HOME = os.path.join(os.path.dirname(__file__), "..", "..", "..", "..", "..")
-sys.path.append(os.path.join(os.environ.get("SUMO_HOME", SUMO_HOME), "tools"))
+if "SUMO_HOME" in os.environ:
+    sys.path.append(os.path.join(os.environ["SUMO_HOME"], "tools"))
 import traci  # noqa
 import sumolib  # noqa
 
@@ -103,5 +103,12 @@ for step in range(10):
         traci.edge.getLastStepVehicleNumber("3si"),
         traci.edge.getLastStepMeanSpeed("3si"),
         traci.edge.getTraveltime("3si")))
+    print("pending", traci.edge.getPendingVehicles("3si"))
+
+print("allow_0", traci.lane.getAllowed(edgeID + "_0"))
+traci.edge.setAllowed(edgeID, "bicycle")
+print("allow_1", traci.lane.getAllowed(edgeID + "_0"))
+traci.edge.setAllowed(edgeID, ["bicycle", "pedestrian"])
+print("allow_2", traci.lane.getAllowed(edgeID + "_0"))
 
 traci.close()

@@ -1,3 +1,8 @@
+<!--
+MkDocs version : {{ mkdocs_version }}
+Build Date UTC : {{ build_date_utc.strftime('%d %B %Y %H:%M:%S') }}
+{% if page and page.meta.revision_date %}Last edit: {{ page.meta.revision_date.strftime('%d %B %Y') }}{% endif %}
+-->
 <!DOCTYPE html>
 <html lang="en">
     <head>
@@ -14,8 +19,7 @@
         {% if page and page.is_homepage %}<meta name="description" content="{{ config['site_description'] }}">{% endif %}
         {% if config.site_author %}<meta name="author" content="{{ config.site_author }}">{% endif %}
         {% if page and page.canonical_url %}<link rel="canonical" href="{{ page.canonical_url }}">{% endif %}
-        {% if config.site_favicon %}<link rel="shortcut icon" href="{{ config.site_favicon|url }}">
-        {% else %}<link rel="shortcut icon" href="{{ 'img/favicon.ico'|url }}">{% endif %}
+        <link rel="shortcut icon" href="{{ 'images/favicon.ico'|url }}">
       {%- endblock %}
 
       {%- block htmltitle %}
@@ -180,11 +184,27 @@
                           <div class="dropdown-menu dropdown-menu-right">
                             <a class="dropdown-item no-arrow-link" href="https://github.com/eclipse/sumo/issues">Report a Bug / Issue / Typo</a>
                             <a class="dropdown-item" href="{{ 'Editing_Articles.html'|url }}">Help on editing articles</a>
+                            <a class="dropdown-item" href="https://github.com/eclipse/sumo/commits/main/docs/web">Recent documentation changes</a>
                             <a class="dropdown-item" href="#" data-toggle="modal" data-target="#mkdocs_keyboard_modal">Keyboard Shortcuts</a>
                             <a class="dropdown-item no-arrow-link" href="https://sumo.dlr.de/sumo_documentation.zip">Download the Documentation</a>
                             <span class="dropdown-item" id="dark-mode-div">Dark mode <label id="theme-switch" class="theme-switch" for="checkbox_theme">
                               <input type="checkbox" id="checkbox_theme">
                           </label></span>
+                          </div>
+                        </li>
+                        <li class="nav-item dropdown">
+                          <a class="nav-link dropdown-toggle" href="#" id="languagedrop" data-toggle="dropdown">
+                            <i class="fa fa-language"></i> Languages <i class="fa fa-chevron-circle-down"></i>
+                          </a>
+                          <div class="dropdown-menu dropdown-menu-right">
+                            <span class="dropdown-item">
+                              Translations are generated automatically by Google Translate:
+                            </span>
+                            <a class="dropdown-item" href="https://sumo-dlr-de.translate.goog/docs/{{page.url}}?_x_tr_sl=en&_x_tr_tl=de">Deutsch</a>
+                            <a class="dropdown-item" href="https://sumo-dlr-de.translate.goog/docs/{{page.url}}?_x_tr_sl=en&_x_tr_tl=es">Español</a>
+                            <a class="dropdown-item" href="https://sumo-dlr-de.translate.goog/docs/{{page.url}}?_x_tr_sl=en&_x_tr_tl=fr">Français</a>
+                            <a class="dropdown-item" href="https://sumo-dlr-de.translate.goog/docs/{{page.url}}?_x_tr_sl=en&_x_tr_tl=hu">Magyar</a>
+                            <a class="dropdown-item" href="https://sumo-dlr-de.translate.goog/docs/{{page.url}}?_x_tr_sl=en&_x_tr_tl=tr">Türkçe</a>
                           </div>
                         </li>
                     </ul>
@@ -198,10 +218,10 @@
                 <div class="col-md-3">
                   <div class="text-center"><a href="{{ 'index.html'|url }}" style="display: inline-block; margin-top: 5px;"><img src="{{'images/sumo-logo.png'|url}}" class="sumoLogo" alt="SUMO Logo" width="120px"></a></div>
                   {% include "toc.html" %}
-                  {% if page.is_homepage %}{% include "note.html" %}{% endif %}
                 </div>
                 <div class="col-md-9 main-area" role="main">
-                  {% if page and not page.is_homepage %}
+                  {% if page and not (page.is_top_level and page.is_index and page.file.url == "index.html") %} <!-- page.is_homepage seems to be broken in Mkdocs > 1.1.0 -->
+                  {% include "breadcrumbs.html" %}
                   <hTitles>{{page.title}}<hr style="border: 0.5px solid #338033; margin-top: 5px !important;"></hTitles>
                   {% endif %}
                   {% include "content.html" %}
@@ -279,9 +299,3 @@
       {%- include "keyboard-modal.html" %}
     </body>
 </html>
-{% if page and page.is_homepage %}
-<!--
-MkDocs version : {{ mkdocs_version }}
-Build Date UTC : {{ build_date_utc }}
--->
-{% endif %}

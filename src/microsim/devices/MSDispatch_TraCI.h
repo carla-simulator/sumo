@@ -1,6 +1,6 @@
 /****************************************************************************/
 // Eclipse SUMO, Simulation of Urban MObility; see https://eclipse.org/sumo
-// Copyright (C) 2007-2020 German Aerospace Center (DLR) and others.
+// Copyright (C) 2007-2023 German Aerospace Center (DLR) and others.
 // This program and the accompanying materials are made available under the
 // terms of the Eclipse Public License 2.0 which is available at
 // https://www.eclipse.org/legal/epl-2.0/
@@ -39,9 +39,8 @@
  */
 class MSDispatch_TraCI : public MSDispatch {
 public:
-    MSDispatch_TraCI(const std::map<std::string, std::string>& params) :
-        MSDispatch(params),
-        myReservationCount(0)
+    MSDispatch_TraCI(const Parameterised::Map& params) :
+        MSDispatch(params)
     { }
 
     /// @brief add a new reservation
@@ -50,20 +49,31 @@ public:
                                 SUMOTime pickupTime,
                                 const MSEdge* from, double fromPos,
                                 const MSEdge* to, double toPos,
-                                const std::string& group,
-                                int maxCapacity);
+                                std::string group,
+                                const std::string& line,
+                                int maxCapacity,
+                                int maxContainerCapacity) override;
+
+    /// @brief remove person from reservation. If the whole reservation is removed, return it's id
+    std::string removeReservation(MSTransportable* person,
+                                  const MSEdge* from, double fromPos,
+                                  const MSEdge* to, double toPos,
+                                  std::string group) override;
 
     /// @brief do nothing (dispatch happens via TraCI calls)
-    virtual void computeDispatch(SUMOTime /*now*/, const std::vector<MSDevice_Taxi*>& /*fleet*/) {}
-
-    std::string getReservationID(Reservation* res);
+    void computeDispatch(SUMOTime /*now*/, const std::vector<MSDevice_Taxi*>& /*fleet*/) override {}
 
     /// @brief trigger taxi dispatch. @note: method exists so subclasses can inject code at this point (ride sharing)
     void interpretDispatch(MSDevice_Taxi* taxi, const std::vector<std::string>& reservationsIDs);
 
+    /// @brief split existing reservations and return the new reservation id
+    std::string splitReservation(std::string resID, std::vector<std::string> personIDs);
+
+    /// @brief erase reservation from storage
+    void fulfilledReservation(const Reservation* res) override;
+
 private:
-    int myReservationCount;
-    StringBijection<Reservation*> myReservationLookup;
+    StringBijection<const Reservation*> myReservationLookup;
 
 private:
     /// @brief Invalidated assignment operator.

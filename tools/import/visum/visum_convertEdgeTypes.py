@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 # Eclipse SUMO, Simulation of Urban MObility; see https://eclipse.org/sumo
-# Copyright (C) 2009-2020 German Aerospace Center (DLR) and others.
+# Copyright (C) 2009-2023 German Aerospace Center (DLR) and others.
 # This program and the accompanying materials are made available under the
 # terms of the Eclipse Public License 2.0 which is available at
 # https://www.eclipse.org/legal/epl-2.0/
@@ -48,7 +48,7 @@ for line in fd:
         fdo.write('   <type id="' + map["nr"])
         fdo.write('" priority="' + str(100 - int(map["rang"])))
         fdo.write('" numLanes="' + map["anzfahrstreifen"])
-        fdo.write('" speed="' + str(float(map["v0iv"]) / 3.6))
+        fdo.write('" speed="' + str(float(map["v0iv"].replace("km/h", "")) / 3.6))
         fdo.write('"/>\n')
 
     if line.find("$STRECKENTYP") == 0:

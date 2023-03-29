@@ -1,6 +1,6 @@
 /****************************************************************************/
 // Eclipse SUMO, Simulation of Urban MObility; see https://eclipse.org/sumo
-// Copyright (C) 2013-2020 German Aerospace Center (DLR) and others.
+// Copyright (C) 2013-2023 German Aerospace Center (DLR) and others.
 // This program and the accompanying materials are made available under the
 // terms of the Eclipse Public License 2.0 which is available at
 // https://www.eclipse.org/legal/epl-2.0/
@@ -21,8 +21,6 @@
 #pragma once
 #include <config.h>
 
-//#define SWARM_DEBUG
-#include <utils/common/SwarmDebug.h>
 #include <utils/common/MsgHandler.h>
 #include <sstream>
 #include <cmath>
@@ -46,7 +44,7 @@ private:
     stimDivInDVal, stimDivOutDVal, stimDivDispersionInDVal, stimDivDispersionOutDVal,
     stimCoxExpInDVal, stimCoxExpOutDVal, stimCoxExpDispersionInDVal, stimCoxExpDispersionOutDVal;*/
 
-    std::map<std::string, std::string> default_values;
+    Parameterised::Map default_values;
     std::vector<std::string> params_names;
     std::vector<MSSOTLPolicy5DStimulus*> family;
 
@@ -54,7 +52,7 @@ private:
 
 public:
 
-    MSSOTLPolicy5DFamilyStimulus(std::string keyPrefix, const std::map<std::string, std::string>& parameters);
+    MSSOTLPolicy5DFamilyStimulus(std::string keyPrefix, const Parameterised::Map& parameters);
 
     std::string getMessage();
 

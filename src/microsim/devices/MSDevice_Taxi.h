@@ -1,6 +1,6 @@
 /****************************************************************************/
 // Eclipse SUMO, Simulation of Urban MObility; see https://eclipse.org/sumo
-// Copyright (C) 2013-2020 German Aerospace Center (DLR) and others.
+// Copyright (C) 2013-2023 German Aerospace Center (DLR) and others.
 // This program and the accompanying materials are made available under the
 // terms of the Eclipse Public License 2.0 which is available at
 // https://www.eclipse.org/legal/epl-2.0/
@@ -31,6 +31,7 @@
 class SUMOTrafficObject;
 class MSDispatch;
 class MSIdling;
+class MSDevice_Routing;
 struct Reservation;
 
 
@@ -72,6 +73,9 @@ public:
      */
     static void buildVehicleDevices(SUMOVehicle& v, std::vector<MSVehicleDevice*>& into);
 
+    /// @brief whether the given lines description is a taxi call
+    static bool isReservation(const std::set<std::string>& lines);
+
     /// add new reservation
     static void addReservation(MSTransportable* person,
                                const std::set<std::string>& lines,
@@ -80,6 +84,13 @@ public:
                                const MSEdge* from, double fromPos,
                                const MSEdge* to, double toPos,
                                const std::string& group);
+
+    /// @brief retract reservation
+    static void removeReservation(MSTransportable* person,
+                                  const std::set<std::string>& lines,
+                                  const MSEdge* from, double fromPos,
+                                  const MSEdge* to, double toPos,
+                                  const std::string& group);
 
     /// @brief period command to trigger the dispatch algorithm
     static SUMOTime triggerDispatch(SUMOTime currentTime);
@@ -96,10 +107,6 @@ public:
 
     static const std::vector<MSDevice_Taxi*>& getFleet() {
         return myFleet;
-    }
-
-    static int getMaxCapacity() {
-        return myMaxCapacity;
     }
 
 public:
@@ -131,18 +138,6 @@ public:
      * @see MSMoveReminder::Notification
      */
     bool notifyEnter(SUMOTrafficObject& veh, MSMoveReminder::Notification reason, const MSLane* enteredLane = 0);
-
-
-    /** @brief Saves arrival info
-     *
-     * @param[in] veh The leaving vehicle.
-     * @param[in] lastPos Position on the lane when leaving.
-     * @param[in] isArrival whether the vehicle arrived at its destination
-     * @param[in] isLaneChange whether the vehicle changed from the lane
-     * @return True if it did not leave the net.
-     */
-    bool notifyLeave(SUMOTrafficObject& veh, double lastPos,
-                     MSMoveReminder::Notification reason, const MSLane* enteredLane = 0);
     /// @}
 
 
@@ -165,10 +160,10 @@ public:
     void dispatch(const Reservation& res);
 
     /// @brief service the given reservations
-    void dispatchShared(const std::vector<const Reservation*>& reservations);
+    void dispatchShared(std::vector<const Reservation*> reservations);
 
     /// @brief whether the given person is allowed to board this taxi
-    bool allowsBoarding(MSTransportable* t) const;
+    bool allowsBoarding(const MSTransportable* t) const;
 
     /// @brief called by MSDevice_Transportable upon loading a person
     void customerEntered(const MSTransportable* t);
@@ -190,7 +185,23 @@ public:
      */
     void generateOutput(OutputDevice* tripinfoOut) const;
 
+    /// @brief whether the given reservation is compatible with the taxi line
+    bool compatibleLine(const Reservation* res);
 
+    static bool compatibleLine(const std::string& taxiLine, const std::string& rideLine);
+
+protected:
+    /** @brief Internal notification about the vehicle moves, see MSMoveReminder::notifyMoveInternal()
+     *
+     */
+    void notifyMoveInternal(const SUMOTrafficObject& veh,
+                            const double frontOnLane,
+                            const double timeOnLane,
+                            const double meanSpeedFrontOnLane,
+                            const double meanSpeedVehicleOnLane,
+                            const double travelledDistanceFrontOnLane,
+                            const double travelledDistanceVehicleOnLane,
+                            const double meanLengthOnLane);
 
 private:
     /** @brief Constructor
@@ -200,6 +211,8 @@ private:
      */
     MSDevice_Taxi(SUMOVehicle& holder, const std::string& id);
 
+    void updateMove(const SUMOTime traveltime, const double travelledDist);
+
     /// @brief prepare stop for the given action
     void prepareStop(ConstMSEdgeVector& edges,
                      std::vector<SUMOVehicleParameter::Stop>& stops,
@@ -207,7 +220,7 @@ private:
                      const std::string& action);
 
     /// @brief determine stopping lane for taxi
-    MSLane* getStopLane(const MSEdge* edge);
+    MSLane* getStopLane(const MSEdge* edge, const std::string& action);
 
     /// @brief whether the taxi has another pickup scheduled
     bool hasFuturePickup();
@@ -234,6 +247,15 @@ private:
     /// @brief algorithm for controlling idle behavior
     MSIdling* myIdleAlgorithm;
 
+    /// @brief whether the taxi has reached it's schedule service end
+    bool myReachedServiceEnd = false;
+
+    /// @brief reservations currently being served
+    std::set<const Reservation*> myCurrentReservations;
+
+    /// @brief routing device (if the vehicle has one)
+    MSDevice_Routing* myRoutingDevice = nullptr;
+
     /// @brief the time between successive calls to the dispatcher
     static SUMOTime myDispatchPeriod;
     /// @brief the dispatch algorithm
@@ -244,6 +266,8 @@ private:
     static std::vector<MSDevice_Taxi*> myFleet;
     // @brief the maximum personCapacity in the fleet
     static int myMaxCapacity;
+    // @brief the maximum container capacity in the fleet
+    static int myMaxContainerCapacity;
 
 private:
     /// @brief Invalidated copy constructor.

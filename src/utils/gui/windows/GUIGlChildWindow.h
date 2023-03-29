@@ -1,6 +1,6 @@
 /****************************************************************************/
 // Eclipse SUMO, Simulation of Urban MObility; see https://eclipse.org/sumo
-// Copyright (C) 2001-2020 German Aerospace Center (DLR) and others.
+// Copyright (C) 2001-2023 German Aerospace Center (DLR) and others.
 // This program and the accompanying materials are made available under the
 // terms of the Eclipse Public License 2.0 which is available at
 // https://www.eclipse.org/legal/epl-2.0/
@@ -22,22 +22,26 @@
 #pragma once
 #include <config.h>
 
-#include <fx.h>
-
 #include "GUISUMOAbstractView.h"
 
 
 // ===========================================================================
+// class declaration
+// ===========================================================================
+
+class MFXCheckableButton;
+class MFXMenuButtonTooltip;
+
+// ===========================================================================
 // class definitions
 // ===========================================================================
-/**
- *
- */
+
 class GUIGlChildWindow : public FXMDIChild {
     FXDECLARE(GUIGlChildWindow)
+
 public:
     /// @brief constructor
-    GUIGlChildWindow(FXMDIClient* p, GUIMainWindow* parentWindow,
+    GUIGlChildWindow(FXMDIClient* p, GUIMainWindow* GUIMainWindowParent,
                      FXMDIMenu* mdimenu, const FXString& name, FXMenuBar* gripNavigationToolbar,
                      FXIcon* ic = NULL, FXuint opts = 0, FXint x = 0, FXint y = 0, FXint w = 0, FXint h = 0);
 
@@ -53,23 +57,28 @@ public:
     /// @brief return GUISUMOAbstractView
     GUISUMOAbstractView* getView() const;
 
-    /** @brief Returns the main window
-     * @return This view's parent
-     */
-    GUIMainWindow* getParent();
+    /// @brief Returns the GUIMainWindow parent
+    GUIMainWindow* getGUIMainWindowParent();
 
     /// @name buttons call backs
     /// @{
     long onCmdRecenterView(FXObject*, FXSelector, void*);
     long onCmdEditViewport(FXObject*, FXSelector, void*);
     long onCmdEditViewScheme(FXObject*, FXSelector, void*);
-    long onCmdShowToolTips(FXObject* sender, FXSelector, void*);
+    long onCmdShowToolTipsView(FXObject* sender, FXSelector, void*);
+    long onCmdShowToolTipsMenu(FXObject* sender, FXSelector, void*);
     long onCmdZoomStyle(FXObject* sender, FXSelector, void*);
     long onCmdChangeColorScheme(FXObject*, FXSelector sel, void*);
     /// @}
 
     /// @brief return a reference to navigation toolbar
     FXToolBar* getNavigationToolBar(GUISUMOAbstractView& v);
+
+    virtual std::vector<GUIGlID> getObjectIDs(int messageId) const {
+        // FOX does not allow abstract virtual function here
+        UNUSED_PARAMETER(messageId);
+        return  std::vector<GUIGlID>();
+    }
 
     /// @ brief return a pointer to locator popup
     FXPopup* getLocatorPopup();
@@ -86,31 +95,41 @@ public:
     virtual bool isSelected(GUIGlObject* o) const;
 
 protected:
+    /// @brief FOX needs this
     FOX_CONSTRUCTOR(GUIGlChildWindow)
 
     /// @brief The parent window
-    GUIMainWindow* myParent;
+    GUIMainWindow* myGUIMainWindowParent = nullptr;
 
     /// @brief The grip navigation tool bar
-    FXMenuBar* myGripNavigationToolbar;
+    FXMenuBar* myGripNavigationToolbar = nullptr;
 
     /// @brief The static navigation tool bar
-    FXToolBar* myStaticNavigationToolBar;
+    FXToolBar* myStaticNavigationToolBar = nullptr;
 
     /// @brief The view
-    GUISUMOAbstractView* myView;
+    GUISUMOAbstractView* myView = nullptr;
+
+    /// @brief Zoom but
+    MFXCheckableButton* myZoomStyle = nullptr;
 
     /// The locator menu
-    FXPopup* myLocatorPopup;
+    FXPopup* myLocatorPopup = nullptr;
 
     /// @brief The locator button
-    FXMenuButton* myLocatorButton;
+    MFXMenuButtonTooltip* myLocatorButton = nullptr;
+
+    /// @brief menu for tooltips view
+    MFXCheckableButton* myShowToolTipsView = nullptr;
+
+    /// @brief menu for tooltips menu
+    MFXCheckableButton* myShowToolTipsMenu = nullptr;
 
     /// @brief The contents frame
-    FXVerticalFrame* myContentFrame;
+    FXVerticalFrame* myChildWindowContentFrame = nullptr;
 
     /// @brief The coloring schemes
-    FXComboBox* myColoringSchemes;
+    FXComboBox* myColoringSchemes = nullptr;
 
     /// @brief build navigation toolbar
     void buildNavigationToolBar();

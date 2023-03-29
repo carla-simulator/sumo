@@ -1,6 +1,6 @@
 /****************************************************************************/
 // Eclipse SUMO, Simulation of Urban MObility; see https://eclipse.org/sumo
-// Copyright (C) 2001-2020 German Aerospace Center (DLR) and others.
+// Copyright (C) 2001-2023 German Aerospace Center (DLR) and others.
 // This program and the accompanying materials are made available under the
 // terms of the Eclipse Public License 2.0 which is available at
 // https://www.eclipse.org/legal/epl-2.0/
@@ -22,6 +22,7 @@
 #include <config.h>
 #include <utility>
 
+#include <utils/common/StdDefs.h>
 #include "GeomHelper.h"
 #include "Boundary.h"
 #include "PositionVector.h"
@@ -297,12 +298,22 @@ Boundary::partialWithin(const AbstractPoly& poly, double offset) const {
 
 Boundary&
 Boundary::grow(double by) {
+
     myXmax += by;
     myYmax += by;
     myXmin -= by;
     myYmin -= by;
     return *this;
 }
+
+
+Boundary&
+Boundary::scale(double by) {
+    growWidth(by * (myXmax - myXmin));
+    growHeight(by * (myYmax - myYmin));
+    return *this;
+}
+
 
 void
 Boundary::growWidth(double by) {
@@ -356,6 +367,21 @@ Boundary::operator!=(const Boundary& b) const {
 
 void
 Boundary::set(double xmin, double ymin, double xmax, double ymax) {
+    /*
+        Takes care of the following extraneous cases w.r.t the input parameters:
+            - xmin > xmax
+            - ymin > ymax
+    */
+
+    myXmin = MIN2(xmin, xmax);
+    myYmin = MIN2(ymin, ymax);
+    myXmax = MAX2(xmin, xmax);
+    myYmax = MAX2(ymin, ymax);
+}
+
+
+void
+Boundary::setOffsets(double xmin, double ymin, double xmax, double ymax) {
     myXmin = xmin;
     myYmin = ymin;
     myXmax = xmax;
@@ -373,5 +399,18 @@ Boundary::moveby(double x, double y, double z) {
     myZmax += z;
 }
 
+
+PositionVector
+Boundary::getShape(const bool closeShape) const {
+    PositionVector shape;
+    shape.push_back(Position(myXmin, myYmin));
+    shape.push_back(Position(myXmin, myYmax));
+    shape.push_back(Position(myXmax, myYmax));
+    shape.push_back(Position(myXmax, myYmin));
+    if (closeShape) {
+        shape.push_back(Position(myXmin, myYmin));
+    }
+    return shape;
+}
 
 /****************************************************************************/

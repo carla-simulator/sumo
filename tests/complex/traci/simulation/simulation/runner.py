@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 # Eclipse SUMO, Simulation of Urban MObility; see https://eclipse.org/sumo
-# Copyright (C) 2008-2020 German Aerospace Center (DLR) and others.
+# Copyright (C) 2008-2023 German Aerospace Center (DLR) and others.
 # This program and the accompanying materials are made available under the
 # terms of the Eclipse Public License 2.0 which is available at
 # https://www.eclipse.org/legal/epl-2.0/
@@ -24,8 +24,8 @@ from __future__ import absolute_import
 import os
 import sys
 
-SUMO_HOME = os.path.join(os.path.dirname(__file__), "..", "..", "..", "..", "..")
-sys.path.append(os.path.join(os.environ.get("SUMO_HOME", SUMO_HOME), "tools"))
+if "SUMO_HOME" in os.environ:
+    sys.path.append(os.path.join(os.environ["SUMO_HOME"], "tools"))
 import traci  # noqa
 import sumolib  # noqa
 
@@ -64,10 +64,13 @@ def ppStages(comment, stages):
 print("loaded?", traci.isLoaded())
 version = traci.start([sumolib.checkBinary('sumo'), "-c", "sumo.sumocfg",
                        "--ignore-route-errors",
+                       "--end", "42",
                        "--log", "log.txt"])
 print("version at start", version)
 print("version", traci.getVersion())
 print("loaded?", traci.isLoaded())
+print("endTime", traci.simulation.getEndTime())
+print("net file", traci.simulation.getOption("net-file"))
 
 traci.simulation.subscribe(
     [traci.constants.VAR_LOADED_VEHICLES_IDS, traci.constants.VAR_DEPARTED_VEHICLES_IDS])
@@ -75,6 +78,7 @@ print(traci.simulation.getSubscriptionResults())
 for step in range(6):
     print("step", step)
     traci.simulationStep()
+    print("pendingVehicles", traci.simulation.getPendingVehicles())
     print(traci.simulation.getSubscriptionResults())
 checkVehicleStates()
 print("deltaT", traci.simulation.getDeltaT())
@@ -91,10 +95,20 @@ print("convertGeoRoad", traci.simulation.convertRoad(12, 48.1, True))
 print("convertGeoRoadBus", traci.simulation.convertRoad(12, 48.1, True, "bus"))
 traci.lane.setDisallowed("o_0", ["bus"])
 print("convertGeoRoadBusDisallowed", traci.simulation.convertRoad(12, 48.1, True, "bus"))
-print("distance2D", traci.simulation.getDistance2D(
-    488.65, 501.65, 498.65, 501.65))
+
+pos1 = (488.65, 501.65)
+pos2 = (498.65, 501.65)
+print("distance2D", traci.simulation.getDistance2D(pos1[0], pos1[1], pos2[0], pos2[1]))
+pos1geo = traci.simulation.convertGeo(*pos1)
+pos2geo = traci.simulation.convertGeo(*pos2)
+print("distance2Dgeo",
+      traci.simulation.getDistance2D(pos1geo[0], pos1geo[1],
+                                     pos2geo[0], pos2geo[1], isGeo=True))
+
 print("drivingDistance2D", traci.simulation.getDistance2D(
     488.65, 501.65, 498.65, 501.65, isDriving=True))
+
+
 print("distanceRoad", traci.simulation.getDistanceRoad("o", 0., "2o", 0.))
 print("drivingDistanceRoad", traci.simulation.getDistanceRoad(
     "o", 0., "2o", 0., isDriving=True))
@@ -103,23 +117,24 @@ traci.simulation.clearPending()
 print("save simstate")
 traci.simulation.saveState("state.xml")
 try:
+    traci.simulation.setParameter("foo", "foo.bla", "42")
+except traci.TraCIException:
+    pass
+traci.simulation.setParameter("", "bar", "42")
+print("getParameter (generic)", traci.simulation.getParameter("", "bar"))
+
+try:
     print("getParameter", traci.simulation.getParameter("foo", "foo.bla"))
-except traci.TraCIException as e:
-    if traci.isLibsumo():
-        print(e, file=sys.stderr)
-        sys.stderr.flush()
+except traci.TraCIException:
+    pass
 try:
     print("getParameter", traci.simulation.getParameter("cs1", "chargingStation.bla"))
-except traci.TraCIException as e:
-    if traci.isLibsumo():
-        print(e, file=sys.stderr)
-        sys.stderr.flush()
+except traci.TraCIException:
+    pass
 try:
     print("getParameter", traci.simulation.getParameter("foo", "chargingStation.totalEnergyCharged"))
-except traci.TraCIException as e:
-    if traci.isLibsumo():
-        print(e, file=sys.stderr)
-        sys.stderr.flush()
+except traci.TraCIException:
+    pass
 print("getParameter charginStation.totalEnergyCharged",
       traci.simulation.getParameter("cs1", "chargingStation.totalEnergyCharged"))
 print("getParameter chargingStation.name", traci.simulation.getParameter("cs1", "chargingStation.name"))
@@ -138,10 +153,8 @@ print("getParameter busStop.key2", traci.simulation.getParameter("bs", "busStop.
 
 try:
     print("getBusStopWaiting", traci.simulation.getBusStopWaiting("foo"))
-except traci.TraCIException as e:
-    if traci.isLibsumo():
-        print(e, file=sys.stderr)
-        sys.stderr.flush()
+except traci.TraCIException:
+    pass
 
 print("getBusStopIDList", traci.simulation.getBusStopIDList())
 print("getBusStopWaiting", traci.simulation.getBusStopWaiting("bs"))
@@ -149,41 +162,46 @@ print("getBusStopWaitingIDList", traci.simulation.getBusStopWaitingIDList("bs"))
 
 try:
     print("findRoute", traci.simulation.findRoute("foo", "fup"))
-except traci.TraCIException as e:
-    if traci.isLibsumo():
-        print(e, file=sys.stderr)
-        sys.stderr.flush()
+except traci.TraCIException:
+    pass
 print("findRoute", traci.simulation.findRoute("o", "2o"))
 print("findRoute with routing mode", traci.simulation.findRoute(
     "o", "2o", routingMode=traci.constants.ROUTING_MODE_AGGREGATED))
 try:
     print("findRoute", traci.simulation.findRoute("footpath", "footpath2", "DEFAULT_VEHTYPE"))
-except traci.TraCIException as e:
-    if traci.isLibsumo():
-        print(e, file=sys.stderr)
-        sys.stderr.flush()
+except traci.TraCIException:
+    pass
 
 try:
     print("findIntermodalRoute", traci.simulation.findIntermodalRoute("foo", "fup"))
-except traci.TraCIException as e:
-    if traci.isLibsumo():
-        print(e, file=sys.stderr)
-        sys.stderr.flush()
-try:
-    print("findIntermodalRoute", traci.simulation.findIntermodalRoute(
-        "footpath", "footpath2", "bicycle", vType="DEFAULT_BIKETYPE"))
-except traci.TraCIException as e:
-    if traci.isLibsumo():
-        print(e, file=sys.stderr)
-        sys.stderr.flush()
+except traci.TraCIException:
+    pass
+print("findIntermodalRoute", traci.simulation.findIntermodalRoute(
+    "footpath", "footpath2", "bicycle", vType="DEFAULT_BIKETYPE"))
 ppStages("findIntermodalRoute (walk)", traci.simulation.findIntermodalRoute("o", "2o"))
 ppStages("findIntermodalRoute (bike)", traci.simulation.findIntermodalRoute("o", "2o", modes="bicycle"))
 ppStages("findIntermodalRoute (car)", traci.simulation.findIntermodalRoute("o", "2o", modes="car"))
 ppStages("findIntermodalRoute (bike,car,public)",
          traci.simulation.findIntermodalRoute("o", "2o", modes="car bicycle public"))
 
+try:
+    print("findIntermodalRoute", traci.simulation.findIntermodalRoute("o", "2o", departPos=1e5))
+except traci.TraCIException:
+    pass
+
 traci.vehicle.setSpeedMode("emergencyStopper", 0)
 traci.vehicle.setSpeed("emergencyStopper", 100)
+try:
+    traci.simulation.subscribeContext("",
+                                      traci.constants.CMD_GET_VEHICLE_VARIABLE, 42,
+                                      [traci.constants.VAR_POSITION])
+    print("contextSubscriptions:", traci.simulation.getAllContextSubscriptionResults())
+except traci.TraCIException:
+    pass
+
+traci.simulation.setScale(1.5)
+print("scale", traci.simulation.getScale())
+
 for step in range(12):
     print("step", step)
     traci.simulationStep()

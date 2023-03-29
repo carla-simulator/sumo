@@ -1,6 +1,6 @@
 /****************************************************************************/
 // Eclipse SUMO, Simulation of Urban MObility; see https://eclipse.org/sumo
-// Copyright (C) 2001-2020 German Aerospace Center (DLR) and others.
+// Copyright (C) 2001-2023 German Aerospace Center (DLR) and others.
 // This program and the accompanying materials are made available under the
 // terms of the Eclipse Public License 2.0 which is available at
 // https://www.eclipse.org/legal/epl-2.0/
@@ -69,12 +69,12 @@ TEST_F(MSCFModelTest, test_method_static_brakeGap) {
     const double v = 3;
     const double b = 4;
     const double t = 1; // tau
-    EXPECT_DOUBLE_EQ(3, MSCFModel::brakeGap(v, b, t));
-    EXPECT_DOUBLE_EQ(0, MSCFModel::brakeGap(v, b, 0));
-    EXPECT_DOUBLE_EQ(3, MSCFModel::brakeGap(7, b, 0));
-    EXPECT_DOUBLE_EQ(28.6, MSCFModel::brakeGap(18.4, 4.5, 0));
-    EXPECT_DOUBLE_EQ(47., MSCFModel::brakeGap(22.9, 4.5, 0));
-    EXPECT_DOUBLE_EQ(44., MSCFModel::brakeGap(22.25, 4.5, 0));
+    EXPECT_DOUBLE_EQ(3, m->brakeGap(v, b, t));
+    EXPECT_DOUBLE_EQ(0, m->brakeGap(v, b, 0));
+    EXPECT_DOUBLE_EQ(3, m->brakeGap(7, b, 0));
+    EXPECT_DOUBLE_EQ(28.6, m->brakeGap(18.4, 4.5, 0));
+    EXPECT_DOUBLE_EQ(47., m->brakeGap(22.9, 4.5, 0));
+    EXPECT_DOUBLE_EQ(44., m->brakeGap(22.25, 4.5, 0));
 }
 
 TEST_F(MSCFModelTest, test_method_static_freeSpeed) {
@@ -98,13 +98,13 @@ TEST_F(MSCFModelTest, test_method_static_freeSpeed_half) {
     const double b = 4;
     const double v = 0;
     const double g = 4;
-    EXPECT_DOUBLE_EQ(14. / 3., MSCFModel::freeSpeed(vCur, b, g, v, false, DELTA_T * 0.001));
-    EXPECT_DOUBLE_EQ(6., MSCFModel::freeSpeed(vCur, b, 6, v, false, DELTA_T * 0.001));
-    EXPECT_DOUBLE_EQ(18.75, MSCFModel::freeSpeed(vCur, 5, 30, 10, false, DELTA_T * 0.001));
-    EXPECT_DOUBLE_EQ(18.4, MSCFModel::freeSpeed(vCur, 4.5, 20, 13.9, false, DELTA_T * 0.001));
-    EXPECT_DOUBLE_EQ(20.65, MSCFModel::freeSpeed(vCur, 4.5, 20, 13.9, true, DELTA_T * 0.001));
-    EXPECT_DOUBLE_EQ(20.65, MSCFModel::freeSpeed(vCur, 4.5, 30, 13.9, false, DELTA_T * 0.001));
-    EXPECT_DOUBLE_EQ(22.9, MSCFModel::freeSpeed(vCur, 4.5, 30, 13.9, true, DELTA_T * 0.001));
-    EXPECT_DOUBLE_EQ(22.9, MSCFModel::freeSpeed(vCur, 4.5, 40, 13.9, false, DELTA_T * 0.001));
+    EXPECT_DOUBLE_EQ(14. / 3., MSCFModel::freeSpeed(vCur, b, g, v, false, TS));
+    EXPECT_DOUBLE_EQ(6., MSCFModel::freeSpeed(vCur, b, 6, v, false, TS));
+    EXPECT_DOUBLE_EQ(18.75, MSCFModel::freeSpeed(vCur, 5, 30, 10, false, TS));
+    EXPECT_DOUBLE_EQ(18.4, MSCFModel::freeSpeed(vCur, 4.5, 20, 13.9, false, TS));
+    EXPECT_DOUBLE_EQ(20.65, MSCFModel::freeSpeed(vCur, 4.5, 20, 13.9, true, TS));
+    EXPECT_DOUBLE_EQ(20.65, MSCFModel::freeSpeed(vCur, 4.5, 30, 13.9, false, TS));
+    EXPECT_DOUBLE_EQ(22.9, MSCFModel::freeSpeed(vCur, 4.5, 30, 13.9, true, TS));
+    EXPECT_DOUBLE_EQ(22.9, MSCFModel::freeSpeed(vCur, 4.5, 40, 13.9, false, TS));
     DELTA_T = 1000;
 }

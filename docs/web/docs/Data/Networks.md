@@ -1,6 +1,5 @@
 ---
-title: Data/Networks
-permalink: /Data/Networks/
+title: Networks
 ---
 
 You should read the main page on [netconvert](../netconvert.md)
@@ -20,7 +19,7 @@ before reading this.
         explains how to create Sumo-networks from OSM-data using
         [netconvert](../netconvert.md).
 
-*Comments*: A great source of networks and man-made infrastucture.
+*Comments*: A great source of networks and man-made infrastructure.
 However, infrastructure data and definitions are still changing
 which complicates import.
 

@@ -1,6 +1,6 @@
 /****************************************************************************/
 // Eclipse SUMO, Simulation of Urban MObility; see https://eclipse.org/sumo
-// Copyright (C) 2001-2020 German Aerospace Center (DLR) and others.
+// Copyright (C) 2001-2023 German Aerospace Center (DLR) and others.
 // This program and the accompanying materials are made available under the
 // terms of the Eclipse Public License 2.0 which is available at
 // https://www.eclipse.org/legal/epl-2.0/
@@ -23,14 +23,10 @@
 #pragma once
 #include <config.h>
 
-#include <string>
-#include <vector>
-#include <fx.h>
-#include <utils/geom/Position.h>
-#include <utils/geom/Boundary.h>
-#include <utils/gui/globjects/GUIGlObjectTypes.h>
 #include <utils/gui/windows/GUIGlChildWindow.h>
-
+#include <utils/distribution/RandomDistributor.h>
+#include <utils/foxtools/MFXSynchQue.h>
+#include <utils/foxtools/MFXThreadEvent.h>
 
 // ===========================================================================
 // class declarations
@@ -38,6 +34,7 @@
 class GUINet;
 class GUISUMOAbstractView;
 class GUIDialog_GLObjChooser;
+class GUIDialog_ChooserAbstract;
 
 
 // ===========================================================================
@@ -117,6 +114,9 @@ public:
     /// @brief about toggled gaming status
     void setToolBarVisibility(const bool value);
 
+    /// @brief get all objects of the given type
+    std::vector<GUIGlID> getObjectIDs(int messageId) const;
+
     /// @brief erase GLObjChooser
     void eraseGLObjChooser(GUIDialog_GLObjChooser* GLObjChooser);
 
@@ -137,53 +137,6 @@ protected:
     FXSlider* mySpeedFactorSlider = nullptr;
 
 private:
-    /// @brief struct for GLObjChooser dialog
-    class GLObjChooser {
-
-    public:
-        /// @brief constructor
-        GLObjChooser();
-
-        /// @brief destructor
-        ~GLObjChooser();
-
-        /// @brief pointer to ACChooser dialog used for locate junctions
-        GUIDialog_GLObjChooser* ACChooserJunction;
-
-        /// @brief pointer to ACChooser dialog used for locate edges
-        GUIDialog_GLObjChooser* ACChooserEdges;
-
-        /// @brief pointer to ACChooser dialog used for locate vehicles
-        GUIDialog_GLObjChooser* ACChooserVehicles;
-
-        /// @brief pointer to ACChooser dialog used for locate persons
-        GUIDialog_GLObjChooser* ACChooserPersons;
-
-        /// @brief pointer to ACChooser dialog used for locate Containers
-        GUIDialog_GLObjChooser* ACChooserContainer;
-
-        /// @brief pointer to ACChooser dialog used for locate TLSs
-        GUIDialog_GLObjChooser* ACChooserTLS;
-
-        /// @brief pointer to ACChooser dialog used for locate additional
-        GUIDialog_GLObjChooser* ACChooserAdditional;
-
-        /// @brief pointer to ACChooser dialog used for locate POIs
-        GUIDialog_GLObjChooser* ACChooserPOI;
-
-        /// @brief pointer to ACChooser dialog used for locate Polygons
-        GUIDialog_GLObjChooser* ACChooserPolygon;
-
-        /// @brief pointer to ACChooser dialog used for locate routes
-        GUIDialog_GLObjChooser* ACChooserRoutes;
-
-        /// @brief pointer to ACChooser dialog used for locate stops
-        GUIDialog_GLObjChooser* ACChooserStops;
-
-        /// @brief pointer to ACChooser dialog used for locate Prohibitions
-        GUIDialog_GLObjChooser* ACChooserProhibition;
-    };
-
-    /// @brief GLObjChooser
-    GLObjChooser myGLObjChooser;
+    /// @brief map for existing dialogs
+    std::map<int, GUIDialog_ChooserAbstract*> myGLObjChooser;
 };

@@ -1,6 +1,5 @@
 ---
-title: Other/Glossary
-permalink: /Other/Glossary/
+title: Glossary
 ---
 
 ## A
@@ -188,6 +187,8 @@ Traffic Assignment Zone, [a collection of edges describing a
 part of a road network's
 area](../Demand/Importing_O/D_Matrices.md#describing_the_taz)
 (also called 'district')
+  
+- **TIME**: Either a floating point value in seconds (`42.3`) or a *human-readable-time* in the format **HOUR:MINUTE:SECOND** (`6:30:0.5`) or **DAY:HOUR:MINUTE:SECOND** (`35:12:0:0`)
   
 - **TLS**:
 traffic lights system

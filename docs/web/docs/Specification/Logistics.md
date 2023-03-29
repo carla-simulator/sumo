@@ -1,11 +1,10 @@
 ---
-title: Specification/Logistics
-permalink: /Specification/Logistics/
+title: Logistics
 ---
 
-The concept of logistics is mostly realised by
-[containers](../Specification/Containers.md) and [container
-stops](../Specification/Logistics.md#container_stops).
+The concept of logistics is mostly realized by
+[containers](Containers.md) and [container
+stops](#container_stops).
 
 # Container stops
 
@@ -13,10 +12,11 @@ Container stops can be used to simulate transhipment stations, harbours
 and other places for transhipping and storing containers/goods.
 Similarly to the concept of [bus
 stops](../Simulation/Public_Transport.md), container stops are
-[stops](../Specification.md#stops) at which containers can be
+[stops](index.md#stops) at which containers can be
 loaded onto or unloaded from a vehicle. Vehicles use the same advanced
 approaching behavior at container stops as at bus stops. Definitions of
 container stop locations in SUMO have the following format:
+
 ```xml
 <additional>
     <containerStop id="<CONTAINER_STOP_ID>" lane="<LANE_ID>" startPos="<STARTING_POSITION>" endPos="<ENDING_POSITION>" [line="<LINE_ID>[ <LINE_ID>]*"]/>
@@ -34,6 +34,7 @@ on a lane. The parameters have the following meanings:
 | endPos         | float       | \-lane.length < x < lane.length (negative values count backwards from the end of the lane) | lane.length | The end position on the lane (the higher position on the lane) in meters, must be larger than *startPos* by more than 0.1m  |
 | friendlyPos    | bool        | *true,false*                                                                                 | *false*     | whether invalid stop positions should be corrected automatically (default *false*)                                          |
 | name           | string      | simple String                                                                                |             | Container stop name. This is only used for visualization purposes.                                                          |
+| color           | color      | see [color definition](../Definition_of_Vehicles,_Vehicle_Types,_and_Routes.md#colors)                                                                                | "83,89,172"            | Container stop color. This is only used for visualization purposes.                                                               |
 | lines          | string list | A list of names separated by spaces (' ')                                                    |             | meant to be the names of the logistic lines that stop at this container stop. This is only used for visualization purposes. |
 
 !!! caution
@@ -64,10 +65,11 @@ the vehicle shall halt at must be correct.
 
 You may also let a vehicle stop at another position than a container
 stop. The short definition of a vehicle's stop is:
+
 ```xml
 <stop [containerStop="<CONTAINER_STOP_ID>" | ( lane="<LANE_ID>" endPos="<POSITION_AT_LANE>" )] duration="<HALTING_DURATION>"/>
 ```
 This means you can either use a
 container stop or a lane position to define where a vehicle has to stop.
 For a complete list of attributes for the "stop"-element of a vehicle
-see [Specification\#Stops](../Specification.md#stops).
+see [Specification\#Stops](index.md#stops).

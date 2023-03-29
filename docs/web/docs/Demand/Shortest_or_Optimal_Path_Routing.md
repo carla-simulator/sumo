@@ -1,6 +1,5 @@
 ---
-title: Demand/Shortest or Optimal Path Routing
-permalink: /Demand/Shortest_or_Optimal_Path_Routing/
+title: Shortest or Optimal Path Routing
 ---
 
 # Introduction
@@ -29,11 +28,11 @@ the router using an XML-file. The syntax of a single trip definition is:
 | -------------- | ------------------------------------------------------- | ------------------------------------------------------------------------------ |
 | id             | id (string)                                             | The name of vehicles that will be generated using this trip definition (a running number if not given)        |
 | **depart**     | int                                                     | The departure time of the (first) vehicle which is generated using this trip definition               |
-| from           | edge id                                                 | The name of the edge the route starts at; the edge must be a part of the used network                |
-| to             | edge id                                                 | The name of the edge the route ends at; the edge must be a part of the used network                   |
+| from           | edge id                                                 | The name of the edge the route starts at; the edge must be a part of the used network. Optional, if one of the via-attributes is used or if the trip includes stops.  |
+| to             | edge id                                                 | The name of the edge the route ends at; the edge must be a part of the used network. Optional, if one of the via-attributes is used or if the trip includes stops.                   |
 | via            | edge ids                                                | List of intermediate edge ids which shall be part of the route; the edges must be a part of the used network       |
-| fromTaz        | district id                                             | The name of the [district](../Demand/Importing_O/D_Matrices.md#describing_the_taz) the route starts at. [TAZ edges are selected so that travel time is minimized.](../Definition_of_Vehicles,_Vehicle_Types,_and_Routes.md#traffic_assignement_zones_taz)    |
-| toTaz          | district id                                             | The name of the [district](../Demand/Importing_O/D_Matrices.md#describing_the_taz) the route ends at. [TAZ edges are selected so that travel time is minimized.](../Definition_of_Vehicles,_Vehicle_Types,_and_Routes.md#traffic_assignement_zones_taz)       |
+| fromTaz        | district id                                             | The name of the [district](../Demand/Importing_O/D_Matrices.md#describing_the_taz) the route starts at. [TAZ edges are selected so that travel time is minimized.](../Definition_of_Vehicles,_Vehicle_Types,_and_Routes.md#traffic_assignment_zones_taz)    |
+| toTaz          | district id                                             | The name of the [district](../Demand/Importing_O/D_Matrices.md#describing_the_taz) the route ends at. [TAZ edges are selected so that travel time is minimized.](../Definition_of_Vehicles,_Vehicle_Types,_and_Routes.md#traffic_assignment_zones_taz)       |
 | type           | type id                                                 | The type id of the vehicle to generate            |
 | color          | color                                                   | This generated vehicle's color              |
 | departLane     | int/string (≥0,"random","free","departlane")            | The lane on which the vehicle shall be inserted         |
@@ -42,15 +41,15 @@ the router using an XML-file. The syntax of a single trip definition is:
 | arrivalLane    | int/string (≥0,"current")                               | The lane at which the vehicle shall leave the network<br><br>**Note:** see [Definition of Vehicles, Vehicle Types, and Routes#Vehicles and Routes](../Definition_of_Vehicles,_Vehicle_Types,_and_Routes.md#vehicles_and_routes)          |
 | arrivalPos     | float(m)/string (≥0<sup>(1)</sup>,"random","max")       | The position at which the vehicle shall leave the network<br><br>**Note:** see [Definition of Vehicles, Vehicle Types, and Routes#Vehicles and Routes](../Definition_of_Vehicles,_Vehicle_Types,_and_Routes.md#vehicles_and_routes)       |
 | arrivalSpeed   | float(m/s)/string (≥0,"current")                        | The speed with which the vehicle shall leave the network<br><br>**Note:** see [Definition of Vehicles, Vehicle Types, and Routes#Vehicles and Routes](../Definition_of_Vehicles,_Vehicle_Types,_and_Routes.md#vehicles_and_routes)         |
-| fromJunction | junction id  | The junction from which to depart [note](#Routing_between_junctions)    |
-| toJunction   | junction id  | The junction at which to arrive [note](#Routing_between_junctions)    |
-| viaJunctions | junction ids | The junctions to pass along the way [note](#Routing_between_junctions)   |
-| fromXY   | float, float    | The network position from which to depart [note](#Mapmatching)    |
-| toXY   | float, float    | The network position from which to depart [note](#Mapmatching)    |
-| viaXY   | float, float [float,float]    | The network positions to pass along the way [note](#Mapmatching)   |
-| fromLonLat   | float, float    | The network position from which to depart in geo-coordinates [note](#Mapmatching)    |
-| toLonLat   | float, float    | The network position from which to depart in geo-coordinates [note](#Mapmatching)    |
-| viaLonLat   | float, float [float,float]    | The network positions to pass along the way in geo-coordinates  [note](#Mapmatching)   |
+| fromJunction | junction id  | The junction from which to depart [note](#routing_between_junctions)    |
+| toJunction   | junction id  | The junction at which to arrive [note](#routing_between_junctions)    |
+| viaJunctions | junction ids | The junctions to pass along the way [note](#routing_between_junctions)   |
+| fromXY   | float, float    | The network position from which to depart [note](#mapmatching)    |
+| toXY   | float, float    | The network position from which to depart [note](#mapmatching)    |
+| viaXY   | float, float [float,float]    | The network positions to pass along the way [note](#mapmatching)   |
+| fromLonLat   | float, float    | The network position from which to depart in geo-coordinates [note](#mapmatching)    |
+| toLonLat   | float, float    | The network position from which to depart in geo-coordinates [note](#mapmatching)    |
+| viaLonLat   | float, float [float,float]    | The network positions to pass along the way in geo-coordinates  [note](#mapmatching)   |
 
 ## Routing between Junctions
 Trips and flows may use the attributes `fromJunction`, `toJunction`, and `viaJunctions` to describe origin, destination and intermediate locations. This is a special form of TAZ-routing and it must be enabled by either setting the duarouter option **--junction-taz** or by loading TAZ-definitions that use the respective junction IDs. When using option **--junction-taz**, all edges outgoing from a junction may be used at the origin and all edges incoming to a junction may be used to reach the intermediate and final junctions.
@@ -61,13 +60,13 @@ Since version 1.2 duarouter supports mapping positions to roads using attributes
 !!! caution
     SUMO does not yet support these mapping attributes.
     
-By setting the option **--mapmatch.junctions**, positions are mapped to junctions instead of edges. The routes are then [computed between junctions](#Routing_between_junctions).
+By setting the option **--mapmatch.junctions**, positions are mapped to junctions instead of edges. The routes are then [computed between junctions](#routing_between_junctions).
     
 ## Vehicle Types
 
 If any trips use the `type` attribute, the
 referenced `vType` element must be put into
-the *trip.xml* file or into an additionally loaded *rou.xml*-file or
+the input file containting the trips / flow  or into an additionally loaded *rou.xml*-file or
 into an {{AdditionalFile}}.
 
 !!! note
@@ -84,24 +83,29 @@ interval described by <INTERVAL_BEGIN\> and <INTERVAL_END\>. All these
 three attributes must be integer values. Flow definitions can also be
 embedded into an interval tag. In this case one can (but does not have
 to) leave the tags `begin` and
-`end` out. So the following two snipples mean
+`end` out. So the following two snippets mean
 the same:
 
+
 ```
-<flows>
+<routes>
     <flow id="0" from="edge0" to="edge1" begin="0" end="3600" number="100"/>
-</flows>
+</routes>
 ```
 
 and
 
 ```
-<flows>
+<routes>
     <interval begin="0" end="3600">
         <flow id="0" from="edge0" to="edge1" number="100"/>
     </interval>
-</flows>
+</routes>
 ```
+
+!!! note
+    The input file always needs a root level element to enclose the trip/flow elements and this should be named `<routes>`.
+     
 
 Let's review flow parameter:
 
@@ -149,6 +153,37 @@ the *weight-attribute* must be defined:
 </meandata>
 ```
 
+# Repair routes
+
+The **--repair** option intends to repair routes with connectivity problems.
+Depending on how the route is define, duarouter will try to fix it differently:
+
+- If the route is defined with the "edges" attribute, duarouter will first try
+to fix the route by repairing the connectivity between the edges. If this is not
+possible, then duarouter will search for another valid route between the edges
+with connectivity problems. This may result in some edges from the original
+route no longer being on the new route. In other words, edges defined with the
+"edges" attribute are not taken as mandatory during route repair.
+- If the route is defined with the "edges" attribute but also has "stops",
+duarouter will treat the edges of the stops as mandatory. First it will try to
+repair the route as in the previous example, but if duarouter cannot find a valid
+route that goes through the given stop edges, then the route is not possible to fix.
+- If the route is defined with the attribute "via" edges, all edges will be
+treated as mandatory. If duarouter cannot fix the connectivity problems between
+the specified edges, a warning appears and the route is not repairable.
+
+Duarouter also has the **--repair.from** and **--repair.to** options, which allow
+to fix an invalid starting or ending edge using the first or last usable edge
+of the route.
+
+# Converting Input Styles
+SUMO supports various styles of traffic demand definitions (vehicles, trips, flows) and [duarouter](../duarouter.md) can be used to convert between them.
+
+- By default, duarouter will convert all inputs to vehicles with embedded routes (route as child element of the vehicle).
+- With option **--write-trips** all input will be converted to trips
+  - combined with option **--write-trips.geo** trips will be written with geo-coordinates (fromLonLat, toLonLat) instead of edges (from, to)
+  - combined with option **--write-trips.junctions** trips will be written between junctions (fromJunction, toJunction)
+
 # Usage Examples
 
 ```
@@ -159,7 +194,7 @@ the file ''trips.xml '' given below must contain edges contained in the
 network file ''road.net.xml ''.
 
 ```
-<trips>
+<routes>
     <trip id="1625993_25" depart="25" from="-15229224#3" to="4474184"/>
     <trip id="1542480_35" depart="35" from="-46771582"   to="-24038909#1"/>
     <trip id="1544282_35" depart="35" from="20554351#2"  to="-4876083#5"/>
@@ -167,7 +202,7 @@ network file ''road.net.xml ''.
     <trip id="1620115_45" depart="45" from="11279351#3"  to="5198584#1"/>
     <trip id="1647560_45" depart="45" from="54048879#0"  to="-52105434#0"/>
     <trip id="3761248_45" depart="45" from="-31928311"   to="23792451#7"/>
-</trips>
+</routes>
 ```
 
 Trips may contain [source and destination
@@ -218,5 +253,5 @@ particular vehicle classes which is less obvious from the GUI. You can
 ignore these routes using the option **--ignore-errors**. However, if a large proportion of
 your routes cause this error you should definitely investigate your
 network file for problems. The tool
-[Tools/Net\#netcheck.py](../Tools/Net.md#netcheckpy) can be used
+[Tools/Net#netcheckpy](../Tools/Net.md#netcheckpy) can be used
 to pin down the connectivity gaps in your network.

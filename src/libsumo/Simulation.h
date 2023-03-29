@@ -1,6 +1,6 @@
 /****************************************************************************/
 // Eclipse SUMO, Simulation of Urban MObility; see https://eclipse.org/sumo
-// Copyright (C) 2012-2020 German Aerospace Center (DLR) and others.
+// Copyright (C) 2012-2023 German Aerospace Center (DLR) and others.
 // This program and the accompanying materials are made available under the
 // terms of the Eclipse Public License 2.0 which is available at
 // https://www.eclipse.org/legal/epl-2.0/
@@ -18,8 +18,6 @@
 // C++ TraCI client API implementation
 /****************************************************************************/
 #pragma once
-#include <config.h>
-
 #include <vector>
 #include <libsumo/TraCIDefs.h>
 
@@ -28,9 +26,7 @@
 // class declarations
 // ===========================================================================
 #ifndef LIBTRACI
-namespace libsumo {
-class VariableWrapper;
-}
+class PositionVector;
 #endif
 
 
@@ -45,13 +41,10 @@ namespace LIBSUMO_NAMESPACE {
 class Simulation {
 public:
 #ifdef LIBTRACI
-    static std::pair<int, std::string> init(int port = 8813, int numRetries = 10, const std::string& host = "localhost", const std::string& label = "default", FILE* const pipe = nullptr);
-
-    static std::pair<int, std::string> start(const std::vector<std::string>& cmd, int port = -1, int numRetries = 10, const std::string& label = "default", const bool verbose = false);
+    static std::pair<int, std::string> init(int port = 8813, int numRetries = libsumo::DEFAULT_NUM_RETRIES,
+                                            const std::string& host = "localhost", const std::string& label = "default", FILE* const pipe = nullptr);
 
     static bool isLibsumo();
-
-    static bool hasGUI();
 
     // we cannot call this switch because it is a reserved word in C++
     static void switchConnection(const std::string& label);
@@ -62,8 +55,15 @@ public:
 
 #endif
 
+    static std::pair<int, std::string> start(const std::vector<std::string>& cmd, int port = -1, int numRetries = libsumo::DEFAULT_NUM_RETRIES,
+            const std::string& label = "default", const bool verbose = false,
+            const std::string& traceFile = "", bool traceGetters = true, void* _stdout = nullptr);
+
     /// @brief load a simulation with the given arguments
     static void load(const std::vector<std::string>& args);
+
+    /// @brief whether we run with graphical user interface (sumo-gui)
+    static bool hasGUI();
 
     /// @brief return whether a simulation (network) is present
     static bool isLoaded();
@@ -71,14 +71,23 @@ public:
     /// @brief Advances by one step (or up to the given time)
     static void step(const double time = 0.);
 
+    /// @brief Advances a "half" step
+    static void executeMove();
+
     /// @brief close simulation
     static void close(const std::string& reason = "Libsumo requested termination.");
 
     /// @brief return TraCI API and SUMO version
     static std::pair<int, std::string> getVersion();
 
+    /// @brief return the SUMO option value
+    static std::string getOption(const std::string& option);
+
     static int getCurrentTime();
     static double getTime();
+
+    /// @brief return configured end time
+    static double getEndTime();
 
     static int getLoadedNumber();
     static std::vector<std::string> getLoadedIDList();
@@ -103,22 +112,27 @@ public:
     static int getEndingTeleportNumber();
     static std::vector<std::string> getEndingTeleportIDList();
 
+    static int getDepartedPersonNumber();
+    static std::vector<std::string> getDepartedPersonIDList();
+    static int getArrivedPersonNumber();
+    static std::vector<std::string> getArrivedPersonIDList();
+
     static std::vector<std::string> getBusStopIDList();
     static int getBusStopWaiting(const std::string& stopID);
 
     /** @brief Returns the IDs of the transportables on a given bus stop.
      */
     static std::vector<std::string> getBusStopWaitingIDList(const std::string& stopID);
+    static std::vector<std::string> getPendingVehicles();
 
+    static std::vector<libsumo::TraCICollision> getCollisions();
 
+    static double getScale();
     static double getDeltaT();
 
     static libsumo::TraCIPositionVector getNetBoundary();
 
     static int getMinExpectedNumber();
-
-#ifndef LIBTRACI
-// the following functions are not implemented in libtraci, yet
 
     static libsumo::TraCIPosition convert2D(const std::string& edgeID, double pos, int laneIndex = 0, bool toGeo = false);
 
@@ -142,23 +156,29 @@ public:
             const std::string& pType = "", const std::string& vType = "", const std::string& destStop = "");
 
     static std::string getParameter(const std::string& objectID, const std::string& key);
-#endif
+    static const std::pair<std::string, std::string> getParameterWithKey(const std::string& objectID, const std::string& key);
+    static void setParameter(const std::string& objectID, const std::string& param, const std::string& value);
 
+    static void setScale(double value);
     static void clearPending(const std::string& routeID = "");
     static void saveState(const std::string& fileName);
     /// @brief quick-load simulation state from file and return the state time
     static double loadState(const std::string& fileName);
     static void writeMessage(const std::string& msg);
 
-#ifndef LIBTRACI
-    static void subscribe(const std::vector<int>& varIDs = std::vector<int>(), double begin = libsumo::INVALID_DOUBLE_VALUE, double end = libsumo::INVALID_DOUBLE_VALUE);
+    static void subscribe(const std::vector<int>& varIDs = std::vector<int>(), double begin = libsumo::INVALID_DOUBLE_VALUE, double end = libsumo::INVALID_DOUBLE_VALUE, const libsumo::TraCIResults& params = libsumo::TraCIResults());
     static const libsumo::TraCIResults getSubscriptionResults();
-    static const SubscriptionResults getAllSubscriptionResults();
-    static const ContextSubscriptionResults getAllContextSubscriptionResults();
+
+    LIBSUMO_SUBSCRIPTION_API
+
+#ifndef LIBTRACI
+#ifndef SWIG
+    static void storeShape(PositionVector& shape);
 
     static std::shared_ptr<VariableWrapper> makeWrapper();
 
-    static bool handleVariable(const std::string& objID, const int variable, VariableWrapper* wrapper);
+    static bool handleVariable(const std::string& objID, const int variable, VariableWrapper* wrapper, tcpip::Storage* paramData);
+#endif
 #endif
 
 private:

@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 # Eclipse SUMO, Simulation of Urban MObility; see https://eclipse.org/sumo
-# Copyright (C) 2008-2020 German Aerospace Center (DLR) and others.
+# Copyright (C) 2008-2023 German Aerospace Center (DLR) and others.
 # This program and the accompanying materials are made available under the
 # terms of the Eclipse Public License 2.0 which is available at
 # https://www.eclipse.org/legal/epl-2.0/
@@ -92,6 +92,8 @@ def main(args=None):
                          help="If set, the script says what it's doing")
     optParser.add_option("--color-bar-label", dest="colorBarLabel", default="",
                          help="The label to put on the color bar")
+    optParser.add_option("--internal", action="store_true",
+                         default=False, help="include internal edges in generated shapes")
 
     # standard plot options
     helpers.addInteractionOptions(optParser)
@@ -112,7 +114,7 @@ def main(args=None):
         return 1
     if options.verbose:
         print("Reading network from '%s'" % options.net)
-    net = sumolib.net.readNet(options.net)
+    net = sumolib.net.readNet(options.net, withInternal=options.internal)
 
     if options.measures is None:
         print("Error: a dump file must be given.")
@@ -125,7 +127,7 @@ def main(args=None):
     colorMeasure = options.measures.split(",")[0]
     if colorDump:
         if options.verbose:
-            print("Reading colors from '%s'" % colorDump)
+            print("Reading colors from '%s' (attribute:%s)" % (colorDump, colorMeasure))
         hc = WeightsReader(colorMeasure)
         sumolib.output.parse_sax(colorDump, hc)
         times = hc._edge2value
@@ -135,7 +137,7 @@ def main(args=None):
         widthDump = dumps[1]
         widthMeasure = options.measures.split(",")[1]
         if options.verbose:
-            print("Reading widths from '%s'" % widthDump)
+            print("Reading width attribute from '%s' (attribute:%s)" % (widthDump, widthMeasure))
         hw = WeightsReader(widthMeasure)
         sumolib.output.parse_sax(widthDump, hw)
         times = hw._edge2value
@@ -222,6 +224,9 @@ def main(args=None):
         if options.verbose:
             print("Width values are between %s and %s" %
                   (minWidthValue, maxWidthValue))
+        if hw and (minWidthValue is None or maxWidthValue is None):
+            print("Skipping interval %s without data" % t)
+            continue
 
         fig, ax = helpers.openFigure(options)
         ax.set_aspect("equal", None, 'C')
@@ -232,10 +237,11 @@ def main(args=None):
         sm = plt.cm.ScalarMappable(cmap=matplotlib.cm.get_cmap(options.colormap),
                                    norm=norm(vmin=minColorValue, vmax=maxColorValue))
 
-        # "fake up the array of the scalar mappable. Urgh..."
-        # (pelson, http://stackoverflow.com/questions/8342549/matplotlib-add-colorbar-to-a-sequence-of-line-plots)
-        sm._A = []
-        color_bar = plt.colorbar(sm)
+        if sys.version_info.major < 3:
+            # "fake up the array of the scalar mappable. Urgh..."
+            # (pelson, http://stackoverflow.com/questions/8342549/matplotlib-add-colorbar-to-a-sequence-of-line-plots)
+            sm._A = []
+        color_bar = plt.colorbar(sm, ax=ax)
         color_bar.set_label(options.colorBarLabel)
 
         # Should we also save the figure to a file / list of files (comma
@@ -262,4 +268,7 @@ def main(args=None):
 
 
 if __name__ == "__main__":
-    sys.exit(main(sys.argv))
+    try:
+        main(sys.argv)
+    except ValueError as e:
+        sys.exit(e)

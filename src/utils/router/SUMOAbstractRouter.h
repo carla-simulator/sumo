@@ -1,6 +1,6 @@
 /****************************************************************************/
 // Eclipse SUMO, Simulation of Urban MObility; see https://eclipse.org/sumo
-// Copyright (C) 2006-2020 German Aerospace Center (DLR) and others.
+// Copyright (C) 2006-2023 German Aerospace Center (DLR) and others.
 // This program and the accompanying materials are made available under the
 // terms of the Eclipse Public License 2.0 which is available at
 // https://www.eclipse.org/legal/epl-2.0/
@@ -31,6 +31,8 @@
 #include <utils/common/MsgHandler.h>
 #include <utils/common/SUMOTime.h>
 #include <utils/common/ToString.h>
+//#define ROUTER_DEBUG_HINT
+//#define ROUTER_DEBUG_COND (true)
 
 
 // ===========================================================================
@@ -84,10 +86,6 @@ public:
             visited = false;
         }
 
-    private:
-        /// @brief Invalidated assignment operator
-        EdgeInfo& operator=(const EdgeInfo& s) = delete;
-
     };
 
     /// Type of the function that is used to retrieve the edge effort.
@@ -128,12 +126,36 @@ public:
     /// Destructor
     virtual ~SUMOAbstractRouter() {
         if (myNumQueries > 0) {
-            WRITE_MESSAGE(myType + " answered " + toString(myNumQueries) + " queries and explored " + toString(double(myQueryVisits) / myNumQueries) +  " edges on average.");
-            WRITE_MESSAGE(myType + " spent " + elapsedMs2string(myQueryTimeSum) + " answering queries (" + toString(double(myQueryTimeSum) / myNumQueries) +  "ms on average).");
+            WRITE_MESSAGE(myType + " answered " + toString(myNumQueries) + " queries and explored " + toString((double)myQueryVisits / (double)myNumQueries) +  " edges on average.");
+            WRITE_MESSAGE(myType + " spent " + elapsedMs2string(myQueryTimeSum) + " answering queries (" + toString((double)myQueryTimeSum / (double)myNumQueries) +  "ms on average).");
         }
     }
 
     virtual SUMOAbstractRouter* clone() = 0;
+
+    inline void init(const int edgeID, const SUMOTime msTime) {
+//        if (!myAmClean) {
+        // all EdgeInfos touched in the previous query are either in myFrontierList or myFound: clean those up
+        for (auto& edgeInfo : myFrontierList) {
+            edgeInfo->reset();
+        }
+        myFrontierList.clear();
+        for (auto& edgeInfo : myFound) {
+            edgeInfo->reset();
+        }
+        myFound.clear();
+        if (edgeID > -1) {
+            // add begin node
+            auto& fromInfo = myEdgeInfos[edgeID];
+            fromInfo.effort = 0.;
+            fromInfo.heuristicEffort = 0.;
+            fromInfo.prev = nullptr;
+            fromInfo.leaveTime = STEPS2TIME(msTime);
+            myFrontierList.push_back(&fromInfo);
+        }
+        myAmClean = true;
+//        }
+    }
 
     /// reset internal caches, used by CHRouter
     virtual void reset(const V* const vehicle) {
@@ -142,6 +164,10 @@ public:
 
     const std::string& getType() const {
         return myType;
+    }
+
+    inline const typename SUMOAbstractRouter<E, V>::EdgeInfo& getEdgeInfo(int index) const {
+        return myEdgeInfos[index];
     }
 
     /** @brief Builds the route between the given edges using the minimum effort at the given time
@@ -201,8 +227,6 @@ public:
     inline bool isProhibited(const E* const edge, const V* const vehicle) const {
         return (myHavePermissions && edge->prohibits(vehicle)) || (myHaveRestrictions && edge->restricts(vehicle));
     }
-
-    virtual void prohibit(const std::vector<E*>& /* toProhibit */) {}
 
     inline double getTravelTime(const E* const e, const V* const v, const double t, const double effort) const {
         return myTTOperation == nullptr ? effort : (*myTTOperation)(e, v, t);
@@ -267,6 +291,37 @@ public:
     }
 
 
+    inline double setHint(const typename std::vector<const E*>::const_iterator routeBegin, const typename std::vector<const E*>::const_iterator routeEnd, const V* const v, SUMOTime msTime) {
+        double time = STEPS2TIME(msTime);
+        double effort = 0.;
+        double length = 0.;
+        const EdgeInfo* prev = &myEdgeInfos[(*routeBegin)->getNumericalID()];
+        init((*routeBegin)->getNumericalID(), msTime);
+        for (auto e = routeBegin + 1; e != routeEnd; ++e) {
+            if (isProhibited(*e, v)) {
+                return -1;
+            }
+            auto& edgeInfo = myEdgeInfos[(*e)->getNumericalID()];
+            edgeInfo.heuristicEffort = effort;
+            edgeInfo.prev = prev;
+            updateViaCost(prev->edge, *e, v, time, effort, length);
+            edgeInfo.effort = effort;
+            edgeInfo.leaveTime = time;
+            myFound.push_back(&edgeInfo);
+            prev = &edgeInfo;
+#ifdef ROUTER_DEBUG_HINT
+            if (ROUTER_DEBUG_COND) {
+                std::cout << "DEBUG: hit=" << (*e)->getID()
+                          << " TT=" << edgeInfo.effort
+                          << " EF=" << this->getEffort(*e, v, edgeInfo.leaveTime)
+                          << " HT=" << edgeInfo.heuristicEffort << "\n";
+            }
+#endif
+        }
+        return effort;
+    }
+
+
     inline double getEffort(const E* const e, const V* const v, double t) const {
         return (*myOperation)(e, v, t);
     }
@@ -281,12 +336,33 @@ public:
         myQueryTimeSum += (SysUtils::getCurrentMillis() - myQueryStartTime);
     }
 
-    inline void setBulkMode(const bool mode) {
+    virtual void setBulkMode(const bool mode) {
         myBulkMode = mode;
     }
 
     inline void setAutoBulkMode(const bool mode) {
         myAutoBulkMode = mode;
+    }
+
+    virtual void prohibit(const std::vector<E*>& toProhibit) {
+        for (E* const edge : this->myProhibited) {
+            myEdgeInfos[edge->getNumericalID()].prohibited = false;
+        }
+        for (E* const edge : toProhibit) {
+            myEdgeInfos[edge->getNumericalID()].prohibited = true;
+        }
+        this->myProhibited = toProhibit;
+    }
+
+
+    /// Builds the path from marked edges
+    void buildPathFrom(const typename SUMOAbstractRouter<E, V>::EdgeInfo* rbegin, std::vector<const E*>& edges) {
+        std::vector<const E*> tmp;
+        while (rbegin != nullptr) {
+            tmp.push_back(rbegin->edge);
+            rbegin = rbegin->prev;
+        }
+        std::copy(tmp.rbegin(), tmp.rend(), std::back_inserter(edges));
     }
 
 protected:
@@ -305,13 +381,25 @@ protected:
     /// @brief whether we are currently trying to detect bulk mode automatically
     bool myAutoBulkMode;
 
+    /// @brief whether we are already initialized
+    bool myAmClean;
+
     /// @brief whether edge permissions need to be considered
     const bool myHavePermissions;
 
     /// @brief whether edge restrictions need to be considered
     const bool myHaveRestrictions;
 
+    /// The list of explicitly prohibited edges
     std::vector<E*> myProhibited;
+
+    /// The container of edge information
+    std::vector<typename SUMOAbstractRouter<E, V>::EdgeInfo> myEdgeInfos;
+
+    /// A container for reusage of the min edge heap
+    std::vector<typename SUMOAbstractRouter<E, V>::EdgeInfo*> myFrontierList;
+    /// @brief list of visited Edges (for resetting)
+    std::vector<typename SUMOAbstractRouter<E, V>::EdgeInfo*> myFound;
 
 private:
     /// @brief the type of this router
@@ -323,7 +411,8 @@ private:
     /// @brief the time spent querying in milliseconds
     long long int myQueryStartTime;
     long long int myQueryTimeSum;
+
 private:
     /// @brief Invalidated assignment operator
-    SUMOAbstractRouter& operator=(const SUMOAbstractRouter& s);
+    SUMOAbstractRouter& operator=(const SUMOAbstractRouter& s) = delete;
 };

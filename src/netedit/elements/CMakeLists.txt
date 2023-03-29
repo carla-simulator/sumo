@@ -14,10 +14,10 @@ set(netedit_elements_SRCS
    GNEHierarchicalContainer.cpp
    GNEHierarchicalElement.h
    GNEHierarchicalElement.cpp
-   GNEPathElements.h
-   GNEPathElements.cpp
    GNECandidateElement.h
    GNECandidateElement.cpp
+   GNEGeneralHandler.h
+   GNEGeneralHandler.cpp
    )
 
 add_library(netedit_elements STATIC ${netedit_elements_SRCS})

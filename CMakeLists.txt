@@ -2,16 +2,26 @@
 cmake_policy(SET CMP0048 NEW)
 # do not expand quoted variables in if statements
 cmake_policy(SET CMP0054 NEW)
+# find python by path
+set(Python_FIND_STRATEGY LOCATION)
 # Options
 option(MULTITHREADED_BUILD "Use all available cores for building (applies to Visual Studio only)" true)
 option(PROFILING "Enable output of profiling data (applies to gcc/clang builds only)" false)
 set(BINARY_SUFFIX "" CACHE STRING "Append the suffix to every generated binary")
 set(COMPILE_DEFINITIONS "" CACHE STRING "Macros or defines to add when compiling")
 
+# disable warnings
+option(DISABLEWARNING_C5264 "'const' variable is not used" true)
+option(DISABLEWARNING_C4355 "'this' : used in base member initializer list" true)
+option(DISABLEWARNING_C4266 "'function' : no override available for virtual member function from base 'type'" true)
+option(DISABLEWARNING_C4127 "conditional expression is constant" true)
+option(DISABLEWARNING_C26495 "'variable' is uninitialized. Always initialize a member variable" true)
+
 # Set a default build type if none was specified
 # you may use -DCMAKE_BUILD_TYPE:STRING=Debug from the command line
 set(default_build_type "Release")
 
+set(CMAKE_ORIGINAL_BUILD_TYPE "${CMAKE_BUILD_TYPE}")
 if (NOT CMAKE_BUILD_TYPE AND NOT CMAKE_CONFIGURATION_TYPES)
   message(STATUS "Setting build type to '${default_build_type}' as none was specified.")
   set(CMAKE_BUILD_TYPE "${default_build_type}" CACHE
@@ -33,19 +43,41 @@ if (COMPILE_DEFINITIONS)
     add_compile_definitions(${COMPILE_DEFINITIONS})
 endif ()
 
+# declare flags for compilers
+if ("${CMAKE_CXX_COMPILER_ID}" STREQUAL "GNU")
+    set (GNU_COMPILER True)
+endif ()
+if ("${CMAKE_CXX_COMPILER_ID}" STREQUAL "Clang")
+    set (CLANG_COMPILER True)
+endif ()
+
 # compiler specific flags
 if ("${CMAKE_CXX_COMPILER_ID}" STREQUAL "Clang")
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++14 -pthread -Wall -pedantic -Wextra -fPIC")
 elseif (MSVC)
+	# check if disable warnings
+	if (DISABLEWARNING_C5264)
+		set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /wd5264")
+	endif ()
+	if (DISABLEWARNING_C4355)
+		set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /wd4355")
+	endif ()
+	if (DISABLEWARNING_C4266)
+		set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /wd4266")
+	endif ()
+	if (DISABLEWARNING_C4127)
+		set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /wd4127")
+	endif ()
+	if (DISABLEWARNING_C26495)
+		set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /wd26495")
+	endif ()
     # enabling /WX is not possible due to warnings in external headers
     # /Wall brings MSVC 2013 to complete halt
     if (MULTITHREADED_BUILD)
         set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /MP")
     endif ()
-    if (MSVC_VERSION GREATER 1914)
-        set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /experimental:external /external:W2")
-        set(CMAKE_INCLUDE_SYSTEM_FLAG_CXX "/external:I ")
-    endif ()
+    # SWIG generates large obj files
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /bigobj")
     # exporting symbols for shared libraries needs to enabled explicitly
     set(CMAKE_WINDOWS_EXPORT_ALL_SYMBOLS ON)
 endif ()

@@ -1,6 +1,5 @@
 ---
 title: polyconvert
-permalink: /polyconvert/
 ---
 
 # From 30.000 feet
@@ -34,8 +33,12 @@ position of the file. So
 ```
 polyconvert --visum mynet.net -o converted.poi.xml
 ```
-
 imports from a VISUM-net file.
+
+Furthermore, if you have already projected SHP-files, you can directly set the options
+shapefile.traditional-axis-mapping and proj-utm with true in order to avoid polygons to
+be projected in Polyconvert again.
+
 
 ## Options
 
@@ -54,6 +57,7 @@ Files](Basics/Using_the_Command_Line_Applications.md#configuration_files).
 |--------|-------------|
 | **-c** {{DT_FILE}}<br> **--configuration-file** {{DT_FILE}} | Loads the named config on startup |
 | **-C** {{DT_FILE}}<br> **--save-configuration** {{DT_FILE}} | Saves current configuration into FILE |
+| **--save-configuration.relative** {{DT_BOOL}} | Enforce relative paths when saving the configuration; *default:* **false** |
 | **--save-template** {{DT_FILE}} | Saves a configuration template (empty) into FILE |
 | **--save-schema** {{DT_FILE}} | Saves the configuration schema into FILE |
 | **--save-commented** {{DT_BOOL}} | Adds comments to saved template, configuration, or schema; *default:* **false** |
@@ -72,6 +76,7 @@ distinct shape file.
 | **--dlr-navteq-poly-files** {{DT_FILE}} | Reads polygons from FILE assuming they're coded in DLR-Navteq (Elmar)-format |
 | **--dlr-navteq-poi-files** {{DT_FILE}} | Reads pois from FILE+ assuming they're coded in DLR-Navteq (Elmar)-format |
 | **--visum-files** {{DT_FILE}} | Reads polygons from FILE assuming it's a Visum-net |
+| **--visum.language-file** {{DT_FILE}} | Load language mappings from FILE |
 | **--xml-files** {{DT_FILE}} | Reads pois and shapes from FILE assuming they're coded in XML |
 | **--osm-files** {{DT_FILE}} | Reads pois from FILE+ assuming they're coded in OSM |
 | **--osm.keep-full-type** {{DT_BOOL}} | The type will be made of the key-value - pair; *default:* **false** |
@@ -84,7 +89,7 @@ distinct shape file.
 | **--shapefile.type-columns** {{DT_STR[]}} | Defines which columns form the type id (comma separated list) |
 | **--shapefile.use-running-id** {{DT_BOOL}} | A running number will be used as id; *default:* **false** |
 | **--shapefile.add-param** {{DT_BOOL}} | Extract all additional columns as params; *default:* **false** |
-| **--shapefile.fill** {{DT_STR}} | [auto|true|false]. Forces the 'fill' status to the given value. Default 'auto' tries to determine it from the data type |
+| **--shapefile.fill** {{DT_STR}} | [auto,true,false]. Forces the 'fill' status to the given value. Default 'auto' tries to determine it from the data type |
 | **--type-file** {{DT_FILE}} | Reads types from FILE |
 
 ### Output
@@ -134,7 +139,7 @@ this boundary are discarded in these cases.
 | Option | Description |
 |--------|-------------|
 | **--prune.in-net** {{DT_BOOL}} | Enables pruning on net boundaries; *default:* **false** |
-| **--prune.in-net.offsets** {{DT_STR}} | Uses STR as offset definition added to the net boundaries; *default:* **0,0,0,0** |
+| **--prune.in-net.offsets** {{DT_STR}} | Uses FLOAT,FLOAT,FLOAT,FLOAT as offset definition added to the net boundary. Positive values grow the boundary on all sides while negative values shrink it.; *default:* **0,0,0,0** |
 | **--prune.boundary** {{DT_STR}} | Uses STR as pruning boundary |
 | **--prune.keep-list** {{DT_STR}} | Items in STR will be kept though out of boundary |
 | **--prune.explicit** {{DT_STR[]}} | Items with names in STR[] will be removed |
@@ -178,13 +183,14 @@ Options](Basics/Using_the_Command_Line_Applications.md#reporting_options).
 | **--print-options** {{DT_BOOL}} | Prints option values before processing; *default:* **false** |
 | **-?** {{DT_BOOL}}<br> **--help** {{DT_BOOL}} | Prints this screen or selected topics; *default:* **false** |
 | **-V** {{DT_BOOL}}<br> **--version** {{DT_BOOL}} | Prints the current version; *default:* **false** |
-| **-X** {{DT_STR}}<br> **--xml-validation** {{DT_STR}} | Set schema validation scheme of XML inputs ("never", "auto" or "always"); *default:* **auto** |
-| **--xml-validation.net** {{DT_STR}} | Set schema validation scheme of SUMO network inputs ("never", "auto" or "always"); *default:* **never** |
+| **-X** {{DT_STR}}<br> **--xml-validation** {{DT_STR}} | Set schema validation scheme of XML inputs ("never", "local", "auto" or "always"); *default:* **local** |
+| **--xml-validation.net** {{DT_STR}} | Set schema validation scheme of SUMO network inputs ("never", "local", "auto" or "always"); *default:* **never** |
 | **-W** {{DT_BOOL}}<br> **--no-warnings** {{DT_BOOL}} | Disables output of warnings; *default:* **false** |
 | **--aggregate-warnings** {{DT_INT}} | Aggregate warnings of the same type whenever more than INT occur; *default:* **-1** |
 | **-l** {{DT_FILE}}<br> **--log** {{DT_FILE}} | Writes all messages to FILE (implies verbose) |
 | **--message-log** {{DT_FILE}} | Writes all non-error messages to FILE (implies verbose) |
 | **--error-log** {{DT_FILE}} | Writes all warnings and errors to FILE |
+| **--language** {{DT_STR}} | Language to use in messages; *default:* **C** |
 
 # See Also
 

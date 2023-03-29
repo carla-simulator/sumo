@@ -1,6 +1,6 @@
 /****************************************************************************/
 // Eclipse SUMO, Simulation of Urban MObility; see https://eclipse.org/sumo
-// Copyright (C) 2001-2020 German Aerospace Center (DLR) and others.
+// Copyright (C) 2001-2023 German Aerospace Center (DLR) and others.
 // This program and the accompanying materials are made available under the
 // terms of the Eclipse Public License 2.0 which is available at
 // https://www.eclipse.org/legal/epl-2.0/
@@ -86,7 +86,7 @@ protected:
     //@}
 
     /// @brief get position for a given laneID (Has to be implemented in all child)
-    virtual Position getLanePos(const std::string& poiID, const std::string& laneID, double lanePos, double lanePosLat) = 0;
+    virtual Position getLanePos(const std::string& poiID, const std::string& laneID, double lanePos, bool friendlyPos, double lanePosLat) = 0;
 
     /// @brief Whether some input attributes shall be automatically added as params  (Can be implemented in all child)
     virtual bool addLanePosParams();

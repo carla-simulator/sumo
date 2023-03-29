@@ -117,6 +117,7 @@ namespace tcpip
         Socket::
         getFreeSocketPort()
     {
+        Socket dummy(0); // just to trigger initialization on Windows and cleanup on end
         // Create socket to find a random free port that can be handed to the app
         int sock = static_cast<int>(socket( AF_INET, SOCK_STREAM, 0 ));
         struct sockaddr_in self;
@@ -195,7 +196,12 @@ namespace tcpip
 
 
 	// ----------------------------------------------------------------------
-	bool 
+#ifdef _MSC_VER
+#pragma warning(push)
+/* Disable warning about while (0, 0) in the expansion of FD_SET, see https://developercommunity.visualstudio.com/t/fd-clr-and-fd-set-macros-generate-warning-c4548/172702 */
+#pragma warning(disable: 4548)
+#endif
+	bool
 		Socket::
 		datawaiting(int sock) 
 		const
@@ -218,6 +224,9 @@ namespace tcpip
 		else
 			return false;
 	}
+#ifdef _MSC_VER
+#pragma warning(pop)
+#endif
 
 	// ----------------------------------------------------------------------
 	bool

@@ -1,6 +1,6 @@
 /****************************************************************************/
 // Eclipse SUMO, Simulation of Urban MObility; see https://eclipse.org/sumo
-// Copyright (C) 2001-2020 German Aerospace Center (DLR) and others.
+// Copyright (C) 2001-2023 German Aerospace Center (DLR) and others.
 // This program and the accompanying materials are made available under the
 // terms of the Eclipse Public License 2.0 which is available at
 // https://www.eclipse.org/legal/epl-2.0/
@@ -85,18 +85,18 @@ MSMeanData_Harmonoise::MSLaneMeanDataValues::notifyMoveInternal(const SUMOTraffi
 
 void
 MSMeanData_Harmonoise::MSLaneMeanDataValues::write(OutputDevice& dev, long long int attributeMask, const SUMOTime period,
-        const double /*numLanes*/, const double defaultTravelTime, const int /*numVehicles*/) const {
+        const double /*numLanes*/, const double /*speedLimit*/, const double defaultTravelTime, const int /*numVehicles*/) const {
     const double noise = meanNTemp != 0 ? (double)(10. * log10(meanNTemp * TS / STEPS2TIME(period))) : (double) 0.;
-    checkWriteAttribute(dev, attributeMask, SUMO_ATTR_NOISE, noise);
+    dev.writeOptionalAttr(SUMO_ATTR_NOISE, noise, attributeMask);
     if (sampleSeconds > myParent->myMinSamples) {
         double traveltime = myParent->myMaxTravelTime;
         if (travelledDistance > 0.f) {
             traveltime = MIN2(traveltime, myLaneLength * sampleSeconds / travelledDistance);
         }
-        checkWriteAttribute(dev, attributeMask, SUMO_ATTR_TRAVELTIME, traveltime);
+        dev.writeOptionalAttr(SUMO_ATTR_TRAVELTIME, traveltime, attributeMask);
     } else if (defaultTravelTime >= 0.) {
         // @todo default value for noise
-        checkWriteAttribute(dev, attributeMask, SUMO_ATTR_TRAVELTIME, defaultTravelTime);
+        dev.writeOptionalAttr(SUMO_ATTR_TRAVELTIME, defaultTravelTime, attributeMask);
     }
     dev.closeTag();
 }
@@ -113,9 +113,11 @@ MSMeanData_Harmonoise::MSMeanData_Harmonoise(const std::string& id,
         const bool trackVehicles,
         const double maxTravelTime, const double minSamples,
         const std::string& vTypes,
-        const std::string& writeAttributes) :
+        const std::string& writeAttributes,
+        const std::vector<MSEdge*>& edges,
+        bool aggregate) :
     MSMeanData(id, dumpBegin, dumpEnd, useLanes, withEmpty, printDefaults,
-               withInternal, trackVehicles, 0, maxTravelTime, minSamples, vTypes, writeAttributes) {
+               withInternal, trackVehicles, 0, maxTravelTime, minSamples, vTypes, writeAttributes, edges, aggregate) {
 }
 
 

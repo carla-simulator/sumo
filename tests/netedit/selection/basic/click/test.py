@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 # Eclipse SUMO, Simulation of Urban MObility; see https://eclipse.org/sumo
-# Copyright (C) 2009-2020 German Aerospace Center (DLR) and others.
+# Copyright (C) 2009-2023 German Aerospace Center (DLR) and others.
 # This program and the accompanying materials are made available under the
 # terms of the Eclipse Public License 2.0 which is available at
 # https://www.eclipse.org/legal/epl-2.0/
@@ -28,9 +28,6 @@ import neteditTestFunctions as netedit  # noqa
 # Open netedit
 neteditProcess, referencePosition = netedit.setupAndStart(neteditTestRoot)
 
-# force save additionals
-netedit.forceSaveAdditionals()
-
 # inspecte edge
 netedit.leftClick(referencePosition, 210, 210)
 
@@ -46,8 +43,8 @@ netedit.selectMode()
 # select edge using a simple click
 netedit.leftClickControl(referencePosition, 210, 210)
 
-# toogle edges selection
-netedit.changeEditMode('2')
+# toggle edges selection
+netedit.changeEditMode(netedit.attrs.modes.network.selectLane)
 
 # select lane using a simple click
 netedit.leftClickControl(referencePosition, 210, 240)
@@ -64,11 +61,8 @@ netedit.leftClickControl(referencePosition, 210, 240)
 # select lane using control + click in an edge previously selected
 netedit.leftClickControl(referencePosition, 210, 210)
 
-# save network
-netedit.saveNetwork(referencePosition)
-
-# save shapes
-netedit.saveAdditionals(referencePosition)
+# save Netedit config
+netedit.saveNeteditConfig(referencePosition)
 
 # quit netedit
 netedit.quit(neteditProcess)

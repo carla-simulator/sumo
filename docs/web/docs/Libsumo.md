@@ -1,6 +1,5 @@
 ---
 title: Libsumo
-permalink: /Libsumo/
 ---
 
 # Libsumo
@@ -21,24 +20,29 @@ following properties:
   [SWIG](http://www.swig.org/))
 - Support for other programming languages via
   [SWIG](http://www.swig.org/)
-
+  
 # Limitations
 
 The following things currently do not work (or work differently than with the TraCI Python client):
 
-- running with [sumo-gui](sumo-gui.md)
+- running with [sumo-gui](sumo-gui.md) does not work on Windows and is still highly experimental on other platforms
 - subscriptions that require additional arguments (except for *vehicle.getLeader*)
 - stricter type checking
   - the TraCI client sometimes accepts any iterable object where Libsumo wants a list
   - TraCI client may accept any object where Libsumo needs a boolean value
-- using traci.init or traci.connect is not possible (you always need to use libsumo.start)
+  - TraCI automatically converts every parameter into a string if a string is needed, Libsumo does not
+- using traci.init or traci.connect is not possible (you always need to use traci.start / libsumo.start)
 - with traci every TraCIException will generate a message on stderr, Libsumo does not generate this message
+- libsumo by itself cannot be used to [connect multiple clients to the simulation](TraCI/Interfacing_TraCI_from_Python.md#controlling_the_same_simulation_from_multiple_clients) (though connecting normal TraCI clients to a libsumo instance is possible)
+- running parallel instances of libsumo requires the [multiprocessing module (in python)](https://docs.python.org/3/library/multiprocessing.html)
+
+To avoid the limituations with respect to GUI, multi-clients support, you can also use [libraci](Libtraci.md). This is a C++ traci client library which is fully API-compatible with libsumo.
 
 # Building it
 
 It currently requires cmake and swig being installed together with the
 developer packages for Python (and Java if needed), for Windows see
-[Installing/Windows_CMake](Installing/Windows_CMake.md). You
+[Windows CMake](Installing/Windows_Build.md#manual_cmake_configuration). You
 need to (re-)compile sumo yourself under Windows following the remarks
 above, under Linux see [Installing/Linux_Build](Installing/Linux_Build.md)
 (it is probably just a matter of calling cmake and
@@ -47,22 +51,118 @@ For the python bindings you will get a libsumo.py and a
 _libsumo.so (or .pyd on Windows). If you place them somewhere on your
 python path you should be able to use them as described below.
 
+!!! note
+    Make sure to add `"/your/path/to/sumo/tools"` to the `PYTHONPATH` environment variable.
+
 # Using libsumo
+
+If you want to use the (experimental) GUI then you need to have `sumo-gui`
+in your start command instead of `sumo` or define the environment variable
+`LIBSUMO_GUI`.
 
 ## Python
 
-```
+```py
 import libsumo
 libsumo.start(["sumo", "-c", "test.sumocfg"])
 libsumo.simulationStep()
 ```
 
-Existing traci scripts can mostly be reused by calling
+Existing traci scripts can be reused (subject to the [limitations](#limitations) mentioned above) by calling
 
-```
+```py
 import libsumo as traci
 ```
 
 In case you have a lot of scripts you can also set the environment
 variable `LIBSUMO_AS_TRACI` to a non empty value which will trigger the
 import as above.
+
+
+## C++
+
+Please note the extra `#define` for enabling GUI code which is not needed if you do not or cannot use the GUI (Windows).
+
+### Example Code (test.cpp)
+
+```cpp
+#include <iostream>
+#define HAVE_LIBSUMOGUI  // if you are on Windows or have libsumo compiled yourself without GUI you should remove this line
+#include <libsumo/libsumo.h>
+
+using namespace libsumo;
+
+int main(int argc, char* argv[]) {
+    Simulation::start({"sumo", "-c", "test.sumocfg"});
+    for (int i = 0; i < 5; i++) {
+        Simulation::step();
+    }
+    Simulation::close();
+}
+```
+
+### compiling on Linux (make sure SUMO_HOME is set and sumo has been built)
+
+```
+g++ -o test -std=c++11 -I$SUMO_HOME/src test.cpp -L$SUMO_HOME/bin -lsumocpp
+```
+
+### running on Linux
+
+```
+LD_LIBRARY_PATH=$SUMO_HOME/bin ./test
+```
+
+## Java
+
+You might want to use the available [Maven package](Developer/Maven.md).
+
+### Example Code (Test.java)
+
+```java
+import org.eclipse.sumo.libsumo.Simulation;
+import org.eclipse.sumo.libsumo.StringVector;
+
+public class Test {
+    public static void main(String[] args) {
+        System.loadLibrary("libsumojni");
+        Simulation.start(new StringVector(new String[] {"sumo", "-c", "test.sumocfg"}));
+        for (int i = 0; i < 5; i++) {
+            Simulation.step();
+        }
+        Simulation.close();
+    }
+}
+```
+
+Please note that starting with SUMO 1.16.0 it seems to be necessary to preload more libraries
+on Windows, see https://github.com/eclipse/sumo/issues/12605
+
+### compiling on Linux (make sure SUMO_HOME is set and sumo has been built)
+
+```
+javac -cp $SUMO_HOME/bin/libsumo-1.8.0-SNAPSHOT.jar Test.java
+```
+
+### running on Linux
+
+```
+java -Djava.library.path=$SUMO_HOME/bin -cp $SUMO_HOME/bin/libsumo-1.8.0-SNAPSHOT.jar:. Test
+```
+
+### casting subscription results
+
+Please be aware that casting subscription results is not straightforward with Java.
+You have to use the `cast` function as below. If the cast is not successful it will not throw an exception
+but return a null pointer.
+
+```
+TraCIResults ssRes = Simulation.getSubscriptionResults();
+for (Map.Entry<Integer, TraCIResult> entry : ssRes.entrySet()) {
+    TraCIResult sR = entry.getValue();
+    TraCIStringList vehIDs = TraCIStringList.cast(sR);
+    for (String vehID : vehIDs.getValue()) {
+        System.out.println("Subscription Departed vehicles: " + vehID);
+    }
+}
+```

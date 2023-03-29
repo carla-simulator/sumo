@@ -1,6 +1,6 @@
 /****************************************************************************/
 // Eclipse SUMO, Simulation of Urban MObility; see https://eclipse.org/sumo
-// Copyright (C) 2002-2020 German Aerospace Center (DLR) and others.
+// Copyright (C) 2002-2023 German Aerospace Center (DLR) and others.
 // This program and the accompanying materials are made available under the
 // terms of the Eclipse Public License 2.0 which is available at
 // https://www.eclipse.org/legal/epl-2.0/
@@ -47,6 +47,9 @@ public:
 
     static void cleanup();
 
+    /** @brief Perform resets events when quick-loading state */
+    static void clearState();
+
     /** @brief Called if a vehicle changes its state
      * @param[in] vehicle The vehicle which changed its state
      * @param[in] to The state the vehicle has changed to
@@ -61,6 +64,13 @@ public:
         return myUsedEdges;
     }
 
+    void addSignal(MSRailSignal* signal);
+
+    const std::vector<MSRailSignal*>& getSignals() const {
+        return mySignals;
+    }
+
+
 private:
     /** @brief Constructor */
     MSRailSignalControl();
@@ -73,6 +83,9 @@ private:
 
     /// @brief map of driveways that must perform additional checks if the key edge is used by a train route
     std::map<const MSEdge*, std::vector<std::pair<MSRailSignal*, int> > > myProtectedDriveways;
+
+    /// @brief list of all rail signals
+    std::vector<MSRailSignal*> mySignals;
 
     static MSRailSignalControl* myInstance;
 

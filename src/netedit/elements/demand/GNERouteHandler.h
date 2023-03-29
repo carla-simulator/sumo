@@ -1,6 +1,6 @@
 /****************************************************************************/
 // Eclipse SUMO, Simulation of Urban MObility; see https://eclipse.org/sumo
-// Copyright (C) 2001-2020 German Aerospace Center (DLR) and others.
+// Copyright (C) 2001-2023 German Aerospace Center (DLR) and others.
 // This program and the accompanying materials are made available under the
 // terms of the Eclipse Public License 2.0 which is available at
 // https://www.eclipse.org/legal/epl-2.0/
@@ -20,13 +20,15 @@
 #pragma once
 #include <config.h>
 
-#include <netedit/frames/GNEFrameAttributesModuls.h>
-#include <netedit/frames/GNEFrameModuls.h>
+#include <netedit/frames/GNEFrameAttributeModules.h>
+#include <netedit/frames/GNEPathCreator.h>
+#include <netedit/frames/GNEAttributesCreator.h>
 #include <utils/common/SUMOVehicleClass.h>
 #include <utils/vehicle/SUMORouteHandler.h>
 #include <utils/xml/SUMOSAXAttributes.h>
 #include <utils/xml/SUMOSAXHandler.h>
 #include <utils/xml/SUMOXMLDefinitions.h>
+#include <utils/handlers/RouteHandler.h>
 
 
 // ===========================================================================
@@ -39,6 +41,7 @@ class GNETAZ;
 class GNEDemandElement;
 class GNEVehicle;
 class GNEPerson;
+class GNEContainer;
 class GNEUndoList;
 
 // ===========================================================================
@@ -47,120 +50,117 @@ class GNEUndoList;
 
 /// @class GNERouteHandler
 /// @brief Builds trigger objects for GNENet (busStops, chargingStations, detectors, etc..)
-class GNERouteHandler : public SUMORouteHandler {
+class GNERouteHandler : public RouteHandler {
+
 public:
-    /// @brief struct for saving route parameters
-    struct RouteParameter {
-
-        /// @brief constructor
-        RouteParameter();
-
-        /// @brief parameter constructor (use values of originalDemandElement)
-        RouteParameter(GNEDemandElement* originalDemandElement);
-
-        /// @brief set edges (list of consecutive edges)
-        void setEdges(GNENet* net, const std::string& edgeIDs);
-
-        /// @brief set edges (from, to and via edges)
-        void setEdges(GNENet* net, const std::string& vehicleID, const std::string& fromID, const std::string& toID, const std::string& viaIDs);
-
-        /// @brief clear edges
-        void clearEdges();
-
-        /// @brief string for saving parsed Route ID
-        std::string routeID;
-
-        /// @brief flag to check if route was loaded
-        bool loadedID;
-
-        /// @brief edges
-        std::vector<GNEEdge*> edges;
-
-        /// @brief vClass used by this route
-        SUMOVehicleClass vClass;
-
-        /// @brief string for saving parsed route colors
-        RGBColor color;
-
-        /// @brief parameters
-        Parameterised parameters;
-    };
-
     /// @brief Constructor
-    GNERouteHandler(const std::string& file, GNENet* net, bool undoDemandElements = true);
+    GNERouteHandler(const std::string& file, GNENet* net, const bool allowUndoRedo, const bool overwrite);
 
     /// @brief Destructor
-    ~GNERouteHandler();
+    virtual ~GNERouteHandler();
 
-    /// @brief check if there is already a vehicle (Vehicle, Trip, Flow or Flow) with the given ID
-    static bool isVehicleIdDuplicated(GNENet* net, const std::string& id);
-
-    /// @brief check if there is already a person (Person or PersonFlow) with the given ID
-    static bool isPersonIdDuplicated(GNENet* net, const std::string& id);
-
-    /// @name build routes
+    /// @name build functions
     /// @{
+
+    /// @brief build vType
+    void buildVType(const CommonXMLStructure::SumoBaseObject* sumoBaseObject, const SUMOVTypeParameter& vTypeParameter);
+
+    /// @brief build vType distribution
+    void buildVTypeDistribution(const CommonXMLStructure::SumoBaseObject* sumoBaseObject, const std::string& id,
+                                const int deterministic, const std::vector<std::string>& vTypes);
 
     /// @brief build route
-    static void buildRoute(GNENet* net, bool undoDemandElements, const RouteParameter& routeParameters, const std::vector<SUMOVehicleParameter::Stop>& activeStops);
+    void buildRoute(const CommonXMLStructure::SumoBaseObject* sumoBaseObject, const std::string& id, SUMOVehicleClass vClass,
+                    const std::vector<std::string>& edgeIDs, const RGBColor& color, const int repeat, const SUMOTime cycleTime,
+                    const Parameterised::Map& routeParameters);
 
-    /// @}
+    /// @brief build embedded route
+    void buildEmbeddedRoute(const CommonXMLStructure::SumoBaseObject* sumoBaseObject, const std::vector<std::string>& edgeIDs,
+                            const RGBColor& color, const int repeat, const SUMOTime cycleTime,
+                            const Parameterised::Map& routeParameters);
 
-    /// @name build vehicles
-    /// @{
+    /// @brief build route distribution
+    void buildRouteDistribution(const CommonXMLStructure::SumoBaseObject* sumoBaseObject, const std::string& id);
 
     /// @brief build a vehicle over an existent route
-    static void buildVehicleOverRoute(GNENet* net, bool undoDemandElements, const SUMOVehicleParameter& vehicleParameters);
+    void buildVehicleOverRoute(const CommonXMLStructure::SumoBaseObject* sumoBaseObject, const SUMOVehicleParameter& vehicleParameters);
 
     /// @brief build a flow over an existent route
-    static void buildFlowOverRoute(GNENet* net, bool undoDemandElements, const SUMOVehicleParameter& vehicleParameters);
-
-    /// @brief build vehicle with a embedded route
-    static void buildVehicleEmbeddedRoute(GNENet* net, bool undoDemandElements, SUMOVehicleParameter vehicleParameters, const std::vector<GNEEdge*>& edges);
-
-    /// @brief build flow with a embedded route
-    static void buildFlowEmbeddedRoute(GNENet* net, bool undoDemandElements, SUMOVehicleParameter vehicleParameters, const std::vector<GNEEdge*>& edges);
+    void buildFlowOverRoute(const CommonXMLStructure::SumoBaseObject* sumoBaseObject, const SUMOVehicleParameter& vehicleParameters);
 
     /// @brief build trip
-    static void buildTrip(GNENet* net, bool undoDemandElements, const SUMOVehicleParameter& vehicleParameters, GNEEdge* fromEdge, GNEEdge* toEdge, const std::vector<GNEEdge*>& via);
+    void buildTrip(const CommonXMLStructure::SumoBaseObject* sumoBaseObject, const SUMOVehicleParameter& vehicleParameters,
+                   const std::string& fromEdgeID, const std::string& toEdgeID);
+
+    /// @brief build trip over junctions
+    void buildTripJunctions(const CommonXMLStructure::SumoBaseObject* sumoBaseObject, const SUMOVehicleParameter& vehicleParameters,
+                            const std::string& fromJunctionID, const std::string& toJunctionID);
 
     /// @brief build flow
-    static void buildFlow(GNENet* net, bool undoDemandElements, const SUMOVehicleParameter& vehicleParameters, GNEEdge* fromEdge, GNEEdge* toEdge, const std::vector<GNEEdge*>& via);
+    void buildFlow(const CommonXMLStructure::SumoBaseObject* sumoBaseObject, const SUMOVehicleParameter& vehicleParameters,
+                   const std::string& fromEdgeID, const std::string& toEdgeIDs);
 
-    /// @brief build stop
-    static void buildStop(GNENet* net, bool undoDemandElements, const SUMOVehicleParameter::Stop& stopParameters, GNEDemandElement* stopParent);
-    /// @}
+    /// @brief build flow over junctions
+    void buildFlowJunctions(const CommonXMLStructure::SumoBaseObject* sumoBaseObject, const SUMOVehicleParameter& vehicleParameters,
+                            const std::string& fromJunctionID, const std::string& toJunctionID);
 
-    /// @name build person
-    /// @{
     /// @brief build person
-    static void buildPerson(GNENet* net, bool undoDemandElements, const SUMOVehicleParameter& personParameters);
+    void buildPerson(const CommonXMLStructure::SumoBaseObject* sumoBaseObject, const SUMOVehicleParameter& personParameters);
 
     /// @brief build person flow
-    static void buildPersonFlow(GNENet* net, bool undoDemandElements, const SUMOVehicleParameter& personFlowParameters);
-    /// @}
-
-    /// @name build personPlan
-    /// @{
-    /// @brief build person plan functions (used in Person / PersonPlan frames)
-    static bool buildPersonPlan(SumoXMLTag tag, GNEDemandElement* personParent, GNEFrameAttributesModuls::AttributesCreator* personPlanAttributes, GNEFrameModuls::PathCreator* pathCreator);
+    void buildPersonFlow(const CommonXMLStructure::SumoBaseObject* sumoBaseObject, const SUMOVehicleParameter& personFlowParameters);
 
     /// @brief build person trip
-    static void buildPersonTrip(GNENet* net, bool undoDemandElements, GNEDemandElement* personParent, GNEEdge* fromEdge, GNEEdge* toEdge,
-                                GNEAdditional* busStopFrom, GNEAdditional* busStopTo, double arrivalPos, const std::vector<std::string>& types, const std::vector<std::string>& modes);
+    void buildPersonTrip(const CommonXMLStructure::SumoBaseObject* sumoBaseObject, const std::string& fromEdgeID, const std::string& toEdgeID,
+                         const std::string& fromJunctionID, const std::string& toJunctionID, const std::string& toBusStopID, double arrivalPos,
+                         const std::vector<std::string>& types, const std::vector<std::string>& modes, const std::vector<std::string>& lines);
 
     /// @brief build walk
-    static void buildWalk(GNENet* net, bool undoDemandElements, GNEDemandElement* personParent, GNEEdge* fromEdge, GNEEdge* toEdge,
-                          GNEAdditional* busStopFrom, GNEAdditional* busStopTo, const std::vector<GNEEdge*>& edges, GNEDemandElement* route, double arrivalPos);
+    void buildWalk(const CommonXMLStructure::SumoBaseObject* sumoBaseObject, const std::string& fromEdgeID, const std::string& toEdgeID,
+                   const std::string& fromJunctionID, const std::string& toJunctionID, const std::string& toBusStopID,
+                   const std::vector<std::string>& edgeIDs, const std::string& routeID, double arrivalPos);
 
     /// @brief build ride
-    static void buildRide(GNENet* net, bool undoDemandElements, GNEDemandElement* personParent, GNEEdge* fromEdge, GNEEdge* toEdge,
-                          GNEAdditional* busStopFrom, GNEAdditional* busStopTo, double arrivalPos, const std::vector<std::string>& lines);
+    void buildRide(const CommonXMLStructure::SumoBaseObject* sumoBaseObject, const std::string& fromEdgeID, const std::string& toEdgeID,
+                   const std::string& toBusStopID, double arrivalPos, const std::vector<std::string>& lines);
+
+    /// @brief build container
+    void buildContainer(const CommonXMLStructure::SumoBaseObject* sumoBaseObject, const SUMOVehicleParameter& containerParameters);
+
+    /// @brief build container flow
+    void buildContainerFlow(const CommonXMLStructure::SumoBaseObject* sumoBaseObject, const SUMOVehicleParameter& containerFlowParameters);
+
+    /// @brief build transport
+    void buildTransport(const CommonXMLStructure::SumoBaseObject* sumoBaseObject, const std::string& fromEdgeID, const std::string& toEdgeID,
+                        const std::string& toBusStopID, const std::vector<std::string>& lines, const double arrivalPos);
+
+    /// @brief build tranship
+    void buildTranship(const CommonXMLStructure::SumoBaseObject* sumoBaseObject, const std::string& fromEdgeID, const std::string& toEdgeID,
+                       const std::string& toBusStopID, const std::vector<std::string>& edgeIDs, const double speed, const double departPosition,
+                       const double arrivalPosition);
+    /// @}
 
     /// @brief build stop
-    static void buildPersonStop(GNENet* net, bool undoDemandElements, GNEDemandElement* personParent, GNEEdge* edge, GNEAdditional* busStop, const SUMOVehicleParameter::Stop& stopParameters);
+    void buildStop(const CommonXMLStructure::SumoBaseObject* sumoBaseObject, const SUMOVehicleParameter::Stop& stopParameters);
 
-    /// @}
+    /// @brief build person plan
+    bool buildPersonPlan(SumoXMLTag tag, GNEDemandElement* personParent, GNEAttributesCreator* personPlanAttributes,
+                         GNEPathCreator* pathCreator, const bool centerAfterCreation);
+
+    /// @brief build container plan
+    bool buildContainerPlan(SumoXMLTag tag, GNEDemandElement* containerParent, GNEAttributesCreator* containerPlanAttributes, GNEPathCreator* pathCreator, const bool centerAfterCreation);
+
+    /// @brief check if there is already a vehicle (Vehicle, Trip, Flow or Flow) with the given ID
+    bool isVehicleIdDuplicated(const std::string& id);
+
+    /// @brief check if via attribute is valid
+    bool isViaAttributeValid(const std::vector<std::string>& via);
+
+    /// @brief check if there is already a person (Person or PersonFlow) with the given ID
+    bool isPersonIdDuplicated(const std::string& id);
+
+    /// @brief check if there is already a container (Container or ContainerFlow) with the given ID
+    bool isContainerIdDuplicated(const std::string& id);
 
     /// @brief transform vehicle functions
     /// @{
@@ -190,196 +190,60 @@ public:
 
     /// @}
 
-    /// @brief configure flow parameters
-    static void setFlowParameters(const SumoXMLAttr attribute, int& parameters);
+    /// @brief transform container functions
+    /// @{
+
+    /// @brief transform to vehicle over an existent route
+    static void transformToContainer(GNEContainer* originalContainer);
+
+    /// @brief transform routeFlow over an existent route
+    static void transformToContainerFlow(GNEContainer* originalContainer);
+
+    /// @}
 
 protected:
-    /// @brief opens a type distribution for reading
-    void openVehicleTypeDistribution(const SUMOSAXAttributes& attrs);
+    /// @brief parse junction
+    GNEJunction* parseJunction(const SumoXMLTag tag, const std::string& junctionID);
 
-    /// @brief closes (ends) the building of a distribution
-    void closeVehicleTypeDistribution();
+    /// @brief parse edge
+    GNEEdge* parseEdge(const SumoXMLTag tag, const std::string& edgeID);
 
-    /// @brief opens a route for reading
-    void openRoute(const SUMOSAXAttributes& attrs);
+    /// @brief parse edges
+    std::vector<GNEEdge*> parseEdges(const SumoXMLTag tag, const std::vector<std::string>& edgeIDs);
 
-    /// @brief opens a routeFlow for reading
-    void openFlow(const SUMOSAXAttributes& attrs);
+    /// @brief get person parent
+    GNEDemandElement* getPersonParent(const CommonXMLStructure::SumoBaseObject* sumoBaseObject) const;
 
-    /// @brief opens a routeFlow for reading
-    void openRouteFlow(const SUMOSAXAttributes& attrs);
+    /// @brief get container parent
+    GNEDemandElement* getContainerParent(const CommonXMLStructure::SumoBaseObject* sumoBaseObject) const;
 
-    /// @brief opens a trip for reading
-    void openTrip(const SUMOSAXAttributes& attrs);
+    /// @brief get previos person/container plan edge
+    GNEEdge* getPreviousPlanEdge(const bool person, const CommonXMLStructure::SumoBaseObject* obj) const;
 
-    /**closes (ends) the building of a route.
-     * Afterwards no edges may be added to it;
-     * this method may throw exceptions when
-     * a) the route is empty or
-     * b) another route with the same id already exists
-     */
-    void closeRoute(const bool mayBeDisconnected = false);
+    /// @brief get previos person/container plan junction
+    GNEJunction* getPreviousPlanJunction(const bool person, const CommonXMLStructure::SumoBaseObject* obj) const;
 
-    /// @brief opens a route distribution for reading
-    void openRouteDistribution(const SUMOSAXAttributes& attrs);
+    /// @brief check if given ID correspond to a duplicated demand element
+    bool checkDuplicatedDemandElement(const SumoXMLTag tag, const std::string& id);
 
-    /// @brief closes (ends) the building of a distribution
-    void closeRouteDistribution();
-
-    /// @brief Ends the processing of a vehicle
-    void closeVehicle();
-
-    /// @brief Ends the processing of a vehicle Type
-    void closeVType();
-
-    /// @brief Ends the processing of a person
-    void closePerson();
-
-    /// @brief Ends the processing of a personFlow
-    void closePersonFlow();
-
-    /// @brief Ends the processing of a container
-    void closeContainer();
-
-    /// @brief Ends the processing of a routeFlow
-    void closeFlow();
-
-    /// @brief Ends the processing of a trip
-    void closeTrip();
-
-    /// @brief Processing of a stop
-    void addStop(const SUMOSAXAttributes& attrs);
-
-    /// @brief add a routing request for a walking or intermodal person
-    void addPersonTrip(const SUMOSAXAttributes& attrs);
-
-    /// @brief add a fully specified walk
-    void addWalk(const SUMOSAXAttributes& attrs);
-
-    /// @brief Processing of a person
-    void addPerson(const SUMOSAXAttributes& attrs);
-
-    /// @brief Processing of a ride
-    void addRide(const SUMOSAXAttributes& attrs);
-
-    /// @brief Processing of a container
-    void addContainer(const SUMOSAXAttributes& attrs);
-
-    /// @brief Processing of a transport
-    void addTransport(const SUMOSAXAttributes& attrs);
-
-    /// @brief Processing of a tranship
-    void addTranship(const SUMOSAXAttributes& attrs);
+    /// @brief remove overwrited demand element
+    void overwriteDemandElement();
 
 private:
-    /// @brief struct used for load person plans (Rides, Walks, etc.)
-    struct PersonPlansValues {
-        /// @brief default constructor
-        PersonPlansValues();
-
-        /// @brief update tag
-        void updateGNETag();
-
-        /// @brief check integrity
-        bool checkIntegrity() const;
-
-        /// @brief is first person plan
-        bool isFirstPersonPlan() const;
-
-        /// @brief return last valid edge (used to create consecutive person plans)
-        GNEEdge* getLastEdge() const;
-
-        /// @brief walk tag
-        SumoXMLTag tag;
-
-        /// @brief from edge
-        GNEEdge* fromEdge;
-
-        /// @brief to edge
-        GNEEdge* toEdge;
-
-        /// @brief list of edges
-        std::vector<GNEEdge*> edges;
-
-        /// @brief from busStop
-        GNEAdditional* fromBusStop;
-
-        /// @brief to busStop
-        GNEAdditional* toBusStop;
-
-        /// @brief arrival route
-        GNEDemandElement* route;
-
-        /// @brief vehicle types
-        std::vector<std::string> vTypes;
-
-        /// @brief modes
-        std::vector<std::string> modes;
-
-        /// @brief lines
-        std::vector<std::string> lines;
-
-        /// @brief arrival pos
-        double arrivalPos;
-
-        /// @brief edge stop
-        GNEEdge* edgeStop;
-
-        /// @brief stop parameters
-        SUMOVehicleParameter::Stop stopParameters;
-
-        /// @brief bus stop (stop)
-        GNEAdditional* busStop;
-
-        /// @brief container stop (stop)
-        GNEAdditional* containerStop;
-
-        /// @brief charging station (stop)
-        GNEAdditional* chargingStation;
-
-        /// @brief parking area (stop)
-        GNEAdditional* parkingArea;
-
-        /// @brief lane (stop)
-        GNELane* lane;
-
-    private:
-        /// @brief Invalidated copy constructor.
-        PersonPlansValues(PersonPlansValues*) = delete;
-
-        /// @brief Invalidated assignment operator.
-        PersonPlansValues& operator=(PersonPlansValues*) = delete;
-    };
-
-    /// @brief person value
-    struct PersonValue {
-        /// @brief add person plan value (
-        bool addPersonValue(GNENet* net, SumoXMLTag tag, const SUMOSAXAttributes& attrs);
-
-        /// @brief check person plan loaded (this will change tags, set begin and end elements, etc.)
-        bool checkPersonPlanValues();
-
-        /// @brief container for person trips loaded values
-        std::vector<PersonPlansValues> myPersonPlanValues;
-    };
-
     /// @brief pointer to GNENet
     GNENet* myNet;
 
-    /// @brief NETEDIT person values
-    PersonValue myPersonValues;
+    /// @brief pointer for person and container plans
+    CommonXMLStructure::SumoBaseObject* myPlanObject;
 
-    /// @brief NETEDIT Route Parameters
-    RouteParameter myRouteParameter;
+    /// @brief allow undo/redo
+    const bool myAllowUndoRedo;
 
-    /// @brief flag to check if created demand elements must be undo and redo
-    bool myUndoDemandElements;
+    /// @brief check if overwrite
+    const bool myOverwrite;
 
-    /// @brief Pointer to loaded vehicle with embebbed route (needed for GNEStops)
-    GNEDemandElement* myLoadedVehicleWithEmbebbedRoute;
-
-    /// @brief flag used for parsing values
-    bool myAbort;
+    /// @brief demand to overwrite (using undor-redo
+    GNEDemandElement* myDemandToOverwrite = nullptr;
 };
 
 

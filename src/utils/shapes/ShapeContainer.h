@@ -1,6 +1,6 @@
 /****************************************************************************/
 // Eclipse SUMO, Simulation of Urban MObility; see https://eclipse.org/sumo
-// Copyright (C) 2005-2020 German Aerospace Center (DLR) and others.
+// Copyright (C) 2005-2023 German Aerospace Center (DLR) and others.
 // This program and the accompanying materials are made available under the
 // terms of the Eclipse Public License 2.0 which is available at
 // https://www.eclipse.org/legal/epl-2.0/
@@ -29,6 +29,7 @@
 #include "PointOfInterest.h"
 #include "SUMOPolygon.h"
 
+
 // ===========================================================================
 // class declarations
 // ===========================================================================
@@ -36,6 +37,7 @@ class PolygonDynamics;
 class SUMOTrafficObject;
 template <class T, class S>
 class ParametrisedWrappingCommand;
+
 
 // ===========================================================================
 // class definitions
@@ -75,7 +77,8 @@ public:
                             const RGBColor& color, double layer,
                             double angle, const std::string& imgFile,
                             bool relativePath, const PositionVector& shape, bool geo,
-                            bool fill, double lineWidth, bool ignorePruning = false);
+                            bool fill, double lineWidth, bool ignorePruning = false,
+                            const std::string& name = Shape::DEFAULT_NAME);
 
     /**
      * @brief Adds dynamics (animation / tracking) to the given polygon
@@ -106,6 +109,7 @@ public:
      * @param[in[ geo use GEO coordinates (lon/lat)
      * @param[in] lane The Lane in which this POI is placed
      * @param[in] posOverLane The position over Lane
+     * @param[in] friendlyPos enable or disable friendly position over lane
      * @param[in] posLat The position lateral over Lane
      * @param[in] layer The layer of the POI
      * @param[in] angle The rotation of the POI
@@ -116,7 +120,7 @@ public:
      * @return whether the poi could be added
      */
     virtual bool addPOI(const std::string& id, const std::string& type, const RGBColor& color, const Position& pos, bool geo,
-                        const std::string& lane, double posOverLane, double posLat, double layer, double angle,
+                        const std::string& lane, double posOverLane, bool friendlyPos, double posLat, double layer, double angle,
                         const std::string& imgFile, bool relativePath, double width, double height, bool ignorePruning = false);
 
     /** @brief Removes a polygon from the container
@@ -168,6 +172,9 @@ public:
 
     /// @brief register highlight of the specified type if the given id
     virtual void registerHighlight(const std::string& objectID, const int type, const std::string& polygonID);
+
+    /** @brief Remove all dynamics before quick-loading state */
+    void clearState();
 
 protected:
     /// @brief add polygon

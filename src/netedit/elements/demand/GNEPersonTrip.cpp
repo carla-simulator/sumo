@@ -1,6 +1,6 @@
 /****************************************************************************/
 // Eclipse SUMO, Simulation of Urban MObility; see https://eclipse.org/sumo
-// Copyright (C) 2001-2020 German Aerospace Center (DLR) and others.
+// Copyright (C) 2001-2023 German Aerospace Center (DLR) and others.
 // This program and the accompanying materials are made available under the
 // terms of the Eclipse Public License 2.0 which is available at
 // https://www.eclipse.org/legal/epl-2.0/
@@ -35,54 +35,73 @@
 // method definitions
 // ===========================================================================
 
+GNEPersonTrip::GNEPersonTrip(SumoXMLTag tag, GNENet* net) :
+    GNEDemandElement("", net, GLO_PERSONTRIP, tag, GUIIconSubSys::getIcon(GUIIcon::PERSONTRIP_FROMTO),
+                     GNEPathManager::PathElement::Options::DEMAND_ELEMENT, {}, {}, {}, {}, {}, {}),
+myArrivalPosition(0) {
+    // reset default values
+    resetDefaultValues();
+}
+
+
 GNEPersonTrip::GNEPersonTrip(GNENet* net, GNEDemandElement* personParent, GNEEdge* fromEdge, GNEEdge* toEdge,
-                             double arrivalPosition, const std::vector<std::string>& types, const std::vector<std::string>& modes) :
-    GNEDemandElement(personParent, net, GLO_PERSONTRIP, GNE_TAG_PERSONTRIP_EDGE_EDGE,
-{}, {fromEdge, toEdge}, {}, {}, {}, {}, {personParent}, {}),
+                             double arrivalPosition, const std::vector<std::string>& types, const std::vector<std::string>& modes,
+                             const std::vector<std::string>& lines) :
+    GNEDemandElement(personParent, net, GLO_PERSONTRIP, GNE_TAG_PERSONTRIP_EDGE, GUIIconSubSys::getIcon(GUIIcon::PERSONTRIP_FROMTO),
+                     GNEPathManager::PathElement::Options::DEMAND_ELEMENT, {}, {fromEdge, toEdge}, {}, {}, {personParent}, {}),
 myArrivalPosition(arrivalPosition),
 myVTypes(types),
-myModes(modes) {
-    // compute person trip
-    computePath();
+myModes(modes),
+myLines(lines) {
 }
 
 
 GNEPersonTrip::GNEPersonTrip(GNENet* net, GNEDemandElement* personParent, GNEEdge* fromEdge, GNEAdditional* toBusStop,
-                             double arrivalPosition, const std::vector<std::string>& types, const std::vector<std::string>& modes) :
-    GNEDemandElement(personParent, net, GLO_PERSONTRIP, GNE_TAG_PERSONTRIP_EDGE_BUSSTOP,
-{}, {fromEdge}, {}, {toBusStop}, {}, {}, {personParent}, {}),
+                             double arrivalPosition, const std::vector<std::string>& types, const std::vector<std::string>& modes,
+                             const std::vector<std::string>& lines) :
+    GNEDemandElement(personParent, net, GLO_PERSONTRIP, GNE_TAG_PERSONTRIP_BUSSTOP, GUIIconSubSys::getIcon(GUIIcon::PERSONTRIP_BUSSTOP),
+                     GNEPathManager::PathElement::Options::DEMAND_ELEMENT, {}, {fromEdge}, {}, {toBusStop}, {personParent}, {}),
 myArrivalPosition(arrivalPosition),
 myVTypes(types),
-myModes(modes) {
-    // compute person trip
-    computePath();
-}
-
-GNEPersonTrip::GNEPersonTrip(GNENet* net, GNEDemandElement* personParent, GNEAdditional* fromBusStop, GNEEdge* toEdge,
-                             double arrivalPosition, const std::vector<std::string>& types, const std::vector<std::string>& modes) :
-    GNEDemandElement(personParent, net, GLO_PERSONTRIP, GNE_TAG_PERSONTRIP_BUSSTOP_EDGE,
-{}, {toEdge}, {}, {fromBusStop}, {}, {}, {personParent}, {}),
-myArrivalPosition(arrivalPosition),
-myVTypes(types),
-myModes(modes) {
-    // compute person trip
-    computePath();
+myModes(modes),
+myLines(lines) {
 }
 
 
-GNEPersonTrip::GNEPersonTrip(GNENet* net, GNEDemandElement* personParent, GNEAdditional* fromBusStop, GNEAdditional* toBusStop,
-                             double arrivalPosition, const std::vector<std::string>& types, const std::vector<std::string>& modes) :
-    GNEDemandElement(personParent, net, GLO_PERSONTRIP, GNE_TAG_PERSONTRIP_BUSSTOP_BUSSTOP,
-{}, {}, {}, {fromBusStop, toBusStop}, {}, {}, {personParent}, {}),
+GNEPersonTrip::GNEPersonTrip(GNENet* net, GNEDemandElement* personParent, GNEJunction* fromJunction, GNEJunction* toJunction,
+                             double arrivalPosition, const std::vector<std::string>& types, const std::vector<std::string>& modes,
+                             const std::vector<std::string>& lines) :
+    GNEDemandElement(personParent, net, GLO_PERSONTRIP, GNE_TAG_PERSONTRIP_JUNCTIONS, GUIIconSubSys::getIcon(GUIIcon::PERSONTRIP_JUNCTIONS),
+                     GNEPathManager::PathElement::Options::DEMAND_ELEMENT, {
+    fromJunction, toJunction
+}, {}, {}, {}, {personParent}, {}),
 myArrivalPosition(arrivalPosition),
 myVTypes(types),
-myModes(modes) {
-    // compute person trip
-    computePath();
+myModes(modes),
+myLines(lines) {
 }
 
 
 GNEPersonTrip::~GNEPersonTrip() {}
+
+
+GNEMoveOperation*
+GNEPersonTrip::getMoveOperation() {
+    // avoid move person plan that ends in busStop
+    if ((getParentAdditionals().size() > 0) || (getParentJunctions().size() > 0)) {
+        return nullptr;
+    }
+    // get geometry end pos
+    const Position geometryEndPos = getPathElementArrivalPos();
+    // calculate circle width squared
+    const double circleWidthSquared = myPersonPlanArrivalPositionDiameter * myPersonPlanArrivalPositionDiameter;
+    // check if we clicked over a geometry end pos
+    if (myNet->getViewNet()->getPositionInformation().distanceSquaredTo2D(geometryEndPos) <= circleWidthSquared + 2) {
+        return new GNEMoveOperation(this, getParentEdges().back()->getLaneByAllowedVClass(getVClass()), myArrivalPosition, false);
+    } else {
+        return nullptr;
+    }
+}
 
 
 GUIGLObjectPopupMenu*
@@ -92,7 +111,7 @@ GNEPersonTrip::getPopUpMenu(GUIMainWindow& app, GUISUMOAbstractView& parent) {
     buildPopupHeader(ret, app);
     // build menu command for center button and copy cursor position to clipboard
     buildCenterPopupEntry(ret);
-    buildPositionCopyEntry(ret, false);
+    buildPositionCopyEntry(ret, app);
     // buld menu commands for names
     GUIDesigns::buildFXMenuCommand(ret, "Copy " + getTagStr() + " name to clipboard", nullptr, ret, MID_COPY_NAME);
     GUIDesigns::buildFXMenuCommand(ret, "Copy " + getTagStr() + " typed name to clipboard", nullptr, ret, MID_COPY_TYPED_NAME);
@@ -102,7 +121,7 @@ GNEPersonTrip::getPopUpMenu(GUIMainWindow& app, GUISUMOAbstractView& parent) {
     buildShowParamsPopupEntry(ret);
     // show option to open demand element dialog
     if (myTagProperty.hasDialog()) {
-        GUIDesigns::buildFXMenuCommand(ret, "Open " + getTagStr() + " Dialog", getIcon(), &parent, MID_OPEN_ADDITIONAL_DIALOG);
+        GUIDesigns::buildFXMenuCommand(ret, "Open " + getTagStr() + " Dialog", getACIcon(), &parent, MID_OPEN_ADDITIONAL_DIALOG);
         new FXMenuSeparator(ret);
     }
     GUIDesigns::buildFXMenuCommand(ret, "Cursor position in view: " + toString(getPositionInView().x()) + "," + toString(getPositionInView().y()), nullptr, nullptr, 0);
@@ -114,68 +133,53 @@ void
 GNEPersonTrip::writeDemandElement(OutputDevice& device) const {
     // open tag
     device.openTag(SUMO_TAG_PERSONTRIP);
-    // check if we have to write "from" attributes
-    if (getParentDemandElements().at(0)->getPreviousChildDemandElement(this) == nullptr) {
-        // write "to" attributes depending of start and end
-        if (myTagProperty.personPlanStartEdge()) {
+    // check if from attribute is enabled
+    if (isAttributeEnabled(SUMO_ATTR_FROM)) {
+        // check if write edge or junction
+        if (getParentEdges().size() > 0) {
             device.writeAttr(SUMO_ATTR_FROM, getParentEdges().front()->getID());
-        } else if (myTagProperty.personPlanStartBusStop()) {
-            device.writeAttr(SUMO_ATTR_FROM, getParentAdditionals().front()->getID());
+        } else if (getParentJunctions().size() > 0) {
+            device.writeAttr(SUMO_ATTR_FROMJUNCTION, getParentJunctions().front()->getID());
         }
     }
-    // write "to" attributes depending of start and end
-    if (myTagProperty.personPlanStartEdge()) {
-        device.writeAttr(SUMO_ATTR_TO, getParentEdges().back()->getID());
-    } else if (myTagProperty.personPlanStartBusStop()) {
+    // write to depending if personplan ends in a busStop, edge or junction
+    if (getParentAdditionals().size() > 0) {
         device.writeAttr(SUMO_ATTR_BUS_STOP, getParentAdditionals().back()->getID());
+    } else if (getParentEdges().size() > 0) {
+        device.writeAttr(SUMO_ATTR_TO, getParentEdges().back()->getID());
+    } else {
+        device.writeAttr(SUMO_ATTR_TOJUNCTION, getParentJunctions().back()->getID());
+    }
+    // avoid write arrival positions in person trip to busStop
+    if ((myTagProperty.getTag() != GNE_TAG_PERSONTRIP_BUSSTOP) && (myArrivalPosition > 0)) {
+        device.writeAttr(SUMO_ATTR_ARRIVALPOS, myArrivalPosition);
     }
     // write modes
     if (myModes.size() > 0) {
         device.writeAttr(SUMO_ATTR_MODES, myModes);
     }
+    // write lines
+    if (myLines.size() > 0) {
+        device.writeAttr(SUMO_ATTR_LINES, myLines);
+    }
     // write vTypes
     if (myVTypes.size() > 0) {
         device.writeAttr(SUMO_ATTR_VTYPES, myVTypes);
     }
-    // only write arrivalPos if is different of -1
-    if (myArrivalPosition != -1) {
-        device.writeAttr(SUMO_ATTR_ARRIVALPOS, myArrivalPosition);
-    }
-    // write parameters
-    writeParams(device);
     // close tag
     device.closeTag();
 }
 
 
-bool
+GNEDemandElement::Problem
 GNEPersonTrip::isDemandElementValid() const {
-    if ((getParentEdges().size() == 2) && (getParentEdges().at(0) == getParentEdges().at(1))) {
-        // from and to are the same edges
-        return true;
-    } else if (getPath().size() > 0) {
-        // if path edges isn't empty, then there is a valid route
-        return true;
-    } else {
-        return false;
-    }
+    return isPersonPlanValid();
 }
 
 
 std::string
 GNEPersonTrip::getDemandElementProblem() const {
-    if (getParentEdges().size() == 0) {
-        return ("A person trip need at least one edge");
-    } else {
-        // check if exist at least a connection between every edge
-        for (int i = 1; i < (int)getParentEdges().size(); i++) {
-            if (myNet->getPathCalculator()->consecutiveEdgesConnected(getParentDemandElements().front()->getVClass(), getParentEdges().at((int)i - 1), getParentEdges().at(i)) == false) {
-                return ("Edge '" + getParentEdges().at((int)i - 1)->getID() + "' and edge '" + getParentEdges().at(i)->getID() + "' aren't consecutives");
-            }
-        }
-        // there is connections bewteen all edges, then all ok
-        return "";
-    }
+    return getPersonPlanProblem();
 }
 
 
@@ -198,67 +202,7 @@ GNEPersonTrip::getColor() const {
 
 
 void
-GNEPersonTrip::startGeometryMoving() {
-    // only start geometry moving if arrival position isn't -1
-    if (myArrivalPosition != -1) {
-        // always save original position over view
-        myPersonTripMove.originalViewPosition = getPositionInView();
-        // save arrival position
-        myPersonTripMove.firstOriginalLanePosition = getAttribute(SUMO_ATTR_ARRIVALPOS);
-        // save current centering boundary
-        myPersonTripMove.movingGeometryBoundary = getCenteringBoundary();
-    }
-}
-
-
-void
-GNEPersonTrip::endGeometryMoving() {
-    // check that myArrivalPosition isn't -1 and endGeometryMoving was called only once
-    if ((myArrivalPosition != -1) && myPersonTripMove.movingGeometryBoundary.isInitialised()) {
-        // reset myMovingGeometryBoundary
-        myPersonTripMove.movingGeometryBoundary.reset();
-    }
-}
-
-
-void
-GNEPersonTrip::moveGeometry(const Position& offset) {
-    // only move if myArrivalPosition isn't -1
-    if (myArrivalPosition != -1) {
-        // Calculate new position using old position
-        Position newPosition = myPersonTripMove.originalViewPosition;
-        newPosition.add(offset);
-        // filtern position using snap to active grid
-        newPosition = myNet->getViewNet()->snapToActiveGrid(newPosition);
-        // obtain lane shape (to improve code legibility)
-        const PositionVector& laneShape = getParentEdges().back()->getLanes().front()->getLaneShape();
-        // calculate offset lane
-        double offsetLane = laneShape.nearest_offset_to_point2D(newPosition, false) - laneShape.nearest_offset_to_point2D(myPersonTripMove.originalViewPosition, false);
-        // Update arrival Position
-        myArrivalPosition = parse<double>(myPersonTripMove.firstOriginalLanePosition) + offsetLane;
-        // Update geometry
-        updateGeometry();
-    }
-}
-
-
-void
-GNEPersonTrip::commitGeometryMoving(GNEUndoList* undoList) {
-    // only commit geometry moving if myArrivalPosition isn't -1
-    if (myArrivalPosition != -1) {
-        undoList->p_begin("arrivalPos of " + getTagStr());
-        undoList->p_add(new GNEChange_Attribute(this, SUMO_ATTR_ARRIVALPOS, toString(myArrivalPosition), myPersonTripMove.firstOriginalLanePosition));
-        undoList->p_end();
-    }
-}
-
-
-void
 GNEPersonTrip::updateGeometry() {
-    // calculate person plan start and end positions
-    GNEGeometry::ExtremeGeometry extremeGeometry = calculatePersonPlanLaneStartEndPos();
-    // calculate edge geometry path using path
-    GNEGeometry::calculateLaneGeometricPath(myDemandElementSegmentGeometry, getPath(), extremeGeometry);
     // update child demand elementss
     for (const auto& i : getChildDemandElements()) {
         i->updateGeometry();
@@ -266,67 +210,13 @@ GNEPersonTrip::updateGeometry() {
 }
 
 
-void
-GNEPersonTrip::computePath() {
-    // update lanes depending of walk tag
-    if (myTagProperty.getTag() == GNE_TAG_PERSONTRIP_EDGE_EDGE) {
-        calculatePathLanes(getVClass(), true,
-                           getFirstAllowedVehicleLane(),
-                           getLastAllowedVehicleLane(),
-                           {});
-    } else if (myTagProperty.getTag() == GNE_TAG_PERSONTRIP_EDGE_BUSSTOP) {
-        calculatePathLanes(getVClass(), true,
-                           getFirstAllowedVehicleLane(),
-                           getParentAdditionals().back()->getParentLanes().front(),
-                           {});
-    } else if (myTagProperty.getTag() == GNE_TAG_PERSONTRIP_BUSSTOP_EDGE) {
-        calculatePathLanes(getVClass(), true,
-                           getParentAdditionals().front()->getParentLanes().front(),
-                           getLastAllowedVehicleLane(),
-                           {});
-    } else if (myTagProperty.getTag() == GNE_TAG_PERSONTRIP_BUSSTOP_BUSSTOP) {
-        calculatePathLanes(getVClass(), true,
-                           getParentAdditionals().front()->getParentLanes().front(),
-                           getParentAdditionals().back()->getParentLanes().front(),
-                           {});
-    }
-    // update geometry
-    updateGeometry();
-}
-
-
-void
-GNEPersonTrip::invalidatePath() {
-    // update lanes depending of walk tag
-    if (myTagProperty.getTag() == GNE_TAG_RIDE_EDGE_EDGE) {
-        resetPathLanes(getVClass(), true,
-                       getFirstAllowedVehicleLane(),
-                       getLastAllowedVehicleLane(),
-                       {});
-    } else if (myTagProperty.getTag() == GNE_TAG_RIDE_EDGE_BUSSTOP) {
-        resetPathLanes(getVClass(), true,
-                       getFirstAllowedVehicleLane(),
-                       getParentAdditionals().back()->getParentLanes().front(),
-                       {});
-    } else if (myTagProperty.getTag() == GNE_TAG_RIDE_BUSSTOP_EDGE) {
-        resetPathLanes(getVClass(), true,
-                       getParentAdditionals().front()->getParentLanes().front(),
-                       getLastAllowedVehicleLane(),
-                       {});
-    } else if (myTagProperty.getTag() == GNE_TAG_RIDE_BUSSTOP_BUSSTOP) {
-        resetPathLanes(getVClass(), true,
-                       getParentAdditionals().front()->getParentLanes().front(),
-                       getParentAdditionals().back()->getParentLanes().front(),
-                       {});
-    }
-    // update geometry
-    updateGeometry();
-}
-
-
 Position
 GNEPersonTrip::getPositionInView() const {
-    return Position();
+    if (getParentJunctions().size() > 0) {
+        return getParentJunctions().front()->getPositionInView();
+    } else {
+        return getParentEdges().front()->getPositionInView();
+    }
 }
 
 
@@ -359,22 +249,77 @@ GNEPersonTrip::splitEdgeGeometry(const double /*splitPosition*/, const GNENetwor
 
 
 void
-GNEPersonTrip::drawGL(const GUIVisualizationSettings& /*s*/) const {
-    // PersonTrips are drawn in drawPartialGL
+GNEPersonTrip::drawGL(const GUIVisualizationSettings& s) const {
+    // force draw path
+    myNet->getPathManager()->forceDrawPath(s, this);
+    // special case for junction walks
+    if (getParentJunctions().size() > 0) {
+        // get person parent
+        const GNEDemandElement* personParent = getParentDemandElements().front();
+        if ((personParent->getChildDemandElements().size() > 0) && (personParent->getChildDemandElements().front() == this)) {
+            personParent->drawGL(s);
+        }
+    }
 }
 
 
 void
-GNEPersonTrip::drawPartialGL(const GUIVisualizationSettings& s, const GNELane* lane, const double offsetFront) const {
+GNEPersonTrip::computePathElement() {
+    // calculate path depending of parents
+    if (getParentJunctions().size() > 0) {
+        // get previous personTrip
+        const auto previousParent = getParentDemandElements().at(0)->getPreviousChildDemandElement(this);
+        // calculate path
+        if (previousParent == nullptr) {
+            myNet->getPathManager()->calculatePathJunctions(this, getVClass(), getParentJunctions());
+        } else if (previousParent->getParentJunctions().size() > 0) {
+            myNet->getPathManager()->calculatePathJunctions(this, getVClass(), {previousParent->getParentJunctions().front(), getParentJunctions().back()});
+        } else {
+            myNet->getPathManager()->calculatePathJunctions(this, getVClass(), {previousParent->getLastPathLane()->getParentEdge()->getToJunction(), getParentJunctions().back()});
+        }
+    } else {
+        // calculate path
+        myNet->getPathManager()->calculatePathLanes(this, SVC_PEDESTRIAN, {getFirstPathLane(), getLastPathLane()});
+    }
+    // update geometry
+    updateGeometry();
+}
+
+
+void
+GNEPersonTrip::drawPartialGL(const GUIVisualizationSettings& s, const GNELane* lane, const GNEPathManager::Segment* segment, const double offsetFront) const {
     // draw person plan over lane
-    drawPersonPlanPartialLane(s, lane, offsetFront, s.widthSettings.personTrip, s.colorSettings.personTrip);
+    drawPersonPlanPartial(drawPersonPlan(), s, lane, segment, offsetFront, s.widthSettings.personTripWidth, s.colorSettings.personTripColor);
 }
 
 
 void
-GNEPersonTrip::drawPartialGL(const GUIVisualizationSettings& s, const GNELane* fromLane, const GNELane* toLane, const double offsetFront) const {
+GNEPersonTrip::drawPartialGL(const GUIVisualizationSettings& s, const GNELane* fromLane, const GNELane* toLane, const GNEPathManager::Segment* segment, const double offsetFront) const {
     // draw person plan over junction
-    drawPersonPlanPartialJunction(s, fromLane, toLane, offsetFront, s.widthSettings.personTrip, s.colorSettings.personTrip);
+    drawPersonPlanPartial(drawPersonPlan(), s, fromLane, toLane, segment, offsetFront, s.widthSettings.personTripWidth, s.colorSettings.personTripColor);
+}
+
+
+GNELane*
+GNEPersonTrip::getFirstPathLane() const {
+    if (getParentJunctions().size() > 0) {
+        throw ProcessError(TL("This personTrip use junctions"));
+    } else {
+        return getParentEdges().front()->getLaneByDisallowedVClass(SVC_PEDESTRIAN);
+    }
+}
+
+
+GNELane*
+GNEPersonTrip::getLastPathLane() const {
+    // check if personPlan ends in a BusStop or junction
+    if (getParentJunctions().size() > 0) {
+        throw ProcessError(TL("This personTrip use junctions"));
+    } else if (getParentAdditionals().size() > 0) {
+        return getParentAdditionals().front()->getParentLanes().front();
+    } else {
+        return getParentEdges().back()->getLaneByDisallowedVClass(SVC_PEDESTRIAN);
+    }
 }
 
 
@@ -383,32 +328,35 @@ GNEPersonTrip::getAttribute(SumoXMLAttr key) const {
     switch (key) {
         // Common person plan attributes
         case SUMO_ATTR_ID:
+        case GNE_ATTR_PARENT:
             return getParentDemandElements().front()->getID();
         case SUMO_ATTR_FROM:
             return getParentEdges().front()->getID();
         case SUMO_ATTR_TO:
             return getParentEdges().back()->getID();
-        case GNE_ATTR_FROM_BUSSTOP:
-            return getParentAdditionals().front()->getID();
         case GNE_ATTR_TO_BUSSTOP:
             return getParentAdditionals().back()->getID();
+        case SUMO_ATTR_FROMJUNCTION:
+            return getParentJunctions().front()->getID();
+        case SUMO_ATTR_TOJUNCTION:
+            return getParentJunctions().back()->getID();
         // specific person plan attributes
         case SUMO_ATTR_MODES:
             return joinToString(myModes, " ");
         case SUMO_ATTR_VTYPES:
             return joinToString(myVTypes, " ");
         case SUMO_ATTR_ARRIVALPOS:
-            if (myArrivalPosition == -1) {
+            if (myTagProperty.getTag() == GNE_TAG_PERSONTRIP_BUSSTOP) {
+                return getParentAdditionals().front()->getAttribute(SUMO_ATTR_ENDPOS);
+            } else if (myArrivalPosition == -1) {
                 return "";
             } else {
                 return toString(myArrivalPosition);
             }
+        case SUMO_ATTR_LINES:
+            return joinToString(myLines, " ");
         case GNE_ATTR_SELECTED:
             return toString(isAttributeCarrierSelected());
-        case GNE_ATTR_PARAMETERS:
-            return getParametersStr();
-        case GNE_ATTR_PARENT:
-            return getParentDemandElements().front()->getID();
         default:
             throw InvalidArgument(getTagStr() + " doesn't have an attribute of type '" + toString(key) + "'");
     }
@@ -419,36 +367,91 @@ double
 GNEPersonTrip::getAttributeDouble(SumoXMLAttr key) const {
     switch (key) {
         case SUMO_ATTR_ARRIVALPOS:
-            if (myArrivalPosition != -1) {
+            if (getParentJunctions().size() > 0) {
+                return 0;
+            } else if (myArrivalPosition != -1) {
                 return myArrivalPosition;
             } else {
-                return (getLastAllowedVehicleLane()->getLaneShape().length() - POSITION_EPS);
+                return (getLastPathLane()->getLaneShape().length() - POSITION_EPS);
             }
         default:
-            throw InvalidArgument(getTagStr() + " doesn't have an attribute of type '" + toString(key) + "'");
+            throw InvalidArgument(getTagStr() + " doesn't have a double attribute of type '" + toString(key) + "'");
+    }
+}
+
+
+Position
+GNEPersonTrip::getAttributePosition(SumoXMLAttr key) const {
+    switch (key) {
+        case SUMO_ATTR_ARRIVALPOS: {
+            if (getParentJunctions().size() > 0) {
+                return getParentJunctions().back()->getPositionInView();
+            } else {
+                // get lane shape
+                const PositionVector& laneShape = getLastPathLane()->getLaneShape();
+                // continue depending of arrival position
+                if (myArrivalPosition == 0) {
+                    return laneShape.front();
+                } else if ((myArrivalPosition == -1) || (myArrivalPosition >= laneShape.length2D())) {
+                    return laneShape.back();
+                } else {
+                    return laneShape.positionAtOffset2D(myArrivalPosition);
+                }
+            }
+        }
+        default:
+            throw InvalidArgument(getTagStr() + " doesn't have a position attribute of type '" + toString(key) + "'");
     }
 }
 
 
 void
 GNEPersonTrip::setAttribute(SumoXMLAttr key, const std::string& value, GNEUndoList* undoList) {
-    if (value == getAttribute(key)) {
-        return; //avoid needless changes, later logic relies on the fact that attributes have changed
-    }
     switch (key) {
         // Common person plan attributes
         case SUMO_ATTR_FROM:
-        case SUMO_ATTR_TO:
-        case GNE_ATTR_FROM_BUSSTOP:
-        case GNE_ATTR_TO_BUSSTOP:
-        // specific person plan attributes
+        case SUMO_ATTR_FROMJUNCTION:
+        case SUMO_ATTR_ARRIVALPOS:
         case SUMO_ATTR_MODES:
         case SUMO_ATTR_VTYPES:
-        case SUMO_ATTR_ARRIVALPOS:
+        case SUMO_ATTR_LINES:
         case GNE_ATTR_SELECTED:
-        case GNE_ATTR_PARAMETERS:
-            undoList->p_add(new GNEChange_Attribute(this, key, value));
+        case GNE_ATTR_PARENT:
+            undoList->changeAttribute(new GNEChange_Attribute(this, key, value));
             break;
+        // special case for "to" attributes
+        case SUMO_ATTR_TO:
+        case SUMO_ATTR_TOJUNCTION: {
+            // get next personPlan
+            GNEDemandElement* nextPersonPlan = getParentDemandElements().at(0)->getNextChildDemandElement(this);
+            // continue depending of nextPersonPlan
+            if (nextPersonPlan) {
+                undoList->begin(myTagProperty.getGUIIcon(), "Change from attribute of next personPlan");
+                nextPersonPlan->setAttribute(SUMO_ATTR_FROM, value, undoList);
+                undoList->changeAttribute(new GNEChange_Attribute(this, key, value));
+                undoList->end();
+            } else {
+                undoList->changeAttribute(new GNEChange_Attribute(this, key, value));
+            }
+            break;
+        }
+        case GNE_ATTR_TO_BUSSTOP: {
+            // get next person plan
+            GNEDemandElement* nextPersonPlan = getParentDemandElements().at(0)->getNextChildDemandElement(this);
+            // continue depending of nextPersonPlan
+            if (nextPersonPlan) {
+                // obtain busStop
+                const GNEAdditional* busStop = myNet->getAttributeCarriers()->retrieveAdditional(SUMO_TAG_BUS_STOP, value);
+                // change from attribute using edge ID
+                undoList->begin(myTagProperty.getGUIIcon(), "Change from attribute of next personPlan");
+                nextPersonPlan->setAttribute(SUMO_ATTR_FROM, busStop->getParentLanes().front()->getParentEdge()->getID(), undoList);
+                undoList->changeAttribute(new GNEChange_Attribute(this, key, value));
+                undoList->end();
+            } else {
+                undoList->changeAttribute(new GNEChange_Attribute(this, key, value));
+            }
+            break;
+        }
         default:
             throw InvalidArgument(getTagStr() + " doesn't have an attribute of type '" + toString(key) + "'");
     }
@@ -461,15 +464,17 @@ GNEPersonTrip::isValid(SumoXMLAttr key, const std::string& value) {
         // Common person plan attributes
         case SUMO_ATTR_FROM:
         case SUMO_ATTR_TO:
-            return SUMOXMLDefinitions::isValidNetID(value) && (myNet->retrieveEdge(value, false) != nullptr);
-        case GNE_ATTR_FROM_BUSSTOP:
+            return SUMOXMLDefinitions::isValidNetID(value) && (myNet->getAttributeCarriers()->retrieveEdge(value, false) != nullptr);
+        case SUMO_ATTR_FROMJUNCTION:
+        case SUMO_ATTR_TOJUNCTION:
+            return SUMOXMLDefinitions::isValidNetID(value) && (myNet->getAttributeCarriers()->retrieveJunction(value, false) != nullptr);
         case GNE_ATTR_TO_BUSSTOP:
-            return (myNet->retrieveAdditional(SUMO_TAG_BUS_STOP, value, false) != nullptr);
+            return (myNet->getAttributeCarriers()->retrieveAdditional(SUMO_TAG_BUS_STOP, value, false) != nullptr);
         // specific person plan attributes
         case SUMO_ATTR_MODES: {
             SVCPermissions dummyModeSet;
             std::string dummyError;
-            return SUMOVehicleParameter::parsePersonModes(value, myTagProperty.getTagStr(), getID(), dummyModeSet, dummyError);
+            return SUMOVehicleParameter::parsePersonModes(value, myTagProperty.getTagStr(), "", dummyModeSet, dummyError);
         }
         case SUMO_ATTR_VTYPES:
             return canParse<std::vector<std::string> >(value);
@@ -477,8 +482,11 @@ GNEPersonTrip::isValid(SumoXMLAttr key, const std::string& value) {
             if (value.empty()) {
                 return true;
             } else if (canParse<double>(value)) {
+                if (isTemplate()) {
+                    return true;
+                }
                 const double parsedValue = canParse<double>(value);
-                if ((parsedValue < 0) || (parsedValue > getLastAllowedVehicleLane()->getLaneShape().length())) {
+                if ((parsedValue < 0) || (parsedValue > getLastPathLane()->getLaneShape().length())) {
                     return false;
                 } else {
                     return true;
@@ -486,31 +494,33 @@ GNEPersonTrip::isValid(SumoXMLAttr key, const std::string& value) {
             } else {
                 return false;
             }
+        case SUMO_ATTR_LINES:
+            return canParse<std::vector<std::string> >(value);
         case GNE_ATTR_SELECTED:
             return canParse<bool>(value);
-        case GNE_ATTR_PARAMETERS:
-            return Parameterised::areParametersValid(value);
+        case GNE_ATTR_PARENT:
+            if (myNet->getAttributeCarriers()->retrieveDemandElement(SUMO_TAG_PERSON, value, false) != nullptr) {
+                return true;
+            } else if (myNet->getAttributeCarriers()->retrieveDemandElement(SUMO_TAG_PERSONFLOW, value, false) != nullptr) {
+                return true;
+            } else {
+                return false;
+            }
         default:
             throw InvalidArgument(getTagStr() + " doesn't have an attribute of type '" + toString(key) + "'");
     }
 }
 
 
-void
-GNEPersonTrip::enableAttribute(SumoXMLAttr /*key*/, GNEUndoList* /*undoList*/) {
-    //
-}
-
-
-void
-GNEPersonTrip::disableAttribute(SumoXMLAttr /*key*/, GNEUndoList* /*undoList*/) {
-    //
-}
-
-
 bool
-GNEPersonTrip::isAttributeEnabled(SumoXMLAttr /*key*/) const {
-    return true;
+GNEPersonTrip::isAttributeEnabled(SumoXMLAttr key) const {
+    switch (key) {
+        case SUMO_ATTR_FROM:
+        case SUMO_ATTR_FROMJUNCTION:
+            return (getParentDemandElements().at(0)->getPreviousChildDemandElement(this) == nullptr);
+        default:
+            return true;
+    }
 }
 
 
@@ -522,21 +532,19 @@ GNEPersonTrip::getPopUpID() const {
 
 std::string
 GNEPersonTrip::getHierarchyName() const {
-    if (myTagProperty.getTag() == GNE_TAG_PERSONTRIP_EDGE_EDGE) {
+    if (myTagProperty.getTag() == GNE_TAG_PERSONTRIP_EDGE) {
         return "personTrip: " + getParentEdges().front()->getID() + " -> " + getParentEdges().back()->getID();
-    } else if (myTagProperty.getTag() == GNE_TAG_PERSONTRIP_EDGE_BUSSTOP) {
-        return "personTrip: " + getParentEdges().front()->getID() + " -> " + getParentAdditionals().back()->getID();
-    } else if (myTagProperty.getTag() == GNE_TAG_PERSONTRIP_BUSSTOP_EDGE) {
-        return "personTrip: " + getParentAdditionals().front()->getID() + " -> " + getParentEdges().back()->getID();
-    } else if (myTagProperty.getTag() == GNE_TAG_PERSONTRIP_BUSSTOP_BUSSTOP) {
-        return "personTrip: " + getParentAdditionals().front()->getID() + " -> " + getParentAdditionals().back()->getID();
+    } else if (myTagProperty.getTag() == GNE_TAG_PERSONTRIP_JUNCTIONS) {
+        return "personTrip: " + getParentJunctions().front()->getID() + " -> " + getParentJunctions().back()->getID();
+    } else if (myTagProperty.getTag() == GNE_TAG_PERSONTRIP_BUSSTOP) {
+        return "personTrip: " + getParentEdges().front()->getID() + " -> " + getParentAdditionals().front()->getID();
     } else {
         throw ("Invalid personTrip tag");
     }
 }
 
 
-const std::map<std::string, std::string>&
+const Parameterised::Map&
 GNEPersonTrip::getACParametersMap() const {
     return getParametersMap();
 }
@@ -553,28 +561,30 @@ GNEPersonTrip::setAttribute(SumoXMLAttr key, const std::string& value) {
             // change first edge
             replaceFirstParentEdge(value);
             // compute person trip
-            computePath();
+            computePathElement();
             break;
         case SUMO_ATTR_TO:
             // change last edge
             replaceLastParentEdge(value);
             // compute person trip
-            computePath();
-            break;
-        case GNE_ATTR_FROM_BUSSTOP:
-            replaceAdditionalParent(SUMO_TAG_BUS_STOP, value, 0);
-            // compute person trip
-            computePath();
+            computePathElement();
             break;
         case GNE_ATTR_TO_BUSSTOP:
-            // -> check this
-            if (getParentAdditionals().size() > 1) {
-                replaceAdditionalParent(SUMO_TAG_BUS_STOP, value, 1);
-            } else {
-                replaceAdditionalParent(SUMO_TAG_BUS_STOP, value, 0);
-            }
+            replaceAdditionalParent(SUMO_TAG_BUS_STOP, value);
             // compute person trip
-            computePath();
+            computePathElement();
+            break;
+        case SUMO_ATTR_FROMJUNCTION:
+            // change first junction
+            replaceFirstParentJunction(value);
+            // compute person trip
+            computePathElement();
+            break;
+        case SUMO_ATTR_TOJUNCTION:
+            // change last junction
+            replaceLastParentJunction(value);
+            // compute person trip
+            computePathElement();
             break;
         // specific person plan attributes
         case SUMO_ATTR_MODES:
@@ -591,6 +601,9 @@ GNEPersonTrip::setAttribute(SumoXMLAttr key, const std::string& value) {
             }
             updateGeometry();
             break;
+        case SUMO_ATTR_LINES:
+            myLines = GNEAttributeCarrier::parse<std::vector<std::string> >(value);
+            break;
         case GNE_ATTR_SELECTED:
             if (parse<bool>(value)) {
                 selectAttributeCarrier();
@@ -598,8 +611,13 @@ GNEPersonTrip::setAttribute(SumoXMLAttr key, const std::string& value) {
                 unselectAttributeCarrier();
             }
             break;
-        case GNE_ATTR_PARAMETERS:
-            setParametersStr(value);
+        case GNE_ATTR_PARENT:
+            if (myNet->getAttributeCarriers()->retrieveDemandElement(SUMO_TAG_PERSON, value, false) != nullptr) {
+                replaceDemandElementParent(SUMO_TAG_PERSON, value, 0);
+            } else if (myNet->getAttributeCarriers()->retrieveDemandElement(SUMO_TAG_PERSONFLOW, value, false) != nullptr) {
+                replaceDemandElementParent(SUMO_TAG_PERSONFLOW, value, 0);
+            }
+            updateGeometry();
             break;
         default:
             throw InvalidArgument(getTagStr() + " doesn't have an attribute of type '" + toString(key) + "'");
@@ -608,9 +626,20 @@ GNEPersonTrip::setAttribute(SumoXMLAttr key, const std::string& value) {
 
 
 void
-GNEPersonTrip::setEnabledAttribute(const int /*enabledAttributes*/) {
-    //
+GNEPersonTrip::setMoveShape(const GNEMoveResult& moveResult) {
+    // change both position
+    myArrivalPosition = moveResult.newFirstPos;
+    // update geometry
+    updateGeometry();
 }
 
+
+void
+GNEPersonTrip::commitMoveShape(const GNEMoveResult& moveResult, GNEUndoList* undoList) {
+    undoList->begin(myTagProperty.getGUIIcon(), "arrivalPos of " + getTagStr());
+    // now adjust start position
+    setAttribute(SUMO_ATTR_ARRIVALPOS, toString(moveResult.newFirstPos), undoList);
+    undoList->end();
+}
 
 /****************************************************************************/

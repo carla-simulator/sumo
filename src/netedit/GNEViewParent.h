@@ -1,6 +1,6 @@
 /****************************************************************************/
 // Eclipse SUMO, Simulation of Urban MObility; see https://eclipse.org/sumo
-// Copyright (C) 2001-2020 German Aerospace Center (DLR) and others.
+// Copyright (C) 2001-2023 German Aerospace Center (DLR) and others.
 // This program and the accompanying materials are made available under the
 // terms of the Eclipse Public License 2.0 which is available at
 // https://www.eclipse.org/legal/epl-2.0/
@@ -23,6 +23,7 @@
 #pragma once
 #include <config.h>
 
+#include <utils/foxtools/MFXButtonTooltip.h>
 #include <utils/gui/windows/GUIGlChildWindow.h>
 
 
@@ -46,23 +47,26 @@ class GNEAdditionalFrame;
 class GNEConnectorFrame;
 class GNECreateEdgeFrame;
 class GNECrossingFrame;
-class GNEPolygonFrame;
+class GNEShapeFrame;
 class GNEProhibitionFrame;
+class GNEWireFrame;
 class GNETAZFrame;
 class GNETLSEditorFrame;
 // demand frames
 class GNEPersonFrame;
 class GNEPersonPlanFrame;
-class GNEPersonTypeFrame;
+class GNEContainerFrame;
+class GNEContainerPlanFrame;
 class GNERouteFrame;
 class GNEStopFrame;
 class GNEVehicleFrame;
-class GNEVehicleTypeFrame;
+class GNETypeFrame;
 // data frames
 class GNEGenericDataFrame;
 class GNEEdgeDataFrame;
 class GNEEdgeRelDataFrame;
 class GNETAZRelDataFrame;
+class GNEMeanDataFrame;
 
 
 // ===========================================================================
@@ -99,10 +103,9 @@ public:
      * @param[in] share A canvas tor get the shared context from
      * @param[in] net The network to show
      */
-    GNEViewParent(FXMDIClient* p, FXMDIMenu* mdimenu,
-                  const FXString& name, GNEApplicationWindow* parentWindow,
-                  FXGLCanvas* share, GNENet* net, GNEUndoList* undoList,
-                  FXIcon* ic = nullptr, FXuint opts = 0, FXint x = 0, FXint y = 0, FXint w = 0, FXint h = 0);
+    GNEViewParent(FXMDIClient* p, FXMDIMenu* mdimenu, const FXString& name, GNEApplicationWindow* parentWindow,
+                  FXGLCanvas* share, GNENet* net, GNEUndoList* undoList, FXIcon* ic = nullptr,
+                  FXuint opts = 0, FXint x = 0, FXint y = 0, FXint w = 0, FXint h = 0);
 
     /// @brief Destructor
     ~GNEViewParent();
@@ -140,11 +143,14 @@ public:
     /// @brief get frame for NETWORK_TAZ
     GNETAZFrame* getTAZFrame() const;
 
-    /// @brief get frame for NETWORK_POLYGON
-    GNEPolygonFrame* getPolygonFrame() const;
+    /// @brief get frame for NETWORK_SHAPE
+    GNEShapeFrame* getShapeFrame() const;
 
     /// @brief get frame for NETWORK_PROHIBITION
     GNEProhibitionFrame* getProhibitionFrame() const;
+
+    /// @brief get frame for NETWORK_WIRE
+    GNEWireFrame* getWireFrame() const;
 
     /// @brief get frame for NETWORK_CREATEEDGE
     GNECreateEdgeFrame* getCreateEdgeFrame() const;
@@ -156,19 +162,22 @@ public:
     GNEVehicleFrame* getVehicleFrame() const;
 
     /// @brief get frame for DEMAND_VEHICLETYPE
-    GNEVehicleTypeFrame* getVehicleTypeFrame() const;
+    GNETypeFrame* getTypeFrame() const;
 
     /// @brief get frame for DEMAND_STOP
     GNEStopFrame* getStopFrame() const;
-
-    /// @brief get frame for DEMAND_PERSONTYPE
-    GNEPersonTypeFrame* getPersonTypeFrame() const;
 
     /// @brief get frame for DEMAND_PERSON
     GNEPersonFrame* getPersonFrame() const;
 
     /// @brief get frame for DEMAND_PERSONFRAME
     GNEPersonPlanFrame* getPersonPlanFrame() const;
+
+    /// @brief get frame for DEMAND_CONTAINER
+    GNEContainerFrame* getContainerFrame() const;
+
+    /// @brief get frame for DEMAND_CONTAINERFRAME
+    GNEContainerPlanFrame* getContainerPlanFrame() const;
 
     /// @brief get frame for DATA_EDGEDATA
     GNEEdgeDataFrame* getEdgeDataFrame() const;
@@ -178,6 +187,9 @@ public:
 
     /// @brief get frame for DATA_TAZRELDATA
     GNETAZRelDataFrame* getTAZRelDataFrame() const;
+
+    /// @brief get frame for DATA_TAZRELDATA
+    GNEMeanDataFrame* getMeanDataFrame() const;
 
     /// @brief show frames area if at least a GNEFrame is showed
     /// @note this function is called in GNEFrame::Show();
@@ -198,6 +210,15 @@ public:
 
     /// @brief update toolbar undo/redo buttons (called when user press Ctrl+Z/Y)
     void updateUndoRedoButtons();
+
+    /// @brief get frame area
+    FXVerticalFrame* getFramesArea() const;
+
+    /// @brief get frame area width
+    int getFrameAreaWidth() const;
+
+    /// @brief set frame area width
+    void setFrameAreaWidth(const int frameAreaWith);
 
     /// @name FOX-callbacks
     /// @{
@@ -248,7 +269,7 @@ protected:
         /// @brief frame for inspect elements
         GNEInspectorFrame* inspectorFrame;
 
-        /// @brief frame for delete elemetns
+        /// @brief frame for delete elements
         GNEDeleteFrame* deleteFrame;
 
         /// @brief frame for select elements
@@ -295,11 +316,14 @@ protected:
         /// @brief frame for NETWORK_TAZ
         GNETAZFrame* TAZFrame;
 
-        /// @brief frame for NETWORK_POLYGON
-        GNEPolygonFrame* polygonFrame;
+        /// @brief frame for NETWORK_SHAPE
+        GNEShapeFrame* polygonFrame;
 
         /// @brief frame for NETWORK_PROHIBITION
         GNEProhibitionFrame* prohibitionFrame;
+
+        /// @brief frame for NETWORK_WIRE
+        GNEWireFrame* wireFrame;
 
         /// @brief frame for NETWORK_CREATEDGE
         GNECreateEdgeFrame* createEdgeFrame;
@@ -334,7 +358,7 @@ protected:
         GNEVehicleFrame* vehicleFrame;
 
         /// @brief frame for DEMAND_VEHICLETYPE
-        GNEVehicleTypeFrame* vehicleTypeFrame;
+        GNETypeFrame* vehicleTypeFrame;
 
         /// @brief frame for DEMAND_STOP
         GNEStopFrame* stopFrame;
@@ -342,11 +366,14 @@ protected:
         /// @brief frame for DEMAND_PERSON
         GNEPersonFrame* personFrame;
 
-        /// @brief frame for DEMAND_PERSONTYPE
-        GNEPersonTypeFrame* personTypeFrame;
-
         /// @brief frame for DEMAND_PERSONPLAN
         GNEPersonPlanFrame* personPlanFrame;
+
+        /// @brief frame for DEMAND_CONTAINER
+        GNEContainerFrame* containerFrame;
+
+        /// @brief frame for DEMAND_CONTAINERPLAN
+        GNEContainerPlanFrame* containerPlanFrame;
     };
 
     /// @brief class for data frames
@@ -372,13 +399,16 @@ protected:
         GNEFrame* getCurrentShownFrame() const;
 
         /// @brief frame for DATA_EDGEDATA
-        GNEEdgeDataFrame* edgeDataFrame;
+        GNEEdgeDataFrame* edgeDataFrame = nullptr;
 
         /// @brief frame for DATA_EDGERELDATA
-        GNEEdgeRelDataFrame* edgeRelDataFrame;
+        GNEEdgeRelDataFrame* edgeRelDataFrame = nullptr;
 
         /// @brief frame for DATA_TAZRELDATA
-        GNETAZRelDataFrame* TAZRelDataFrame;
+        GNETAZRelDataFrame* TAZRelDataFrame = nullptr;
+
+        /// @brief frame for DATA_MEANDATA
+        GNEMeanDataFrame* meanDataFrame = nullptr;
     };
 
     /// @brief struct for ACChoosers dialog
@@ -396,6 +426,9 @@ protected:
 
         /// @brief pointer to ACChooser dialog used for locate edges
         GNEDialogACChooser* ACChooserEdges;
+
+        /// @brief pointer to ACChooser dialog used for locate walkingareas
+        GNEDialogACChooser* ACChooserWalkingAreas;
 
         /// @brief pointer to ACChooser dialog used for locate vehicles
         GNEDialogACChooser* ACChooserVehicles;
@@ -423,6 +456,9 @@ protected:
 
         /// @brief pointer to ACChooser dialog used for locate Prohibitions
         GNEDialogACChooser* ACChooserProhibition;
+
+        /// @brief pointer to ACChooser dialog used for locate Wires
+        GNEDialogACChooser* ACChooserWire;
     };
 
 private:
@@ -433,13 +469,16 @@ private:
     FXHorizontalFrame* myViewArea;
 
     /// @brief frame to hold GNEFrames
-    FXHorizontalFrame* myFramesArea;
+    FXVerticalFrame* myFramesArea;
 
     /// @brief toolbar undo button
-    FXButton* myUndoButton;
+    MFXButtonTooltip* myUndoButton;
 
     /// @brief toolbar redo button
-    FXButton* myRedoButton;
+    MFXButtonTooltip* myRedoButton;
+
+    /// @brief compute Path manager button
+    MFXButtonTooltip* myComputePathManagerButton;
 
     /// @brief Splitter to divide ViewNet und GNEFrames
     FXSplitter* myFramesSplitter;

@@ -1,7 +1,8 @@
 ---
-title: Z/Changes from version 0.9.6 to version 0.9.7
-permalink: /Z/Changes_from_version_0.9.6_to_version_0.9.7/
+title: Changes from version 0.9.6 to version 0.9.7
 ---
+
+**Release date: 14.11.2007**
 
 - 23.05.07: sumo-gui now contains storages for recent configs AND
   networks, usage of "RecentFiles" reworked
@@ -15,7 +16,7 @@ permalink: /Z/Changes_from_version_0.9.6_to_version_0.9.7/
   non-integer flows
 - 24.05.07: TOOLS: flowrouter.py has an option to ignore detector
   types
-- 24.05.07: NETGEN: replaced an occurence of rand() with randSUMO()
+- 24.05.07: NETGEN: replaced an occurrence of rand() with randSUMO()
   and reworked the randomness code a little
 - 30.05.07: dfrouter: moved to the new exception-handling concept (see
   [Developer/Implementation Notes/Error Handling](../Developer/Implementation_Notes/Error_Handling.md))

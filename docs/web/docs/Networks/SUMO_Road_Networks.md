@@ -1,6 +1,5 @@
 ---
-title: Networks/SUMO Road Networks
-permalink: /Networks/SUMO_Road_Networks/
+title: SUMO Road Networks
 ---
 
 ![eichstaett.net.png](../images/Eichstaett.net.png "Screenshot of a SUMO net file opened in sumo-gui. It shows the map of the German city Eichstätt.")
@@ -43,7 +42,7 @@ an existing map from various formats using
 abstract road maps with [netgenerate](../netgenerate.md). To modify
 an existing *.net.xml*-file you may [load it with netconvert along with
 patch files](../Networks/Import/SUMO_Road_Networks.md) You may also
-use [netedit](../netedit.md) for building own road networks or for
+use [netedit](../Netedit/index.md) for building own road networks or for
 reworking the ones obtained from [netconvert](../netconvert.md) or
 [netgenerate](../netgenerate.md).
 
@@ -249,37 +248,22 @@ The attributes are given in the following table.
 | **id**       | id (string)                            | The id of the internal edge                                        |
 | **function** | "`internal`" | Always "`internal`" for an internal edge |
 
+
+When the network was built with internal edges, each connection will typically correspond to exactly one internal lane.
+If there are multiple connections that have the same pair of `from` and `to` edges, then the internal lanes for these edges will be part of the same internal edge. On connections marked as *straight* (`dir="s"`), lane changing on internal lanes is permitted.
+
+A special case are so called [internal junctions](#internal_junctions). These mark places where vehicles wait within an intersection before passing through foe traffic. The most common occurrence for this are:
+
+- left-turning vehicles that yield to oncoming traffic
+- right-turning vehicles that yield to pedestrian crossings
+
+The connection corresponding to such a movement are split into two internal lanes: one lane before the waiting position and one lane after the waiting position. The lanes after an internal junction always have their own internal edge.
+
 #### Stop Offsets
 
 Each edge or lane may carry a `stopOffset` child element to specify an additional
-stopping offset for vehicles of certain classes:
-
-```
-<edge id="<ID>">
-    <stopOffset value="<distance in m.>" vClasses="<space-separated list of vClasses>" />
-    <lane id="<ID>" index="<INDEX>" ... >
-        <stopOffset value="<distance in m.>" exceptions="<space-separated list of vClasses>" />
-    </lane>
-    ...
-</edge>
-```
-
-Defining this element for an edge will affect all lanes of the edge that
-do not hold an own `stopOffset` element. Note that there is the possibility to
-define either all vehicle classes, that are affected by the stop offset
-(attribute `vClasses`), or those, which are not affected (attribute `exceptions`). You may not
-use both attributes in conjunction. The distance at which the specified
-vehicle classes are required to stop from the lane end is specified by
-the `value`-attribute.
-
-| Name           | Type             | Description                                                         |
-| -------------- | ---------------- | ------------------------------------------------------------------- |
-| **value**      | value (double)   | The stop offset as positive value in meters.                        |
-| **vClasses**   | list of vClasses | Specifies, for which vehicle classes the stopOffset applies.        |
-| **exceptions** | list of vClasses | Specifies, for which vehicle classes the stopOffset does not apply. |
-
-For specification of vehicle classes see
-[here](../Definition_of_Vehicles,_Vehicle_Types,_and_Routes.md#abstract_vehicle_class).
+stopping offset for vehicles of certain classes. This can be used to define a [bike box](https://en.wikipedia.org/wiki/Advanced_stop_line).
+The exact syntax is explained at [stopOffset](../Networks/PlainXML.md#stop_offsets).
 
 ### Traffic Light Programs
 
@@ -325,7 +309,7 @@ The junction itself is described by the following attributes:
 | **incLanes** | id list           | The ids of the lanes that end at the intersection; sorted by direction, clockwise, with direction up = 0                                                               |
 | **intLanes** | id list           | The IDs of the lanes within the intersection                                                                                                                           |
 | **shape**    | position list     | A polygon describing the road boundaries of the intersection                                                                                                           |
-| customShape  | bool              | Whether the shape was customized by the user (and should thus not be rebuilt by [netconvert](../netconvert.md) or [netedit](../netedit.md)), default *False* |
+| customShape  | bool              | Whether the shape was customized by the user (and should thus not be rebuilt by [netconvert](../netconvert.md) or [netedit](../Netedit/index.md)), default *False* |
 
 Please note, that the x/y-positions of the junction describe the given,
 not the computed center of the junction. It is allowed for two nodes to
@@ -515,7 +499,7 @@ the map of this file. Most other SUMO tools read such files to generate
 or import information that must be the mapped onto a road network.
 
 Networks can be created and edited graphically using
-[netedit](../netedit.md).
+[netedit](../Netedit/index.md).
 
 The SUMO net file is not meant for manual editing. Convert it to the
 [SUMO native XML
@@ -534,7 +518,7 @@ these files by hand and rebuild the network with
   - [Generating abstract networks using
       netgenerate](../Networks/Abstract_Network_Generation.md)
   - [netgenerate](../netgenerate.md) manual
-- [netedit](../netedit.md) manual
+- [netedit](../Netedit/index.md) manual
 - [Developer/Network Building
   Process](../Developer/Network_Building_Process.md)
 

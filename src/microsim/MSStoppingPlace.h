@@ -1,6 +1,6 @@
 /****************************************************************************/
 // Eclipse SUMO, Simulation of Urban MObility; see https://eclipse.org/sumo
-// Copyright (C) 2005-2020 German Aerospace Center (DLR) and others.
+// Copyright (C) 2005-2023 German Aerospace Center (DLR) and others.
 // This program and the accompanying materials are made available under the
 // terms of the Eclipse Public License 2.0 which is available at
 // https://www.eclipse.org/legal/epl-2.0/
@@ -14,6 +14,7 @@
 /// @file    MSStoppingPlace.h
 /// @author  Daniel Krajzewicz
 /// @author  Michael Behrisch
+/// @author  Johannes Rummel
 /// @date    Mon, 13.12.2005
 ///
 // A lane area vehicles can halt at
@@ -27,6 +28,7 @@
 #include <string>
 #include <utils/common/Named.h>
 #include <utils/common/Parameterised.h>
+#include <utils/common/RGBColor.h>
 
 
 // ===========================================================================
@@ -66,10 +68,13 @@ public:
      * @param[in] endPos End position of the stop on the lane
      */
     MSStoppingPlace(const std::string& id,
+                    SumoXMLTag element,
                     const std::vector<std::string>& lines, MSLane& lane,
-                    double begPos, double endPos, const std::string name = "",
+                    double begPos, double endPos,
+                    const std::string name = "",
                     int capacity = 0,
-                    double parkingLength = 0);
+                    double parkingLength = 0,
+                    const RGBColor& color = RGBColor::INVISIBLE);
 
 
 
@@ -97,6 +102,8 @@ public:
      */
     double getEndLanePosition() const;
 
+    /// @brief the position in the middle of the stop shape
+    Position getCenterPos() const;
 
     /** @brief Called if a vehicle enters this stop
      *
@@ -126,9 +133,11 @@ public:
 
     /** @brief Returns the last free position on this stop
      *
+     * @param[in] forVehicle The vehicle that wants to stop here
+     * @param[in] brakePos the first position on the stop lane that the vehicle can stop at
      * @return The last free position of this bus stop
      */
-    double getLastFreePos(const SUMOVehicle& forVehicle) const;
+    double getLastFreePos(const SUMOVehicle& forVehicle, double brakePos = 0) const;
 
     /// @brief return whether the given vehicle fits at the given position
     bool fits(double pos, const SUMOVehicle& veh) const;
@@ -137,7 +146,7 @@ public:
      *
      * @return The next free waiting place for pedestrians / containers
      */
-    virtual Position getWaitPosition(MSTransportable* person) const;
+    Position getWaitPosition(MSTransportable* person) const;
 
     /** @brief Returns the lane position corresponding to getWaitPosition()
      *
@@ -160,7 +169,7 @@ public:
 
     /** @brief Returns the tranportables waiting on this stop
      */
-    std::vector<MSTransportable*> getTransportables() const;
+    std::vector<const MSTransportable*> getTransportables() const;
 
     /** @brief Returns the number of stopped vehicles waiting on this stop
     */
@@ -176,13 +185,13 @@ public:
     bool hasSpaceForTransportable() const;
 
     /// @brief adds a transportable to this stop
-    bool addTransportable(MSTransportable* p);
+    bool addTransportable(const MSTransportable* p);
 
     /// @brief Removes a transportable from this stop
-    void removeTransportable(MSTransportable* p);
+    void removeTransportable(const MSTransportable* p);
 
     /// @brief adds an access point to this stop
-    virtual bool addAccess(MSLane* lane, const double pos, const double length);
+    virtual bool addAccess(MSLane* lane, const double pos, double length);
 
     /// @brief lanes and positions connected to this stop
     const std::vector<std::tuple<MSLane*, double, double> >& getAllAccessPos() const {
@@ -197,7 +206,14 @@ public:
 
     const std::string& getMyName() const;
 
-    static int getPersonsAbreast(double length);
+    /// @brief return the type of this stopping place
+    SumoXMLTag getElement() const {
+        return myElement;
+    }
+
+    const RGBColor& getColor() const;
+
+    static int getTransportablesAbreast(double length, SumoXMLTag element);
 
     /// @brief get list of vehicles waiting at this stop
     std::vector<const SUMOVehicle*> getStoppedVehicles() const;
@@ -205,6 +221,11 @@ public:
     /// @brief get number of persons waiting at this stop
     inline int getNumWaitingPersons() const {
         return (int)myWaitingTransportables.size();
+    }
+
+    /// @brief get number of persons that can wait at this stop
+    inline int getWaitingCapacity() const {
+        return myTransportableCapacity;
     }
 
     /// @brief get IDs of persons waiting at this stop
@@ -222,9 +243,12 @@ protected:
      */
     void computeLastFreePos();
 
-    int getPersonsAbreast() const;
+    int getTransportablesAbreast() const;
 
 protected:
+    /// @brief the type of stopping place
+    const SumoXMLTag myElement;
+
     /// @brief The list of lines that are assigned to this stop
     std::vector<std::string> myLines;
 
@@ -242,6 +266,8 @@ protected:
 
     /// @brief The last free position at this stop (variable)
     double myLastFreePos;
+    /// @brief The length of the last parking vehicle (or 0 if there is none)
+    const SUMOVehicle* myLastParking;
 
     /// @brief The name of the stopping place
     const std::string myName;
@@ -252,10 +278,16 @@ protected:
     /// @brief the scaled space capacity for parking vehicles
     const double myParkingFactor;
 
+    /// @brief The color of the stopping place
+    const RGBColor myColor;
+
+    /// @brief row depth of waiting transportables
+    const double myTransportableDepth;
+
 protected:
 
     /// @brief Persons waiting at this stop (mapped to waiting position)
-    std::map<MSTransportable*, int> myWaitingTransportables;
+    std::map<const MSTransportable*, int> myWaitingTransportables;
     std::set<int> myWaitingSpots;
 
     /// @brief lanes and positions connected to this stop

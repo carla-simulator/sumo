@@ -1,6 +1,6 @@
 /****************************************************************************/
 // Eclipse SUMO, Simulation of Urban MObility; see https://eclipse.org/sumo
-// Copyright (C) 2013-2020 German Aerospace Center (DLR) and others.
+// Copyright (C) 2013-2023 German Aerospace Center (DLR) and others.
 // This program and the accompanying materials are made available under the
 // terms of the Eclipse Public License 2.0 which is available at
 // https://www.eclipse.org/legal/epl-2.0/
@@ -22,13 +22,11 @@
 #pragma once
 #include <config.h>
 
-//#define SWARM_DEBUG
-#include <utils/common/SwarmDebug.h>
 #include <vector>
-#include "MSSOTLPolicy.h"
 #include <stdlib.h>
 #include <sstream>
 
+#include "MSSOTLPolicy.h"
 #include "MSSOTLTrafficLightLogic.h"
 
 /**
@@ -56,7 +54,7 @@ public:
                                    const std::string& id, const std::string& programID,
                                    const TrafficLightType logicType, const Phases& phases,
                                    int step, SUMOTime delay,
-                                   const std::map<std::string, std::string>& parameters);
+                                   const Parameterised::Map& parameters);
 
     /**
      * @brief Constructor with sensors passed
@@ -73,22 +71,9 @@ public:
                                    const std::string& id, const std::string& programID,
                                    const TrafficLightType logicType, const Phases& phases,
                                    int step, SUMOTime delay,
-                                   const std::map<std::string, std::string>& parameters,
+                                   const Parameterised::Map& parameters,
                                    MSSOTLSensors* sensors);
     ~MSSOTLHiLevelTrafficLightLogic();
-
-    /**
-     * \brief Returns the vector of the low-level policies used by this high-level tll.
-     */
-    std::vector<MSSOTLPolicy*>& getPolicies() {
-        return policies;
-    }
-    /**
-     * \brief Returns the low-level policy currently selected by this high-level tll.
-     */
-    MSSOTLPolicy* getCurrentPolicy() {
-        return currentPolicy;
-    }
 
     /**
      * @brief Initialises the tls
@@ -111,10 +96,9 @@ public:
 protected:
     virtual void decidePolicy() = 0;
 
-private:
-
-    std::vector<MSSOTLPolicy*> policies;
-    MSSOTLPolicy* currentPolicy;
+protected:
+    std::vector<MSSOTLPolicy*> myPolicies;
+    MSSOTLPolicy* myCurrentPolicy;
 
 };
 

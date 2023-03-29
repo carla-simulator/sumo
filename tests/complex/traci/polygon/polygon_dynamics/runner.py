@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 # Eclipse SUMO, Simulation of Urban MObility; see https://eclipse.org/sumo
-# Copyright (C) 2008-2020 German Aerospace Center (DLR) and others.
+# Copyright (C) 2008-2023 German Aerospace Center (DLR) and others.
 # This program and the accompanying materials are made available under the
 # terms of the Eclipse Public License 2.0 which is available at
 # https://www.eclipse.org/legal/epl-2.0/
@@ -23,8 +23,8 @@ from __future__ import absolute_import
 import os
 import sys
 
-SUMO_HOME = os.path.join(os.path.dirname(__file__), "..", "..", "..", "..", "..")
-sys.path.append(os.path.join(os.environ.get("SUMO_HOME", SUMO_HOME), "tools"))
+if "SUMO_HOME" in os.environ:
+    sys.path.append(os.path.join(os.environ["SUMO_HOME"], "tools"))
 import traci  # noqa
 import sumolib  # noqa
 
@@ -59,56 +59,38 @@ for step in range(3, 6):
 print("# (1) Adding underspecified dynamics...")
 try:
     traci.polygon.addDynamics(polygonID)
-except traci.exceptions.TraCIException as e:
-    if traci.isLibsumo():
-        print(e, file=sys.stderr)
+except traci.exceptions.TraCIException:
     print("Caught TraCIException")
-    pass
 
 print("# (2) Adding malformed dynamics 1 ...")
 try:
     traci.polygon.addDynamics(polygonID, "", [0, 1, 2, 4, 3])
-except traci.exceptions.TraCIException as e:
-    if traci.isLibsumo():
-        print(e, file=sys.stderr)
+except traci.exceptions.TraCIException:
     print("Caught TraCIException")
-    pass
 
 print("# (3) Adding malformed dynamics 2 ...")
 try:
     traci.polygon.addDynamics(polygonID, "", [1, 2, 3, 4], [200, 20, 2, 1])
-except traci.exceptions.TraCIException as e:
-    if traci.isLibsumo():
-        print(e, file=sys.stderr)
+except traci.exceptions.TraCIException:
     print("Caught TraCIException")
-    pass
 
 print("# (4) Adding malformed dynamics 3 ...")
 try:
     traci.polygon.addDynamics(polygonID, "", [0, 1, 2, 3], [200, 20, 2])
-except traci.exceptions.TraCIException as e:
-    if traci.isLibsumo():
-        print(e, file=sys.stderr)
+except traci.exceptions.TraCIException:
     print("Caught TraCIException")
-    pass
 
 print("# (5) Adding malformed dynamics 4 ...")
 try:
     traci.polygon.addDynamics(polygonID, "", [0], [200])
-except traci.exceptions.TraCIException as e:
-    if traci.isLibsumo():
-        print(e, file=sys.stderr)
+except traci.exceptions.TraCIException:
     print("Caught TraCIException")
-    pass
 
 print("# (6) Adding malformed dynamics 5 ...")
 try:
     traci.polygon.addDynamics(polygonID, "horiz", [], [], True)
-except traci.exceptions.TraCIException as e:
-    if traci.isLibsumo():
-        print(e, file=sys.stderr)
+except traci.exceptions.TraCIException:
     print("Caught TraCIException")
-    pass
 
 examine(polygonID)
 

@@ -1,11 +1,10 @@
 ---
-title: Simulation/Rail signals
-permalink: /Simulation/Rail_signals/
+title: Rail signals
 ---
 
 Rail signals are
 [node](../Networks/PlainXML.md#node_descriptions)
-types for controllig rail traffic.
+types for controlling rail traffic.
 
 # Loading a rail signal
 

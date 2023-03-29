@@ -1,6 +1,6 @@
 /****************************************************************************/
 // Eclipse SUMO, Simulation of Urban MObility; see https://eclipse.org/sumo
-// Copyright (C) 2001-2020 German Aerospace Center (DLR) and others.
+// Copyright (C) 2001-2023 German Aerospace Center (DLR) and others.
 // This program and the accompanying materials are made available under the
 // terms of the Eclipse Public License 2.0 which is available at
 // https://www.eclipse.org/legal/epl-2.0/
@@ -20,8 +20,10 @@
 // A java-style StringTokenizer for c++ (stl)
 /****************************************************************************/
 #pragma once
+#include <config.h>
 #include <string>
 #include <vector>
+#include <set>
 
 /**
  * StringTokenizer
@@ -46,7 +48,7 @@
  * There is something to know about the behaviour:
  * When using WHITECHAR, a list of whitechars occuring in  the string to
  * split is regarded as a single divider. All other parameter will use
- * multiple occurences of operators as a list of single divider and the
+ * multiple occurrences of operators as a list of single divider and the
  * string between them will have a length of zero.
  */
 // ===========================================================================
@@ -80,7 +82,7 @@ public:
     StringTokenizer(std::string tosplit);
 
     /**@brief constructor
-     * @note the first string will be split at the second string's occurences.
+     * @note the first string will be split at the second string's occurrences.
              If the optional third parameter is true, the string will be split whenever
              a char from the second string occurs. If the string between two split
              positions is empty, it will nevertheless be returned.
@@ -89,7 +91,7 @@ public:
 
     /**@brief constructor
      * @note When StringTokenizer.NEWLINE is used as second parameter, the string
-             will be split at all occurences of a newline character (0x0d / 0x0a)
+             will be split at all occurrences of a newline character (0x0d / 0x0a)
              When StringTokenizer.WHITECHARS is used as second parameter, the
              string will be split at all characters below 0x20 (SPACE)
              All other ints specified as second parameter are casted int o a char
@@ -121,11 +123,14 @@ public:
     /// @brief return vector of strings
     std::vector<std::string> getVector();
 
+    /// @brief return set of strings
+    std::set<std::string> getSet();
+
 private:
-    /// @brief splits the first string at all occurences of the second. If the third parameter is true split at all chars given in the second
+    /// @brief splits the first string at all occurrences of the second. If the third parameter is true split at all chars given in the second
     void prepare(const std::string& tosplit, const std::string& token, bool splitAtAllChars);
 
-    /// @brief @brief splits the first string at all occurences of whitechars
+    /// @brief @brief splits the first string at all occurrences of whitechars
     void prepareWhitechar(const std::string& tosplit);
 
 private:

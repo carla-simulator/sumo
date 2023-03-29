@@ -1,6 +1,5 @@
 ---
-title: TraCI/Person Value Retrieval
-permalink: /TraCI/Person_Value_Retrieval/
+title: Person Value Retrieval
 ---
 
 ## Command 0xae: Get Person Variable

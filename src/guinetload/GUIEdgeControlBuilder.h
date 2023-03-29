@@ -1,6 +1,6 @@
 /****************************************************************************/
 // Eclipse SUMO, Simulation of Urban MObility; see https://eclipse.org/sumo
-// Copyright (C) 2001-2020 German Aerospace Center (DLR) and others.
+// Copyright (C) 2001-2023 German Aerospace Center (DLR) and others.
 // This program and the accompanying materials are made available under the
 // terms of the Eclipse Public License 2.0 which is available at
 // https://www.eclipse.org/legal/epl-2.0/
@@ -71,12 +71,13 @@ public:
      * @see SUMOVehicleClass
      * @see MSLane
      */
-    virtual MSLane* addLane(const std::string& id,
-                            double maxSpeed, double length,
-                            const PositionVector& shape, double width,
-                            SVCPermissions permissions,
-                            int index, bool isRampAccel,
-                            const std::string& type);
+    MSLane* addLane(const std::string& id,
+                    double maxSpeed, double friction, double length,
+                    const PositionVector& shape, double width,
+                    SVCPermissions permissions,
+                    SVCPermissions changeLeft, SVCPermissions changeRight,
+                    int index, bool isRampAccel,
+                    const std::string& type) override;
 
 
 
@@ -89,7 +90,7 @@ public:
      * @param[in] id The id of the edge to build
      */
     MSEdge* buildEdge(const std::string& id, const SumoXMLEdgeFunc function,
-                      const std::string& streetName, const std::string& edgeType, const int priority, const double distance);
+                      const std::string& streetName, const std::string& edgeType, const int priority, const double distance) override;
 
 
 private:

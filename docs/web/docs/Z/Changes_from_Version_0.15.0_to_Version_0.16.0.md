@@ -1,9 +1,8 @@
 ---
-title: Z/Changes from Version 0.15.0 to Version 0.16.0
-permalink: /Z/Changes_from_Version_0.15.0_to_Version_0.16.0/
+title: Changes from Version 0.15.0 to Version 0.16.0
 ---
 
-## Version 0.16.0 (04.12.2012)
+**Release date: 04.12.2012**
 
 ### Bugfixes
 

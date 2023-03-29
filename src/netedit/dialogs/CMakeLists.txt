@@ -1,14 +1,18 @@
+add_subdirectory(tools)
+
 set(netedit_dialogs_SRCS
    GNEVariableSpeedSignDialog.h
    GNEVariableSpeedSignDialog.cpp
    GNEAbout.h
    GNEAbout.cpp
-   GNEAllowDisallow.h
-   GNEAllowDisallow.cpp
+   GNEAllowVClassesDialog.h
+   GNEAllowVClassesDialog.cpp
    GNESingleParametersDialog.h
    GNESingleParametersDialog.cpp
    GNEMultipleParametersDialog.h
    GNEMultipleParametersDialog.cpp
+   GNEFixNetworkElements.h
+   GNEFixNetworkElements.cpp
    GNEFixAdditionalElements.h
    GNEFixAdditionalElements.cpp
    GNEFixDemandElements.h
@@ -31,6 +35,14 @@ set(netedit_dialogs_SRCS
    GNEVehicleTypeDialog.cpp
    GNEDialogACChooser.h
    GNEDialogACChooser.cpp
+   GNEGeometryPointDialog.h
+   GNEGeometryPointDialog.cpp
+   GNEUndoListDialog.h
+   GNEUndoListDialog.cpp
+   GNEOverwriteElementsDialog.h
+   GNEOverwriteElementsDialog.cpp
+   GNEVTypeDistributionsDialog.h
+   GNEVTypeDistributionsDialog.cpp
    )
 
 add_library(netedit_dialogs STATIC ${netedit_dialogs_SRCS})

@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 # Eclipse SUMO, Simulation of Urban MObility; see https://eclipse.org/sumo
-# Copyright (C) 2008-2020 German Aerospace Center (DLR) and others.
+# Copyright (C) 2008-2023 German Aerospace Center (DLR) and others.
 # This program and the accompanying materials are made available under the
 # terms of the Eclipse Public License 2.0 which is available at
 # https://www.eclipse.org/legal/epl-2.0/
@@ -22,11 +22,8 @@ from __future__ import absolute_import
 import os
 import sys
 
-if 'SUMO_HOME' in os.environ:
-    tools = os.path.join(os.environ['SUMO_HOME'], 'tools')
-    sys.path.append(tools)
-else:
-    sys.exit("please declare environment variable 'SUMO_HOME'")
+if "SUMO_HOME" in os.environ:
+    sys.path.append(os.path.join(os.environ["SUMO_HOME"], "tools"))
 
 import traci  # noqa
 import sumolib  # noqa
@@ -47,9 +44,17 @@ traci.start([sumoBinary,
 traci.simulationStep()
 fleet = traci.vehicle.getTaxiFleet(0)
 print("taxiFleet", fleet)
-reservations = traci.person.getTaxiReservations(0)
+reservations = traci.person.getTaxiReservations(3)
 print("reservations", reservations)
-traci.vehicle.dispatchTaxi(fleet[0], [reservations[0].id])
+taxi = fleet[0]
+
+print("pickUpDuration", traci.vehicle.getParameter(taxi, "device.taxi.pickUpDuration"))
+print("dropOffDuration", traci.vehicle.getParameter(taxi, "device.taxi.dropOffDuration"))
+traci.vehicle.setParameter(taxi, "device.taxi.pickUpDuration", "10")
+traci.vehicle.setParameter(taxi, "device.taxi.dropOffDuration", "20")
+print("pickUpDuration", traci.vehicle.getParameter(taxi, "device.taxi.pickUpDuration"))
+print("dropOffDuration", traci.vehicle.getParameter(taxi, "device.taxi.dropOffDuration"))
+traci.vehicle.dispatchTaxi(taxi, [reservations[0].id])
 
 while traci.simulation.getMinExpectedNumber() > 0:
     print("%s all=%s empty=%s pickup=%s dropoff=%s pickup+dropoff=%s" % (
@@ -59,5 +64,6 @@ while traci.simulation.getMinExpectedNumber() > 0:
         traci.vehicle.getTaxiFleet(1),
         traci.vehicle.getTaxiFleet(2),
         traci.vehicle.getTaxiFleet(3),))
+    print("   res=%s" % str(traci.person.getTaxiReservations()))
     traci.simulationStep()
 traci.close()

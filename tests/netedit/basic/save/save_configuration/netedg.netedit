@@ -1,68 +1,91 @@
 <?xml version="1.0" encoding="UTF-8"?>
 
-<!-- generated on 3/11/2020 9:11:20 AM by Eclipse SUMO netedit Version v1_5_0+0577-c86610ca2e
+<!-- generated on 2023-01-25 18:30:58 by Eclipse SUMO netedit Version v1_15_0+1949-962673d476a
 <configuration xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="http://sumo.dlr.de/xsd/netconvertConfiguration.xsd">
 
     <input>
-        <sumo-net-file value="C:\Users\SUMO-Test\.texttest\tmp\netedit.gui.11Mar090907.5180\netedit.gui\basic\save\save_configuration\input_net.net.xml"/>
+        <additional-files value="/home/palcraft/.texttest/tmp/netedit.daily.basic.25Jan182728.9774/netedit.daily.basic/basic/save/save_configuration/additionals.add.xml"/>
+        <route-files value="/home/palcraft/.texttest/tmp/netedit.daily.basic.25Jan182728.9774/netedit.daily.basic/basic/save/save_configuration/routes.rou.xml"/>
+        <data-files value="/home/palcraft/.texttest/tmp/netedit.daily.basic.25Jan182728.9774/netedit.daily.basic/basic/save/save_configuration/datas.dat.xml"/>
+        <sumo-net-file value="/home/palcraft/.texttest/tmp/netedit.daily.basic.25Jan182728.9774/netedit.daily.basic/basic/save/save_configuration/net.net.xml"/>
     </input>
-
-    <output>
-        <output-file value="C:\Users\SUMO-Test\.texttest\tmp\netedit.gui.11Mar090907.5180\netedit.gui\basic\save\save_configuration\net.net.xml"/>
-        <plain-output-prefix value="C:\Users\SUMO-Test\.texttest\tmp\netedit.gui.11Mar090907.5180\netedit.gui\basic\save\save_configuration\net"/>
-    </output>
 
     <processing>
         <geometry.min-radius.fix.railways value="false"/>
         <geometry.max-grade.fix value="false"/>
         <offset.disable-normalization value="true"/>
-        <lefthand value="false"/>
+        <lefthand value="0"/>
     </processing>
 
     <junctions>
         <no-internal-links value="false"/>
         <no-turnarounds value="true"/>
         <junctions.corner-detail value="5"/>
-        <junctions.limit-turn-speed value="5.5"/>
-        <rectangular-lane-cut value="false"/>
+        <junctions.limit-turn-speed value="5.50"/>
+        <rectangular-lane-cut value="0"/>
     </junctions>
 
     <pedestrian>
-        <walkingareas value="false"/>
+        <walkingareas value="0"/>
     </pedestrian>
 
-    <netedit>
-        <additional-files value="C:\Users\SUMO-Test\.texttest\tmp\netedit.gui.11Mar090907.5180\netedit.gui\basic\save\save_configuration\additionals.xml"/>
-        <additionals-output value="C:\Users\SUMO-Test\.texttest\tmp\netedit.gui.11Mar090907.5180\netedit.gui\basic\save\save_configuration\additionals.xml"/>
-        <route-files value="C:\Users\SUMO-Test\.texttest\tmp\netedit.gui.11Mar090907.5180\netedit.gui\basic\save\save_configuration\routes.xml"/>
-        <demandelements-output value="C:\Users\SUMO-Test\.texttest\tmp\netedit.gui.11Mar090907.5180\netedit.gui\basic\save\save_configuration\routes.xml"/>
-    </netedit>
-
     <visualisation>
-        <gui-settings-file value="C:\Users\SUMO-Test\.texttest\tmp\netedit.gui.11Mar090907.5180\netedit.gui\basic\save\save_configuration\gui-settings.xml"/>
-        <window-size value="700,500"/>
+        <gui-settings-file value="/home/palcraft/.texttest/tmp/netedit.daily.basic.25Jan182728.9774/netedit.daily.basic/basic/save/save_configuration/gui-settings.xml"/>
+        <window-size value="936, 697"/>
         <window-pos value="50,50"/>
         <gui-testing value="true"/>
         <gui-testing-debug value="true"/>
-        <gui-testing.setting-output value="C:\Users\SUMO-Test\.texttest\tmp\netedit.gui.11Mar090907.5180\netedit.gui\basic\save\save_configuration\guisettingsoutput.xml"/>
+        <gui-testing-debug-gl value="true"/>
+        <gui-testing.setting-output value="/home/palcraft/.texttest/tmp/netedit.daily.basic.25Jan182728.9774/netedit.daily.basic/basic/save/save_configuration/guisettingsoutput.xml"/>
     </visualisation>
 
     <report>
         <no-warnings value="true"/>
-        <aggregate-warnings value="5"/>
-        <error-log value="C:\Users\SUMO-Test\.texttest\tmp\netedit.gui.11Mar090907.5180\netedit.gui\basic\save\save_configuration\log.txt"/>
+        <error-log value="/home/palcraft/.texttest/tmp/netedit.daily.basic.25Jan182728.9774/netedit.daily.basic/basic/save/save_configuration/log.txt"/>
     </report>
 
 </configuration>
 -->
 
-<edges version="1.6" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="http://sumo.dlr.de/xsd/edges_file.xsd">
-    <edge id="1" from="Center" to="A" priority="-1" numLanes="2" speed="13.90"/>
-    <edge id="2" from="Center" to="B" priority="-1" numLanes="2" speed="13.90"/>
-    <edge id="3" from="Center" to="C" priority="-1" numLanes="2" speed="13.90"/>
-    <edge id="4" from="Center" to="D" priority="-1" numLanes="2" speed="13.90"/>
-    <edge id="5" from="A" to="Center" priority="-1" numLanes="2" speed="13.90"/>
-    <edge id="6" from="B" to="Center" priority="-1" numLanes="2" speed="13.90"/>
-    <edge id="7" from="C" to="Center" priority="-1" numLanes="2" speed="13.90"/>
-    <edge id="8" from="D" to="Center" priority="-1" numLanes="2" speed="13.90"/>
+<edges version="1.16" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="http://sumo.dlr.de/xsd/edges_file.xsd">
+    <edge id="1" from="Center" to="A" priority="-1" numLanes="3" speed="13.90">
+        <lane index="0" allow="pedestrian" width="2.00"/>
+        <lane index="1" disallow="pedestrian"/>
+        <lane index="2" disallow="pedestrian"/>
+    </edge>
+    <edge id="2" from="Center" to="B" priority="-1" numLanes="3" speed="13.90">
+        <lane index="0" allow="pedestrian" width="2.00"/>
+        <lane index="1" disallow="pedestrian"/>
+        <lane index="2" disallow="pedestrian"/>
+    </edge>
+    <edge id="3" from="Center" to="C" priority="-1" numLanes="3" speed="13.90">
+        <lane index="0" allow="pedestrian" width="2.00"/>
+        <lane index="1" disallow="pedestrian"/>
+        <lane index="2" disallow="pedestrian"/>
+    </edge>
+    <edge id="4" from="Center" to="D" priority="-1" numLanes="3" speed="13.90">
+        <lane index="0" allow="pedestrian" width="2.00"/>
+        <lane index="1" disallow="pedestrian"/>
+        <lane index="2" disallow="pedestrian"/>
+    </edge>
+    <edge id="5" from="A" to="Center" priority="-1" numLanes="3" speed="13.90">
+        <lane index="0" allow="pedestrian" width="2.00"/>
+        <lane index="1" disallow="pedestrian"/>
+        <lane index="2" disallow="pedestrian"/>
+    </edge>
+    <edge id="6" from="B" to="Center" priority="-1" numLanes="3" speed="13.90">
+        <lane index="0" allow="pedestrian" width="2.00"/>
+        <lane index="1" disallow="pedestrian"/>
+        <lane index="2" disallow="pedestrian"/>
+    </edge>
+    <edge id="7" from="C" to="Center" priority="-1" numLanes="3" speed="13.90">
+        <lane index="0" allow="pedestrian" width="2.00"/>
+        <lane index="1" disallow="pedestrian"/>
+        <lane index="2" disallow="pedestrian"/>
+    </edge>
+    <edge id="8" from="D" to="Center" priority="-1" numLanes="3" speed="13.90">
+        <lane index="0" allow="pedestrian" width="2.00"/>
+        <lane index="1" disallow="pedestrian"/>
+        <lane index="2" disallow="pedestrian"/>
+    </edge>
 </edges>

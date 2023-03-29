@@ -1,6 +1,6 @@
 /****************************************************************************/
 // Eclipse SUMO, Simulation of Urban MObility; see https://eclipse.org/sumo
-// Copyright (C) 2001-2020 German Aerospace Center (DLR) and others.
+// Copyright (C) 2001-2023 German Aerospace Center (DLR) and others.
 // This program and the accompanying materials are made available under the
 // terms of the Eclipse Public License 2.0 which is available at
 // https://www.eclipse.org/legal/epl-2.0/
@@ -56,7 +56,7 @@ MSCFModel_KraussOrig1::patchSpeedBeforeLC(const MSVehicle* veh, double vMin, dou
 
 
 double
-MSCFModel_KraussOrig1::followSpeed(const MSVehicle* const veh, double speed, double gap, double predSpeed, double predMaxDecel, const MSVehicle* const /*pred*/) const {
+MSCFModel_KraussOrig1::followSpeed(const MSVehicle* const veh, double speed, double gap, double predSpeed, double predMaxDecel, const MSVehicle* const /*pred*/, const CalcReason /*usage*/) const {
     if (MSGlobals::gSemiImplicitEulerUpdate) {
         return MIN2(vsafe(gap, predSpeed, predMaxDecel), maxNextSpeed(speed, veh)); // XXX: and why not cap with minNextSpeed!? (Leo)
     } else {
@@ -66,19 +66,19 @@ MSCFModel_KraussOrig1::followSpeed(const MSVehicle* const veh, double speed, dou
 
 
 double
-MSCFModel_KraussOrig1::stopSpeed(const MSVehicle* const veh, const double speed, double gap) const {
+MSCFModel_KraussOrig1::stopSpeed(const MSVehicle* const veh, const double speed, double gap, double decel, const CalcReason /*usage*/) const {
     if (MSGlobals::gSemiImplicitEulerUpdate) {
         return MIN2(vsafe(gap, 0., 0.), maxNextSpeed(speed, veh));
     } else {
         // XXX: using this here is probably in the spirit of Krauss, but we should consider,
         // if the original vsafe should be kept instead (Leo), refs. #2575
-        return MIN2(maximumSafeStopSpeedBallistic(gap, speed), maxNextSpeed(speed, veh));
+        return MIN2(maximumSafeStopSpeedBallistic(gap, decel, speed), maxNextSpeed(speed, veh));
     }
 }
 
 
 double
-MSCFModel_KraussOrig1::dawdle(double speed, std::mt19937* rng) const {
+MSCFModel_KraussOrig1::dawdle(double speed, SumoRNG* rng) const {
     if (!MSGlobals::gSemiImplicitEulerUpdate) {
         // in case of the ballistic update, negative speeds indicate
         // a desired stop before the completion of the next timestep.

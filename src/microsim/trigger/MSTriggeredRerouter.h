@@ -1,6 +1,6 @@
 /****************************************************************************/
 // Eclipse SUMO, Simulation of Urban MObility; see https://eclipse.org/sumo
-// Copyright (C) 2001-2020 German Aerospace Center (DLR) and others.
+// Copyright (C) 2001-2023 German Aerospace Center (DLR) and others.
 // This program and the accompanying materials are made available under the
 // terms of the Eclipse Public License 2.0 which is available at
 // https://www.eclipse.org/legal/epl-2.0/
@@ -26,8 +26,8 @@
 #include <string>
 #include <vector>
 #include <utils/common/Command.h>
+#include <utils/common/Named.h>
 #include <microsim/MSMoveReminder.h>
-#include "MSTrigger.h"
 #include <utils/xml/SUMOSAXHandler.h>
 #include <utils/distribution/RandomDistributor.h>
 
@@ -57,7 +57,7 @@ class MSParkingArea;
  *  the old destination or by choosing a new one from a set of existing ones.
  */
 class MSTriggeredRerouter :
-    public MSTrigger, public MSMoveReminder,
+    public Named, public MSMoveReminder,
     public SUMOSAXHandler {
 
     friend class GUIEdge; // dynamic instantiation
@@ -68,12 +68,9 @@ public:
      * @param[in] id The id of the rerouter
      * @param[in] edges The edges the rerouter is placed at
      * @param[in] prob The probability the rerouter reoutes vehicles with
-     * @param[in] file The file to read the reroute definitions from
      */
-    MSTriggeredRerouter(const std::string& id,
-                        const MSEdgeVector& edges,
-                        double prob, const std::string& file, bool off,
-                        SUMOTime timeThreshold,
+    MSTriggeredRerouter(const std::string& id, const MSEdgeVector& edges,
+                        double prob, bool off, SUMOTime timeThreshold,
                         const std::string& vTypes);
 
 
@@ -102,7 +99,7 @@ public:
         /// The distributions of new destinations to use
         RandomDistributor<MSEdge*> edgeProbs;
         /// The distributions of new routes to use
-        RandomDistributor<const MSRoute*> routeProbs;
+        RandomDistributor<ConstMSRoutePtr> routeProbs;
         /// The permissions to use
         SVCPermissions permissions;
         /// The distributions of new parking areas to use as destinations
@@ -182,6 +179,8 @@ public:
         return myInstances;
     }
 
+    /// @brief issues warning for incomplete parkingReroute relationships
+    static void checkParkingRerouteConsistency();
 
 protected:
     /// @name inherited from GenericSAXHandler
@@ -214,8 +213,22 @@ protected:
     */
     bool vehicleApplies(const SUMOVehicle& veh) const;
 
+    typedef std::map<std::string, double> ParkingParamMap_t;
+    typedef std::map<MSParkingArea*, ParkingParamMap_t, ComparatorIdLess> MSParkingAreaMap_t;
+
+    /// determine attributes of candiate parking area for scoring
+    bool addParkValues(SUMOVehicle& veh, double brakeGap, bool newDestination,
+                       MSParkingArea* pa, double paOccupancy, double prob,
+                       SUMOAbstractRouter<MSEdge, SUMOVehicle>& router,
+                       MSParkingAreaMap_t& parkAreas,
+                       std::map<MSParkingArea*, ConstMSEdgeVector>& newRoutes,
+                       std::map<MSParkingArea*, ConstMSEdgeVector>& parkApproaches,
+                       ParkingParamMap_t& maxValues) const;
 
 protected:
+    /// @brief edges where vehicles are notified
+    const MSEdgeVector myEdges;
+
     /// List of rerouting definition intervals
     std::vector<RerouteInterval> myIntervals;
 
@@ -247,7 +260,7 @@ protected:
     /// new destinations with probabilities
     RandomDistributor<MSEdge*> myCurrentEdgeProb;
     /// new routes with probabilities
-    RandomDistributor<const MSRoute*> myCurrentRouteProb;
+    RandomDistributor<ConstMSRoutePtr> myCurrentRouteProb;
     //@}
 
 

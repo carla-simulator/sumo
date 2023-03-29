@@ -1,6 +1,6 @@
 /****************************************************************************/
 // Eclipse SUMO, Simulation of Urban MObility; see https://eclipse.org/sumo
-// Copyright (C) 2007-2020 German Aerospace Center (DLR) and others.
+// Copyright (C) 2007-2023 German Aerospace Center (DLR) and others.
 // This program and the accompanying materials are made available under the
 // terms of the Eclipse Public License 2.0 which is available at
 // https://www.eclipse.org/legal/epl-2.0/
@@ -27,9 +27,6 @@
 #include "MSDispatch.h"
 
 //#define DEBUG_RESERVATION
-//#define DEBUG_DISPATCH
-//#define DEBUG_SERVABLE
-//#define DEBUG_TRAVELTIME
 //#define DEBUG_DETOUR
 //#define DEBUG_COND2(obj) (obj->getID() == "p0")
 #define DEBUG_COND2(obj) (true)
@@ -48,14 +45,24 @@ Reservation::getID() const {
 // MSDispatch methods
 // ===========================================================================
 
-MSDispatch::MSDispatch(const std::map<std::string, std::string>& params) :
+MSDispatch::MSDispatch(const Parameterised::Map& params) :
     Parameterised(params),
-    myOutput(nullptr) {
-    const std::string outFile = OptionsCont::getOptions().getString("device.taxi.dispatch-algorithm.output");
-    if (outFile != "") {
-        myOutput = &OutputDevice::getDevice(outFile);
-        myOutput->writeXMLHeader("DispatchInfo", "");
+    myOutput(nullptr),
+    myReservationCount(0) {
+    const std::string opt = "device.taxi.dispatch-algorithm.output";
+    if (OptionsCont::getOptions().isSet(opt)) {
+        OutputDevice::createDeviceByOption(opt, "DispatchInfo");
+        myOutput = &OutputDevice::getDeviceByOption(opt);
     }
+}
+
+MSDispatch::~MSDispatch() {
+    for (auto item : myGroupReservations) {
+        for (Reservation* res : item.second) {
+            delete res;
+        }
+    }
+    myGroupReservations.clear();
 }
 
 
@@ -65,9 +72,16 @@ MSDispatch::addReservation(MSTransportable* person,
                            SUMOTime pickupTime,
                            const MSEdge* from, double fromPos,
                            const MSEdge* to, double toPos,
-                           const std::string& group,
-                           int maxCapacity) {
+                           std::string group,
+                           const std::string& line,
+                           int maxCapacity,
+                           int maxContainerCapacity) {
     // no new reservation nedded if the person can be added to an existing group
+    if (group == "") {
+        // the default empty group implies, no grouping is wanted (and
+        // transportable ids are unique)
+        group = person->getID();
+    }
     Reservation* result = nullptr;
     bool added = false;
     auto it = myGroupReservations.find(group);
@@ -78,8 +92,16 @@ MSDispatch::addReservation(MSTransportable* person,
                     && res->from == from
                     && res->to == to
                     && res->fromPos == fromPos
-                    && res->toPos == toPos
-                    && (int)res->persons.size() < maxCapacity) {
+                    && res->toPos == toPos) {
+                if (res->persons.size() > 0 && (*res->persons.begin())->isPerson() != person->isPerson()) {
+                    WRITE_WARNINGF(TL("Mixing reservations of persons and containers with the same group is not supported for % and %"),
+                                   (*res->persons.begin())->getID(), person->getID());
+                }
+                if ((person->isPerson() && (int)res->persons.size() >= maxCapacity) ||
+                        (!person->isPerson() && (int)res->persons.size() >= maxContainerCapacity)) {
+                    // split group to ensure that at least one taxi is capable of delivering group size.
+                    continue;
+                }
                 res->persons.insert(person);
                 result = res;
                 added = true;
@@ -88,7 +110,7 @@ MSDispatch::addReservation(MSTransportable* person,
         }
     }
     if (!added) {
-        Reservation* newRes = new Reservation({person}, reservationTime, pickupTime, from, fromPos, to, toPos, group);
+        Reservation* newRes = new Reservation(toString(myReservationCount++), {person}, reservationTime, pickupTime, from, fromPos, to, toPos, group, line);
         myGroupReservations[group].push_back(newRes);
         result = newRes;
     }
@@ -107,6 +129,51 @@ MSDispatch::addReservation(MSTransportable* person,
     return result;
 }
 
+
+std::string
+MSDispatch::removeReservation(MSTransportable* person,
+                              const MSEdge* from, double fromPos,
+                              const MSEdge* to, double toPos,
+                              std::string group) {
+    if (group == "") {
+        // the default empty group implies, no grouping is wanted (and
+        // transportable ids are unique)
+        group = person->getID();
+    }
+    std::string removedID = "";
+    auto it = myGroupReservations.find(group);
+    if (it != myGroupReservations.end()) {
+        // try to add to existing reservation
+        for (auto itRes = it->second.begin(); itRes != it->second.end(); itRes++) {
+            Reservation* res = *itRes;
+            if (res->persons.count(person) != 0
+                    && res->from == from
+                    && res->to == to
+                    && res->fromPos == fromPos
+                    && res->toPos == toPos) {
+                res->persons.erase(person);
+                if (res->persons.empty()) {
+                    removedID = res->id;
+                    fulfilledReservation(res);
+                    it->second.erase(itRes);
+                }
+                break;
+            }
+        }
+    }
+#ifdef DEBUG_RESERVATION
+    if (DEBUG_COND2(person)) std::cout << SIMTIME
+                                           << " removeReservation p=" << person->getID()
+                                           << " from=" << from->getID() << " fromPos=" << fromPos
+                                           << " to=" << to->getID() << " toPos=" << toPos
+                                           << " group=" << group
+                                           << " removedID=" << removedID
+                                           << "\n";
+#endif
+    return removedID;
+}
+
+
 std::vector<Reservation*>
 MSDispatch::getReservations() {
     std::vector<Reservation*> reservations;
@@ -117,17 +184,27 @@ MSDispatch::getReservations() {
 }
 
 
+std::vector<const Reservation*>
+MSDispatch::getRunningReservations() {
+    return std::vector<const Reservation*>(myRunningReservations.begin(), myRunningReservations.end());
+}
+
+
 void
 MSDispatch::servedReservation(const Reservation* res) {
+    if (myRunningReservations.count(res)) {
+        return; // was redispatch
+    }
     auto it = myGroupReservations.find(res->group);
     if (it == myGroupReservations.end()) {
-        throw ProcessError("Inconsistent group reservations.");
+        throw ProcessError(TL("Inconsistent group reservations."));
     }
     auto it2 = std::find(it->second.begin(), it->second.end(), res);
     if (it2 == it->second.end()) {
-        throw ProcessError("Inconsistent group reservations (2).");
+        throw ProcessError(TL("Inconsistent group reservations (2)."));
     }
-    delete *it2;
+    myRunningReservations.insert(*it2);
+    const_cast<Reservation*>(*it2)->state = Reservation::ASSIGNED;
     it->second.erase(it2);
     if (it->second.empty()) {
         myGroupReservations.erase(it);
@@ -135,11 +212,18 @@ MSDispatch::servedReservation(const Reservation* res) {
 }
 
 
+void
+MSDispatch::fulfilledReservation(const Reservation* res) {
+    myRunningReservations.erase(res);
+    delete res;
+}
+
+
 SUMOTime
 MSDispatch::computePickupTime(SUMOTime t, const MSDevice_Taxi* taxi, const Reservation& res, SUMOAbstractRouter<MSEdge, SUMOVehicle>& router) {
     ConstMSEdgeVector edges;
-    router.compute(taxi->getHolder().getEdge(), taxi->getHolder().getPositionOnLane(),
-                   res.from, res.fromPos, &taxi->getHolder(), t, edges);
+    router.compute(taxi->getHolder().getEdge(), taxi->getHolder().getPositionOnLane() - NUMERICAL_EPS,
+                   res.from, res.fromPos, &taxi->getHolder(), t, edges, true);
     return TIME2STEPS(router.recomputeCosts(edges, &taxi->getHolder(), t));
 }
 
@@ -153,12 +237,12 @@ MSDispatch::computeDetourTime(SUMOTime t, SUMOTime viaTime, const MSDevice_Taxi*
                               double& timeDirect) {
     ConstMSEdgeVector edges;
     if (timeDirect < 0) {
-        router.compute(from, fromPos, to, toPos, &taxi->getHolder(), t, edges);
+        router.compute(from, fromPos, to, toPos, &taxi->getHolder(), t, edges, true);
         timeDirect = router.recomputeCosts(edges, &taxi->getHolder(), fromPos, toPos, t);
         edges.clear();
     }
 
-    router.compute(from, fromPos, via, viaPos, &taxi->getHolder(), t, edges);
+    router.compute(from, fromPos, via, viaPos, &taxi->getHolder(), t, edges, true);
     const double start = STEPS2TIME(t);
     const double leg1 = router.recomputeCosts(edges, &taxi->getHolder(), fromPos, viaPos, t);
 #ifdef DEBUG_DETOUR
@@ -167,7 +251,7 @@ MSDispatch::computeDetourTime(SUMOTime t, SUMOTime viaTime, const MSDevice_Taxi*
     const double wait = MAX2(0.0, STEPS2TIME(viaTime) - (start + leg1));
     edges.clear();
     const SUMOTime timeContinue = TIME2STEPS(start + leg1 + wait);
-    router.compute(via, viaPos, to, toPos, &taxi->getHolder(), timeContinue, edges);
+    router.compute(via, viaPos, to, toPos, &taxi->getHolder(), timeContinue, edges, true);
     const double leg2 = router.recomputeCosts(edges, &taxi->getHolder(), viaPos, toPos, timeContinue);
     const double timeDetour = leg1 + wait + leg2;
 #ifdef DEBUG_DETOUR
@@ -178,5 +262,15 @@ MSDispatch::computeDetourTime(SUMOTime t, SUMOTime viaTime, const MSDevice_Taxi*
 #endif
     return timeDetour;
 }
+
+
+int
+MSDispatch::remainingCapacity(const MSDevice_Taxi* taxi, const Reservation* res) {
+    assert(res->persons.size() > 0);
+    return ((*res->persons.begin())->isPerson()
+            ? taxi->getHolder().getVehicleType().getPersonCapacity()
+            : taxi->getHolder().getVehicleType().getContainerCapacity()) - (int)res->persons.size();
+}
+
 
 /****************************************************************************/

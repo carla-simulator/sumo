@@ -1,6 +1,6 @@
 /****************************************************************************/
 // Eclipse SUMO, Simulation of Urban MObility; see https://eclipse.org/sumo
-// Copyright (C) 2001-2020 German Aerospace Center (DLR) and others.
+// Copyright (C) 2001-2023 German Aerospace Center (DLR) and others.
 // This program and the accompanying materials are made available under the
 // terms of the Eclipse Public License 2.0 which is available at
 // https://www.eclipse.org/legal/epl-2.0/
@@ -155,4 +155,13 @@ public:
      */
     static PositionVector makeRing(const double radius1, const double radius2, const Position& center, unsigned int nPoints);
 
+    /// @brief calculate lotSpace position
+    static const Position calculateLotSpacePosition(const PositionVector& shape, const int index,
+            const double spaceDim, const double angle, const double width, const double length);
+
+    /// @brief calculate lotSpace angle
+    static double calculateLotSpaceAngle(const PositionVector& shape, const int index, const double spaceDim, const double angle);
+
+    /// @brief calculate lotSpace slope
+    static double calculateLotSpaceSlope(const PositionVector& shape, const int index, const double spaceDim);
 };

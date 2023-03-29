@@ -1,6 +1,6 @@
 /****************************************************************************/
 // Eclipse SUMO, Simulation of Urban MObility; see https://eclipse.org/sumo
-// Copyright (C) 2001-2020 German Aerospace Center (DLR) and others.
+// Copyright (C) 2001-2023 German Aerospace Center (DLR) and others.
 // This program and the accompanying materials are made available under the
 // terms of the Eclipse Public License 2.0 which is available at
 // https://www.eclipse.org/legal/epl-2.0/
@@ -99,7 +99,14 @@ computeRoutes(RONet& net, ROLoader& loader, OptionsCont& oc) {
     const std::string routingAlgorithm = oc.getString("routing-algorithm");
     const double priorityFactor = oc.getFloat("weights.priority-factor");
     const SUMOTime begin = string2time(oc.getString("begin"));
-    const SUMOTime end = string2time(oc.getString("end"));
+    const SUMOTime end = oc.isDefault("end") ? SUMOTime_MAX : string2time(oc.getString("end"));
+    DijkstraRouter<ROEdge, ROVehicle>::Operation op = &ROEdge::getTravelTimeStatic;
+
+    if (oc.isSet("restriction-params") &&
+            (routingAlgorithm == "CH" || routingAlgorithm == "CHWrapper")) {
+        throw ProcessError(TLF("Routing algorithm '%' does not support restriction-params", routingAlgorithm));
+    }
+
     if (measure == "traveltime" && priorityFactor == 0) {
         if (routingAlgorithm == "dijkstra") {
             router = new DijkstraRouter<ROEdge, ROVehicle>(ROEdge::getAllEdges(), oc.getBool("ignore-errors"), ttFunction, nullptr, false, nullptr, net.hasPermissions(), oc.isSet("restriction-params"));
@@ -126,29 +133,27 @@ computeRoutes(RONet& net, ROLoader& loader, OptionsCont& oc) {
                          oc.isSet("astar.save-landmark-distances") ? oc.getString("astar.save-landmark-distances") : "", oc.getInt("routing-threads"));
             }
             router = new AStar(ROEdge::getAllEdges(), oc.getBool("ignore-errors"), ttFunction, lookup, net.hasPermissions(), oc.isSet("restriction-params"));
-        } else if (routingAlgorithm == "CH") {
+        } else if (routingAlgorithm == "CH" && !net.hasPermissions()) {
             const SUMOTime weightPeriod = (oc.isSet("weight-files") ?
                                            string2time(oc.getString("weight-period")) :
                                            SUMOTime_MAX);
             router = new CHRouter<ROEdge, ROVehicle>(
-                ROEdge::getAllEdges(), oc.getBool("ignore-errors"), &ROEdge::getTravelTimeStatic, SVC_IGNORING, weightPeriod, net.hasPermissions(), oc.isSet("restriction-params"));
-        } else if (routingAlgorithm == "CHWrapper") {
+                ROEdge::getAllEdges(), oc.getBool("ignore-errors"), ttFunction, SVC_IGNORING, weightPeriod, net.hasPermissions(), oc.isSet("restriction-params"));
+        } else if (routingAlgorithm == "CHWrapper" || routingAlgorithm == "CH") {
+            // use CHWrapper instead of CH if the net has permissions
             const SUMOTime weightPeriod = (oc.isSet("weight-files") ?
                                            string2time(oc.getString("weight-period")) :
                                            SUMOTime_MAX);
             router = new CHRouterWrapper<ROEdge, ROVehicle>(
-                ROEdge::getAllEdges(), oc.getBool("ignore-errors"), &ROEdge::getTravelTimeStatic,
-                begin, end, weightPeriod, oc.getInt("routing-threads"));
+                ROEdge::getAllEdges(), oc.getBool("ignore-errors"), ttFunction,
+                begin, end, weightPeriod, net.hasPermissions(), oc.getInt("routing-threads"));
         } else {
-            throw ProcessError("Unknown routing Algorithm '" + routingAlgorithm + "'!");
+            throw ProcessError(TLF("Unknown routing Algorithm '%'!", routingAlgorithm));
         }
     } else {
-        DijkstraRouter<ROEdge, ROVehicle>::Operation op;
         if (measure == "traveltime") {
             if (ROEdge::initPriorityFactor(priorityFactor)) {
                 op = &ROEdge::getTravelTimeStaticPriorityFactor;
-            } else {
-                op = &ROEdge::getTravelTimeStatic;
             }
         } else if (measure == "CO") {
             op = &ROEdge::getEmissionEffort<PollutantsInterface::CO>;
@@ -170,7 +175,7 @@ computeRoutes(RONet& net, ROLoader& loader, OptionsCont& oc) {
             op = &ROEdge::getStoredEffort;
         }
         if (measure != "traveltime" && !net.hasLoadedEffort()) {
-            WRITE_WARNING("No weight data was loaded for attribute '" + measure + "'.");
+            WRITE_WARNINGF(TL("No weight data was loaded for attribute '%'."), measure);
         }
         router = new DijkstraRouter<ROEdge, ROVehicle>(
             ROEdge::getAllEdges(), oc.getBool("ignore-errors"), op, ttFunction, false, nullptr, net.hasPermissions(), oc.isSet("restriction-params"));
@@ -203,7 +208,7 @@ computeRoutes(RONet& net, ROLoader& loader, OptionsCont& oc) {
 
     RailwayRouter<ROEdge, ROVehicle>* railRouter = nullptr;
     if (net.hasBidiEdges()) {
-        railRouter = new RailwayRouter<ROEdge, ROVehicle>(ROEdge::getAllEdges(), true, ttFunction, nullptr, false, net.hasPermissions(),
+        railRouter = new RailwayRouter<ROEdge, ROVehicle>(ROEdge::getAllEdges(), true, op, ttFunction, false, net.hasPermissions(),
                 oc.isSet("restriction-params"),
                 oc.getFloat("railway.max-train-length"));
     }
@@ -230,8 +235,7 @@ computeRoutes(RONet& net, ROLoader& loader, OptionsCont& oc) {
 int
 main(int argc, char** argv) {
     OptionsCont& oc = OptionsCont::getOptions();
-    // give some application descriptions
-    oc.setApplicationDescription("Shortest path router and DUE computer for the microscopic, multi-modal traffic simulation SUMO.");
+    oc.setApplicationDescription(TL("Shortest path router and DUE computer for the microscopic, multi-modal traffic simulation SUMO."));
     oc.setApplicationName("duarouter", "Eclipse SUMO duarouter Version " VERSION_STRING);
     int ret = 0;
     RONet* net = nullptr;

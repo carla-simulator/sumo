@@ -1,6 +1,6 @@
 /****************************************************************************/
 // Eclipse SUMO, Simulation of Urban MObility; see https://eclipse.org/sumo
-// Copyright (C) 2001-2020 German Aerospace Center (DLR) and others.
+// Copyright (C) 2001-2023 German Aerospace Center (DLR) and others.
 // This program and the accompanying materials are made available under the
 // terms of the Eclipse Public License 2.0 which is available at
 // https://www.eclipse.org/legal/epl-2.0/
@@ -18,6 +18,7 @@
 // A class for visualizing busStop geometry (adapted from GUILaneWrapper)
 /****************************************************************************/
 #pragma once
+#include <config.h>
 #include "GNEStoppingPlace.h"
 
 
@@ -32,6 +33,9 @@
 class GNEContainerStop : public GNEStoppingPlace {
 
 public:
+    /// @brief default constructor
+    GNEContainerStop(GNENet* net);
+
     /**@brief Constructor
      * @param[in] id The storage of gl-ids to get the one for this lane representation from
      * @param[in] lane Lane of this StoppingPlace belongs
@@ -40,19 +44,30 @@ public:
      * @param[in] endPos End position of the StoppingPlace
      * @param[in] name Name of busStop
      * @param[in] lines lines of the busStop
+     * @param[in] containerCapacity larger numbers of containers trying to enter will create an upstream jam on the sidewalk.
+     * @param[in] parkingLength parking length
+     * @param[in] color containerStop color
      * @param[in] friendlyPos enable or disable friendly position
-     * @param[in] block movement enable or disable additional movement
+     * @param[in] parameters generic parameters
      */
-    GNEContainerStop(const std::string& id, GNELane* lane, GNENet* net, const double startPos, const double endPos, const int parametersSet,
-                     const std::string& name, const std::vector<std::string>& lines, bool friendlyPosition, bool blockMovement);
+    GNEContainerStop(const std::string& id, GNELane* lane, GNENet* net, const double startPos, const double endPos,
+                     const std::string& name, const std::vector<std::string>& lines, int containerCapacity, double parkingLength,
+                     const RGBColor& color, bool friendlyPosition, const Parameterised::Map& parameters);
 
     /// @brief Destructor
     ~GNEContainerStop();
 
+    /**@brief write additional element into a xml file
+    * @param[in] device device in which write parameters of additional element
+    */
+    void writeAdditional(OutputDevice& device) const;
+
     /// @name Functions related with geometry of element
     /// @{
+
     /// @brief update pre-computed geometry information
     void updateGeometry();
+
     /// @}
 
     /// @name inherited from GUIGlObject
@@ -66,6 +81,7 @@ public:
 
     /// @name inherited from GNEAttributeCarrier
     /// @{
+
     /* @brief method for getting the Attribute of an XML key
      * @param[in] key The attribute key
      * @return string with the value associated to key
@@ -81,7 +97,7 @@ public:
 
     /* @brief method for checking if the key and their correspond attribute are valids
      * @param[in] key The attribute key
-     * @param[in] value The value asociated to key key
+     * @param[in] value The value associated to key key
      * @return true if the value is valid, false in other case
      */
     bool isValid(SumoXMLAttr key, const std::string& value);
@@ -91,6 +107,15 @@ public:
 protected:
     /// @brief The list of lines that are assigned to this stop
     std::vector<std::string> myLines;
+
+    /// @brief maximum number of container that can wait at this stop
+    int myContainerCapacity;
+
+    /// @brief custom space for vehicles that park at this stop
+    double myParkingLength;
+
+    /// @brief RGB color
+    RGBColor myColor;
 
 private:
     /// @brief set attribute after validation

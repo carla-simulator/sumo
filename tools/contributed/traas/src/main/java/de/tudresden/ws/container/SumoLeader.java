@@ -1,6 +1,6 @@
 /****************************************************************************/
 // Eclipse SUMO, Simulation of Urban MObility; see https://eclipse.org/sumo
-// Copyright (C) 2017-2020 German Aerospace Center (DLR) and others.
+// Copyright (C) 2017-2023 German Aerospace Center (DLR) and others.
 // TraaS module
 // Copyright (C) 2016-2017 Dresden University of Technology
 // This program and the accompanying materials are made available under the
@@ -25,25 +25,13 @@ package de.tudresden.ws.container;
 /**
  *
  * @author Mario Krumnow
- *
+ * @deprecated use package {@link de.tudresden.sumo.objects} instead.
  */
 
-public class SumoLeader implements SumoObject {
+public class SumoLeader extends de.tudresden.sumo.objects.SumoLeader {
 
-    public String vehID;
-    public double dist;
-
-    public SumoLeader(String vehID, double dist) {
-        this.vehID = vehID;
-        this.dist = dist;
-    }
-
-    public boolean isValid() {
-        return !this.vehID.isEmpty();
-    }
-
-    public String toString() {
-        return "";
-    }
-
+	public SumoLeader(String vehID, double dist) {
+		super(vehID, dist);
+	}
+	
 }

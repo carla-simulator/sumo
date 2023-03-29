@@ -1,7 +1,8 @@
 ---
-title: Z/Changes from version 0.8.2.1 to version 0.8.2.2
-permalink: /Z/Changes_from_version_0.8.2.1_to_version_0.8.2.2/
+title: Changes from version 0.8.2.1 to version 0.8.2.2
 ---
+
+**Release date: 09.09.2005**
 
 User-relevant changes:
 

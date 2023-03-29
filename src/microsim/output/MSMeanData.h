@@ -1,6 +1,6 @@
 /****************************************************************************/
 // Eclipse SUMO, Simulation of Urban MObility; see https://eclipse.org/sumo
-// Copyright (C) 2001-2020 German Aerospace Center (DLR) and others.
+// Copyright (C) 2001-2023 German Aerospace Center (DLR) and others.
 // This program and the accompanying materials are made available under the
 // terms of the Eclipse Public License 2.0 which is available at
 // https://www.eclipse.org/legal/epl-2.0/
@@ -142,7 +142,7 @@ public:
          * @exception IOError If an error on writing occurs (!!! not yet implemented)
          */
         virtual void write(OutputDevice& dev, long long int attributeMask, const SUMOTime period,
-                           const double numLanes, const double defaultTravelTime,
+                           const double numLanes, const double speedLimit, const double defaultTravelTime,
                            const int numVehicles = -1) const = 0;
 
         /** @brief Returns the number of collected sample seconds.
@@ -157,12 +157,13 @@ public:
             return travelledDistance;
         }
 
-        /// @brief write attribute if it passed the attribute mask check
-        template <class T>
-        static void checkWriteAttribute(OutputDevice& dev, long long int attributeMask, const SumoXMLAttr attr, const T& val) {
-            if (attributeMask == 0 || attributeMask & ((long long int)1 << attr)) {
-                dev.writeAttr(attr, val);
-            }
+        /// @brief return attribute value
+        virtual double getAttributeValue(SumoXMLAttr a, const SUMOTime period, const double numLanes, const double speedLimit) const {
+            UNUSED_PARAMETER(a);
+            UNUSED_PARAMETER(period);
+            UNUSED_PARAMETER(numLanes);
+            UNUSED_PARAMETER(speedLimit);
+            return 0;
         }
 
     protected:
@@ -252,7 +253,7 @@ public:
          * @exception IOError If an error on writing occurs (!!! not yet implemented)
          */
         void write(OutputDevice& dev, long long int attributeMask, const SUMOTime period,
-                   const double numLanes, const double defaultTravelTime,
+                   const double numLanes, const double speedLimit, const double defaultTravelTime,
                    const int numVehicles = -1) const;
 
         int getNumReady() const;
@@ -316,7 +317,9 @@ public:
                const double minSamples,
                const double maxTravelTime,
                const std::string& vTypes,
-               const std::string& writeAttributes);
+               const std::string& writeAttributes,
+               const std::vector<MSEdge*>& edges,
+               bool aggregate);
 
 
     /// @brief Destructor
@@ -370,6 +373,17 @@ public:
         return myAmEdgeBased;
     }
 
+    /// @brief return all attributes that are (potentially) written by this output
+    virtual std::vector<std::string> getAttributeNames() const {
+        return std::vector<std::string>();
+    }
+
+    /// @brief return attribute value for the given lane
+    virtual double getAttributeValue(const MSLane* lane, SumoXMLAttr a, double defaultValue) const {
+        UNUSED_PARAMETER(lane);
+        UNUSED_PARAMETER(a);
+        return defaultValue;
+    }
 
 protected:
     /** @brief Create an instance of MeanDataValues
@@ -409,6 +423,20 @@ protected:
     void writeEdge(OutputDevice& dev, const std::vector<MeanDataValues*>& edgeValues,
                    MSEdge* edge, SUMOTime startTime, SUMOTime stopTime);
 
+
+    /** @brief Writes aggregate of all edge values into the given stream
+     *
+     * microsim: It is checked whether the dump shall be generated edge-
+     *  or lane-wise. In the first case, the lane-data are collected
+     *  and aggregated and written directly. In the second case, "writeLane"
+     *  is used to write each lane's state.
+     *
+     * @param[in] dev The output device to write the data into
+     * @param[in] startTime First time step the data were gathered
+     * @param[in] stopTime Last time step the data were gathered
+     */
+    void writeAggregated(OutputDevice& dev, SUMOTime startTime, SUMOTime stopTime);
+
     /** @brief Writes the interval opener
      *
      * @param[in] dev The output device to write the data into
@@ -429,6 +457,10 @@ protected:
     virtual bool writePrefix(OutputDevice& dev, const MeanDataValues& values,
                              const SumoXMLTag tag, const std::string id) const;
 
+
+protected:
+    const std::vector<MeanDataValues*>* getEdgeValues(const MSEdge* edge) const;
+
 protected:
     /// @brief the minimum sample seconds
     const double myMinSamples;
@@ -442,17 +474,23 @@ protected:
     /// @brief Whether empty lanes/edges shall be written
     const bool myDumpEmpty;
 
-private:
-    static long long int initWrittenAttributes(const std::string writeAttributes, const std::string& id);
-
     /// @brief Information whether the output shall be edge-based (not lane-based)
     const bool myAmEdgeBased;
+
+private:
+    static long long int initWrittenAttributes(const std::string writeAttributes, const std::string& id);
 
     /// @brief The first and the last time step to write information (-1 indicates always)
     const SUMOTime myDumpBegin, myDumpEnd;
 
+    /// @brief time at which init was called();
+    SUMOTime myInitTime;
+
     /// @brief The corresponding first edges
     MSEdgeVector myEdges;
+
+    /// @brief The index in myEdges / myMeasures
+    std::map<const MSEdge*, int> myEdgeIndex;
 
     /// @brief Whether empty lanes/edges shall be written
     const bool myPrintDefaults;
@@ -465,6 +503,9 @@ private:
 
     /// @brief bit mask for checking attributes to be written
     const long long int myWrittenAttributes;
+
+    /// @brief whether the data for all edges shall be aggregated
+    const bool myAggregate;
 
     /// @brief The intervals for which output still has to be generated (only in the tracking case)
     std::list< std::pair<SUMOTime, SUMOTime> > myPendingIntervals;

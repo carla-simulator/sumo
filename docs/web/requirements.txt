@@ -1,7 +1,10 @@
-mkdocs
+mkdocs>=1.1.0
 mkdocs-macros-plugin==0.2.4
 mdx_gh_links
 pymdown-extensions
 mkdocs-git-revision-date-plugin>=0.2
 mdx_truly_sane_lists
+plantuml==0.3.0
 plantuml-markdown
+markdown==3.3.7
+mkdocs-redirects==1.2.0

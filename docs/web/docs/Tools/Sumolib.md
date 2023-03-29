@@ -1,13 +1,12 @@
 ---
-title: Tools/Sumolib
-permalink: /Tools/Sumolib/
+title: Sumolib
 ---
 
 **sumolib** is a set of python modules for working with sumo networks,
 simulation output and other simulation artifacts. For a detailed list of
 available functions see the [pydoc generated
 documentation](http://sumo.dlr.de/pydoc/sumolib.html). You can
-[browse the code here](https://github.com/eclipse/sumo/tree/master/tools/sumolib).
+[browse the code here](https://github.com/eclipse/sumo/tree/main/tools/sumolib).
 
 # importing **sumolib** in a script
 
@@ -22,6 +21,24 @@ if 'SUMO_HOME' in os.environ:
 else:   
     sys.exit("please declare environment variable 'SUMO_HOME'")
 ```
+
+# loading a network file
+
+```
+# import the library
+import sumolib
+# parse the net
+net = sumolib.net.readNet('myNet.net.xml')
+```
+
+The following named arguments may be given to the `readNet` function (i.e. `readNet('myNet.net.xml', withInternal=True)`):
+
+- withPrograms (bool): import all traffic light programs (default False)
+- withLatestPrograms (bool) : import only the last program for each traffic light. This is the program that would be active in sumo by default. (default False)
+- withConnections (bool) : import all connections (default True)
+- withFoes (bool) : import right-of-way information (default True)
+- withInternal (bool) : import internal edges and lanes (default False)
+- withPedestrianConnections (bool) : import connections between sidewalks, crossings (default False)
 
 # usage examples
 
@@ -45,26 +62,29 @@ nextNodeID = net.getEdge('myEdgeID').getToNode().getID()
 ```
 speedSum = 0.0
 edgeCount = 0
-for edge in sumolib.output.parse('myNet.edg.xml', ['edge']):
+for edge in sumolib.xml.parse('myNet.edg.xml', ['edge']):
     speedSum += float(edge.speed)
     edgeCount += 1
 avgSpeed = speedSum / edgeCount
 ```
 
+!!! note
+    This is just a processing example. To compute average travel speeds in a network, process [edgeData](../Simulation/Output/Lane-_or_Edge-based_Traffic_Measures.md), [tripinfos](../Simulation/Output/TripInfo.md) or [summary-output](../Simulation/Output/Summary.md) instead.
+
 ## compute the median speed using the [Statistics](http://sumo.dlr.de/pydoc/sumolib.miscutils.html#Statistics) module
 
 ```
 edgeStats = sumolib.miscutils.Statistics("edge speeds")
-for edge in sumolib.output.parse('myNet.edg.xml', ['edge']):
+for edge in sumolib.xml.parse('myNet.edg.xml', ['edge']):
     edgeStats.add(float(edge.speed))
 avgSpeed = edgeStats.median()
 ```
 
 !!! note
-    Attribute *speed* is optional in user-generated *.edg.xml* files but will always be included if that file was written by [netconvert](../netconvert.md) or [netedit](../netedit.md).
+    Attribute *speed* is optional in user-generated *.edg.xml* files but will always be included if that file was written by [netconvert](../netconvert.md) or [netedit](../Netedit/index.md).
 
 ## locate nearby edges based on the geo-coordinate
-This requires the module [pyproj](https://code.google.com/p/pyproj/) to be installed.
+This requires the module [pyproj](https://github.com/pyproj4/pyproj) to be installed.
 For larger networks [rtree](https://pypi.org/project/Rtree/) is also strongly recommended.
 
 ```
@@ -81,7 +101,7 @@ if len(edges) > 0:
 ## parse all edges in a route file
 
 ```
-for route in sumolib.output.parse_fast("myRoutes.rou.xml", 'route', ['edges']):
+for route in sumolib.xml.parse_fast("myRoutes.rou.xml", 'route', ['edges']):
     edge_ids = route.edges.split()
     # do something with the vector of edge ids
 ```
@@ -89,15 +109,28 @@ for route in sumolib.output.parse_fast("myRoutes.rou.xml", 'route', ['edges
 ## parse vehicles and their route edges in a route file
 
 ```
-for vehicle in sumolib.output.parse("myRoutes.rou.xml", "vehicle"):
+for vehicle in sumolib.xml.parse("myRoutes.rou.xml", "vehicle"):
     route = vehicle.route[0] # access the first (and only) child element with name 'route'
     edges = route.edges.split()
 ```
 
+with automatic data conversions (including depart time as "HH:MM:SS"):
+
+```
+from sumolib.miscutils import parseTime
+for vehicle in sumolib.xml.parse("myRoutes.rou.xml", "vehicle", attr_conversions={
+            'depart' : parseTime,
+            'edges' : (lambda x : x.split())}):
+    edges = vehicle.route[0].edges
+    if vehicle.depart > 42:
+       ...
+```
+
+
 ## parse all edges in a edge data (meanData) file
 
 ```
-for interval in sumolib.output.parse("edgedata.xml", "interval"):
+for interval in sumolib.xml.parse("edgedata.xml", "interval"):
     for edge in interval.edge:    
         # do something with the edge attributes i.e. edge.entered
 ```
@@ -119,12 +152,28 @@ lon, lat = net.convertXY2LonLat(x, y, True)
 # from lane position to network coordinates
 x,y = sumolib.geomhelper.positionAtShapeOffset(net.getLane(laneID).getShape(), lanePos)
 # from network coordinates to lane position
-lane = net.getNeighboringLanes(x, y, radius) (see "locate nearby edges based on the geo-coordinate" above)
+lane, d = net.getNeighboringLanes(x, y, radius)[0] (see "locate nearby edges based on the geo-coordinate" above)
 lanePos, dist = sumolib.geomhelper.polygonOffsetAndDistanceToPoint((x,y), lane.getShape())
 ```
 
 see also
 [TraCI/Interfacing_TraCI_from_Python\#coordinate_transformations](../TraCI/Interfacing_TraCI_from_Python.md#coordinate_transformations)
+
+## Manipulating and writing xml
+
+```
+with open("patched.nod.xml", 'w') as outf:
+    # setting attrs is optional, it results in a cleaner patch file
+    attrs = {'node': ['id', 'x', 'y']}  # other attrs are not needed for patching
+    # parse always returns a generator but there is only one root element
+    nodes = list(sumolib.xml.parse('plain.nod.xml', 'nodes', attrs))[0]
+    for node in nodes.node:
+        node.addChild("param", { "key": "origPos", "value" : "%s %s" % (node.x, node.y) } )
+        node.x = float(node.x) + random.randint(-20, 20)
+        node.y = float(node.y) + random.randint(-20, 20)
+    outf.write(nodes.toXML())
+
+```
 
 # Further Examples
 

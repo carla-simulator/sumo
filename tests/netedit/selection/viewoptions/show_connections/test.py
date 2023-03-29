@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 # Eclipse SUMO, Simulation of Urban MObility; see https://eclipse.org/sumo
-# Copyright (C) 2009-2020 German Aerospace Center (DLR) and others.
+# Copyright (C) 2009-2023 German Aerospace Center (DLR) and others.
 # This program and the accompanying materials are made available under the
 # terms of the Eclipse Public License 2.0 which is available at
 # https://www.eclipse.org/legal/epl-2.0/
@@ -31,14 +31,11 @@ neteditProcess, referencePosition = netedit.setupAndStart(neteditTestRoot)
 # first rebuild network
 netedit.rebuildNetwork()
 
-# force save additionals
-netedit.forceSaveAdditionals()
-
 # go to select mode
 netedit.selectMode()
 
 # show connections
-netedit.changeEditMode('5')
+netedit.changeEditMode(netedit.attrs.modes.network.showConnections)
 
 # use a rectangle to check add mode
 netedit.selectionRectangle(referencePosition, 25, 0, 550, 470)
@@ -47,7 +44,7 @@ netedit.selectionRectangle(referencePosition, 25, 0, 550, 470)
 netedit.selectionClear()
 
 # hidde connections
-netedit.changeEditMode('5')
+netedit.changeEditMode(netedit.attrs.modes.network.showConnections)
 
 # use a rectangle to check add mode
 netedit.selectionRectangle(referencePosition, 25, 0, 550, 470)
@@ -59,11 +56,8 @@ netedit.selectionClear()
 netedit.undo(referencePosition, 4)
 netedit.redo(referencePosition, 4)
 
-# save additionals and shapes
-netedit.saveAdditionals(referencePosition)
-
-# save network
-netedit.saveNetwork(referencePosition)
+# save Netedit config
+netedit.saveNeteditConfig(referencePosition)
 
 # quit netedit
 netedit.quit(neteditProcess)

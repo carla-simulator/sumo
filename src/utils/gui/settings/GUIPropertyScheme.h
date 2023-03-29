@@ -1,6 +1,6 @@
 /****************************************************************************/
 // Eclipse SUMO, Simulation of Urban MObility; see https://eclipse.org/sumo
-// Copyright (C) 2001-2020 German Aerospace Center (DLR) and others.
+// Copyright (C) 2001-2023 German Aerospace Center (DLR) and others.
 // This program and the accompanying materials are made available under the
 // terms of the Eclipse Public License 2.0 which is available at
 // https://www.eclipse.org/legal/epl-2.0/
@@ -45,7 +45,7 @@ public:
     /// Constructor
     GUIPropertyScheme(const std::string& name, const T& baseColor,
                       const std::string& colName = "", const bool isFixed = false, double baseValue = 0,
-                      RGBColor bgColor = RGBColor::INVISIBLE,
+                      RGBColor bgColor = RGBColor::WHITE,
                       GUIIcon icon = GUIIcon::EMPTY) :
         myName(name), myIsInterpolated(!isFixed),
         myIsFixed(isFixed),
@@ -172,11 +172,13 @@ public:
         return myBgColor;
     }
 
-    void save(OutputDevice& dev) const {
+    void save(OutputDevice& dev, const std::string& prefix = "") const {
+        const int precision = dev.getPrecision();
+        const bool checkPrecision = precision <= 2; // 2 is default precision (see SystemFrame)
         const std::string tag = getTagName(myColors);
 
         dev.openTag(tag);
-        dev.writeAttr(SUMO_ATTR_NAME, myName);
+        dev.writeAttr(SUMO_ATTR_NAME, prefix + myName);
         if (!myIsFixed) {
             dev.writeAttr(SUMO_ATTR_INTERPOLATED, myIsInterpolated);
         }
@@ -187,7 +189,12 @@ public:
             dev.openTag(SUMO_TAG_ENTRY);
             dev.writeAttr(SUMO_ATTR_COLOR, *colIt);
             if (!myIsFixed && (*threshIt) != std::numeric_limits<double>::max()) {
-                dev.writeAttr(SUMO_ATTR_THRESHOLD, *threshIt);
+                const double t = *threshIt;
+                if (checkPrecision && t != 0 && fabs(t) < 0.01) {
+                    dev.setPrecision(8);
+                }
+                dev.writeAttr(SUMO_ATTR_THRESHOLD, t);
+                dev.setPrecision(precision);
             }
             if ((*nameIt) != "") {
                 dev.writeAttr(SUMO_ATTR_NAME, *nameIt);

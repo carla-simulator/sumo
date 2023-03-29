@@ -1,6 +1,6 @@
 /****************************************************************************/
 // Eclipse SUMO, Simulation of Urban MObility; see https://eclipse.org/sumo
-// Copyright (C) 2001-2020 German Aerospace Center (DLR) and others.
+// Copyright (C) 2001-2023 German Aerospace Center (DLR) and others.
 // This program and the accompanying materials are made available under the
 // terms of the Eclipse Public License 2.0 which is available at
 // https://www.eclipse.org/legal/epl-2.0/
@@ -94,8 +94,7 @@ checkOptions() {
 int
 main(int argc, char** argv) {
     OptionsCont& oc = OptionsCont::getOptions();
-    // give some application descriptions
-    oc.setApplicationDescription("Network importer / builder for the microscopic, multi-modal traffic simulation SUMO.");
+    oc.setApplicationDescription(TL("Network importer / builder for the microscopic, multi-modal traffic simulation SUMO."));
     oc.setApplicationName("netconvert", "Eclipse SUMO netconvert Version " VERSION_STRING);
     int ret = 0;
     try {
@@ -109,7 +108,7 @@ main(int argc, char** argv) {
         }
         XMLSubSys::setValidation(oc.getString("xml-validation"), oc.getString("xml-validation.net"), "never");
         if (oc.isDefault("aggregate-warnings")) {
-            oc.set("aggregate-warnings", "5");
+            oc.setDefault("aggregate-warnings", "5");
         }
         MsgHandler::initOutputOptions();
         if (!checkOptions()) {
@@ -118,7 +117,7 @@ main(int argc, char** argv) {
         RandHelper::initRandGlobal();
         // build the projection
         if (!GeoConvHelper::init(oc)) {
-            throw ProcessError("Could not build projection!");
+            throw ProcessError(TL("Could not build projection!"));
         }
         NBNetBuilder nb;
         nb.applyOptions(oc);
@@ -136,8 +135,11 @@ main(int argc, char** argv) {
         if (MsgHandler::getErrorInstance()->wasInformed()) {
             throw ProcessError();
         }
+        // report
+        nb.getNodeCont().printBuiltNodesStatistics();
         NWFrame::writeNetwork(oc, nb);
     } catch (const ProcessError& e) {
+        MsgHandler::getWarningInstance()->clear(false);
         MsgHandler::getErrorInstance()->clear(false);
         if (std::string(e.what()) != std::string("Process Error") && std::string(e.what()) != std::string("")) {
             WRITE_ERROR(e.what());
@@ -146,6 +148,7 @@ main(int argc, char** argv) {
         ret = 1;
 #ifndef _DEBUG
     } catch (const std::exception& e) {
+        MsgHandler::getWarningInstance()->clear(false);
         MsgHandler::getErrorInstance()->clear(false);
         if (std::string(e.what()) != std::string("")) {
             WRITE_ERROR(e.what());
@@ -153,6 +156,7 @@ main(int argc, char** argv) {
         MsgHandler::getErrorInstance()->inform("Quitting (on error).", false);
         ret = 1;
     } catch (...) {
+        MsgHandler::getWarningInstance()->clear(false);
         MsgHandler::getErrorInstance()->clear(false);
         MsgHandler::getErrorInstance()->inform("Quitting (on unknown error).", false);
         ret = 1;

@@ -1,6 +1,5 @@
 ---
 title: Libraries Licenses
-permalink: /Libraries_Licenses/
 ---
 
 This page lists all licenses of code SUMO depends on directly for
@@ -44,7 +43,7 @@ license files but we strive to list them here as well:
   footprint for "Search" due to a different callback, tests removed
   because they did not compile
 - License: public domain (see
-  [README.TXT](https://github.com/DLR-TS/sumo/blob/master/src/foreign/rtree/README.TXT))
+  [README.TXT](https://github.com/eclipse/sumo/blob/main/src/foreign/rtree/README.TXT))
 
 ### [odrSpiral](https://github.com/DLR-TS/odrSpiral) - Approximating curves
 
@@ -52,7 +51,14 @@ license files but we strive to list them here as well:
   from 2017-05-03
 - Modifications: includes and constants;
 - License: Apache License 2.0, see [license
-  file](https://github.com/DLR-TS/sumo/blob/master/src/foreign/eulerspiral/LICENSE.TXT)
+  file](https://github.com/eclipse/sumo/blob/main/src/foreign/eulerspiral/LICENSE.TXT)
+
+### [zstr](https://github.com/mateidavid/zstr) - A header only C++ ZLib wrapper
+
+- Version: 1.0.6
+- Modifications: only needed header files, includes fixed
+- License: MIT, see [license
+  file](https://github.com/eclipse/sumo/blob/main/src/foreign/zstr/LICENSE)
 
 # Referenced Libraries
 
@@ -71,7 +77,7 @@ license files but we strive to list them here as well:
 ### [FOX toolkit](http://fox-toolkit.org/) - GUI Widget Toolkit
 
 can be omitted, but [sumo-gui](sumo-gui.md),
-[netedit](netedit.md) and multithreading won't work
+[netedit](Netedit/index.md) and multithreading won't work
 
 - [GNU Lesser General Public
   License](https://www.gnu.org/copyleft/lesser.html) with static
@@ -84,12 +90,12 @@ can be omitted, but [sumo-gui](sumo-gui.md),
     binary
     distribution](https://github.com/winlibs/libjpeg/blob/master/README)
 
-### [PROJ.4](http://proj.osgeo.org) - Cartographic Projections Library
+### [PROJ.4](https://proj.org/) - Cartographic Projections Library
 
 can be omitted, but import of geo referenced networks like OpenStreetMap
 won't work
 
-- [MIT derived license](https://proj4.org/about.html#license)
+- [MIT derived license](https://proj.org/about.html#license)
 
 ## Optional
 
@@ -117,15 +123,12 @@ won't work
 
 ### [Google Test](https://github.com/google/googletest) - C++ Unit Test Framework
 
-- [BSD License](https://opensource.org/licenses/bsd-license.php)
+- [BSD License](https://github.com/google/googletest/blob/main/LICENSE)
 
 ## Data and Documentation
 
-Unless otherwise noted all documentation (including this wiki) and data
-files are
-
-<p style="border:1px solid #909090; padding:1px 4px 3px 4px"><img src="images/CC-BY-SA-small.png" alt="Creative Commons License">
-This work is licensed under a <a href="http://creativecommons.org/licenses/by-sa/3.0/">Creative Commons Attribution-ShareAlike 3.0 Unported License</a>. The authors are listed in the history.</p>
+Unless otherwise noted all documentation (including the files in this directory and below) and data
+files are licensed under the [Eclipse Public License v2](http://www.eclipse.org/legal/epl-v20.html) just as the rest of SUMO.
 
 ### 3D models
 

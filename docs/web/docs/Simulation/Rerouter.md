@@ -1,6 +1,5 @@
 ---
-title: Simulation/Rerouter
-permalink: /Simulation/Rerouter/
+title: Rerouter
 ---
 
 # Rerouter
@@ -56,31 +55,32 @@ The {{AdditionalFile}} looks like this:
 The {{AdditionalFile}} looks like this:
 
 ```
-<additional>
-   <rerouter id="<REROUTER_ID>" edges="<EDGE_ID>[;<EDGE_ID>]*" file="<DEFINITION_FILE>" [probability="<PROBABILITY>"]/>
+<additional>   
+   <rerouter id="<REROUTER_ID>" edges="<EDGE_ID>[;<EDGE_ID>]*" [probability="<PROBABILITY>"]>
+     <include href="definitions.xml"/>      
+   </rerouter>
 
    ... further rerouters ...
 </additional>
 ```
 
-And the <DEFINITION_FILE\> (which describes the actions over time) looks
+And the file `definitions.xml` (which describes the actions over time) looks
 like this:
 
 ```
-<rerouter>
    <interval begin="<BEGIN_TIME>" end="<END_TIME>">
       ... action description ...
    </interval>
 
    ... further intervals ...
-
-</rerouter>
 ```
 
-Note, that the name of the root-level element (`<rerouter>` in this case) is
-arbitrary.
+Note, that the definition file has no root-level element
 
-All the following examples use the separate file syntax.
+All the following examples use the [everything-in-one-file](#everything_in_one_file)-syntax.
+
+!!! caution
+    Support for rerouter attribute `file` to include additional definitions was removed in version 1.13.0 
 
 ## Closing a Street
 
@@ -154,6 +154,30 @@ The attributes used within such definitions are:
 
 !!! note
       Modified permissions may cause emergency braking. This can be mitigated by placing [VariableSpeedSigns](../Simulation/Variable_Speed_Signs.md) ahead of the closing and slowing down traffic briefly before the closing.
+
+### Reversible Lanes
+
+Two `closingLaneReroute` definitions may be used to simulate a reversible lane in the following way:
+
+- Define two edges in reverse directions with at least 2 lanes each
+- [prohibit driving on one of the central lanes](../Netedit/editModesCommon.md#inspecting_lanes) (disallow="all") 
+-  and modify the edge geometry so that the central lanes occupy the same space.
+  - by shifting geometry of [both edges sideways (-1.6 for default lane width)](../Netedit/editModesCommon.md#frame_operation)
+  - or by [setting the geometry directly](../Netedit/neteditUsageExamples.md#specifying_the_complete_geometry_of_an_edge_including_endpoints)
+
+To change their direction for a specific duration, the following rerouter may be used:
+
+```
+<rerouter id="example" edges="E1 -E1">
+      <interval begin="7:0:0" end="8:30:0">
+            <closingLaneReroute id="E1_1" allow="all"/>
+            <closingLaneReroute id="-E1_1" disallow="all"/>
+      </interval>
+
+   </rerouter>
+```
+
+Alternatively to changing lane permissions with a rerouter, the traci functions [`traci.lane.setAllowed` and `setDisallowed`](../TraCI/Change_Lane_State.md) may also be used.
 
 ## Assigning a new Destination
 
@@ -230,6 +254,10 @@ The attributes used within such definitions are:
 | **id**         | id (string) | The id of a new route to assign; the id must be the id of a previously loaded route                                                                          |
 | probability    | float       | The the probability with which a vehicle will use the given edge as destination; (default 1). The probabilities are automatically normalized for all entries |
 
+### Repeated public transport routes
+
+If the new route assigned with the rerouter contains stops, the vehicle will use these stops. If the stops use attribute 'until' then the route should use attribute ['cycleTime'](../Definition_of_Vehicles,_Vehicle_Types,_and_Routes.md#repeated_routes) to shift the until-times by a set amount on each repeat.
+
 ## Rerouting to an alternative Parking Area
 
 Vehicles that stop at a [parking
@@ -239,9 +267,9 @@ permit parking.
 
 In this case the vehicle either waits on the road until a parking space
 becomes available or it may reroute to an alternative parking area. For
-the latter behaviour a `parkingAreaReroute`-definition must be specified. This rerouter
+the latter behavior a `parkingAreaReroute`-definition must be specified. This rerouter
 definition defines a set of parking areas that may be mutually used as
-alternatives. Rerouting two another parking area is triggered in two
+alternatives. Rerouting to another parking area is triggered in two
 cases:
 
 - when a vehicle reaches a parkingArea and is unable to stop due to
@@ -268,8 +296,24 @@ The attributes used within such definitions are:
 | Attribute Name | Value Type  | Description              |
 | -------------- | ----------- | ----------------------------------------------------------------------------------------- |
 | **id**         | id (string) | The id of an existing parking area                                                                                                                          |
-| probability    | float       | The probability for each of the alternatives to be selected (default 1). The probabilities are automatically normalized over all definitions in a rerouter. |
+| probability    | float       | The probability for each of the alternatives to be selected (default 1). |
 | visible        | bool        | Whether occupancy of this parkingArea is known before reaching the parkingArea edge (this models line-of-sight as well as parking information systems).     |
+
+!!! note
+    The `<parkingAreaReroute>` definitions to model parking search can be automatically generated with the tool [generateParkingAreaRerouters.py](../Tools/Misc.md#generateparkingarearerouterspy)
+
+### Memory in parking search
+
+Parking search refers to the situation where a vehicle encounters an occupied parkingArea and has to pick among a list of alternative destinations without knowing their occupancy state. The vehicle has to iteratively drive to alternative destinations until a free parking space is found. ParkingAreas that were visited earlier (and occupied) might be reasonably visited again with the expectation that they have cleared up since the last visit. By default, vehicles will not visit an occupied parkingArea again for 600s. This can be modified with vehicle-param or vType-param as follows:
+
+```
+   <vehicle ...>
+      <param key="parking.memory" value="300"/>
+   </vehicle
+```
+
+!!! caution
+    Up to version 1.10.0 parking memory was 0 which could cause vehicles to only visited a small set of areas repeatedly
 
 ### Determining the alternative parking area
 
@@ -278,16 +322,18 @@ that are visible and have at least 1 free space according to the minimum
 weighted sum over a number of attributes. For invisible parkingAreas
 (attribute `visible="false"`, the occupancy value is a taken as a random number from
 \[0,capacity\[ which means they are always among the set of alternatives
-even when full. By default only the distance from the current vehicle
+even when full. Each attribute (i.e. occupancy, time, distance) is normalized to [0-1] with the maximum value of all candidate parkingAreas with positive remaining capacity) and inverted as necessary.
+
+By default only the distance from the current vehicle
 position to the new parking area is considered. The following table
 describes the weighting factors that can be customized using [generic
 parameters of the vehicle or its
 vType](../Simulation/GenericParameters.md):
+ 
 
 | Parameter Name              | Default value | Description                                                              | Inverse (Bigger is better) |
 | --------------------------- | ------------- | ------------------------------------------------------------------------ | -------------------------- |
 | parking.probability.weight  | 0             | the influence of the *probability* attribute of the `parkingAreaReroute` | yes                        |
-| parking.capacity.weight     | 0             | The total capacity of the parking area                                   | yes                        |
 | parking.capacity.weight     | 0             | The total capacity of the parking area                                   | yes                        |
 | parking.absfreespace.weight | 0             | The absolute number of free spaces                                       | yes                        |
 | parking.relfreespace.weight | 0             | The relative number of free spaces                                       | yes                        |
@@ -295,6 +341,16 @@ vType](../Simulation/GenericParameters.md):
 | parking.timeto.weight       | 0             | The assumed travel time to the parking area                              | no                         |
 | parking.distancefrom.weight | 0             | The road distance from the parking area to the vehicles destination      | no                         |
 | parking.timefrom.weight     | 0             | The assumed travel time from the parking area to the vehicle destination | no                         |
+
+When 'parking.probability.weight' is set to a positive value, a random number between 0 and attribute 'probability' is drawn for each candidate parkingArea. This value is then normalized to then range [0,1] by dividing with the maximum probability value of all parkingAreaReroute elements. The negative normalized value is then multiplied with parking.probability.weight to enter into the candidate score.
+
+### Further parameters to affect parking behavior
+
+Parameter Name         | Default value | Description                                                              | 
+| -------------------- | ------------- | ------------------------------------------------------------------------ |
+| parking.anywhere     | -1            | permit using any free parkingArea along the way after doing unsuccessful parkingAreaReroute x times (-1 disables this behavior) |
+| parking.frustration  | 100           | increases the preference for visibly free parkingAreas over time (after x unsuccessful parkingAreaReroutes, targets with unknown occupancy will assumed to be *almost* full)                                 | 
+| parking.knowledge    | 0             | Let driver "guess" the exact occupancy of invisible parkingAreas with probability x                   |
 
 ### Destination after rerouting
 
@@ -308,6 +364,10 @@ where
 
 then the new route will also end at the new parkingArea and the endPos
 of the new parkingArea will be set as new arrivalPos.
+
+### TraCI access to parkingSearch
+
+The current state of the parkingSearch can be accessed via calls to `traci.vehicle.getParameter` with the list permitted parameters given at [TraCI/Vehicle_Value_Retrieval](../TraCI/Vehicle_Value_Retrieval.md#supported_further_parameters).
 
 # Vehicle Behavior when closing a street
 The interaction of vehicles with reroutes is complex and depends on many
@@ -390,5 +450,4 @@ To following effects occur:
 ## Departure on a closed edge
 
 When the departure edge for a vehicle is closed, vehicles will ignore this for
-'soft' closing. For a 'hard' closing they delay their departure until the 
-closing has ended.
+'soft' closing. For a 'hard' closing the simulation will raise an error. If **--ignore-route-errors** is set, the vehicle will be discarded with a warning.

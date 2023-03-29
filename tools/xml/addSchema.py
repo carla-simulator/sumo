@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 # Eclipse SUMO, Simulation of Urban MObility; see https://eclipse.org/sumo
-# Copyright (C) 2010-2020 German Aerospace Center (DLR) and others.
+# Copyright (C) 2010-2023 German Aerospace Center (DLR) and others.
 # This program and the accompanying materials are made available under the
 # terms of the Eclipse Public License 2.0 which is available at
 # https://www.eclipse.org/legal/epl-2.0/
@@ -36,7 +36,7 @@ proc = {
 srcRoot = os.path.join(os.path.dirname(__file__), "..", "..")
 
 for root, dirs, files in os.walk(srcRoot):
-    for pattern, repTo in proc.iteritems():
+    for pattern, repTo in proc.items():
         for name in glob.glob(os.path.join(root, pattern)):
             repFrom = repTo[:repTo.find(' ')]
             print("Patching '%s'" % name)

@@ -1,6 +1,6 @@
 /****************************************************************************/
 // Eclipse SUMO, Simulation of Urban MObility; see https://eclipse.org/sumo
-// Copyright (C) 2004-2020 German Aerospace Center (DLR) and others.
+// Copyright (C) 2004-2023 German Aerospace Center (DLR) and others.
 // This program and the accompanying materials are made available under the
 // terms of the Eclipse Public License 2.0 which is available at
 // https://www.eclipse.org/legal/epl-2.0/
@@ -16,6 +16,7 @@
 /// @author  Sascha Krieg
 /// @author  Michael Behrisch
 /// @author  Jakob Erdmann
+/// @author  Johannes Rummel
 /// @date    Mon, 26.04.2004
 ///
 // Builds trigger objects for guisim
@@ -25,6 +26,7 @@
 
 #include <string>
 #include <netload/NLTriggerBuilder.h>
+#include <utils/common/RGBColor.h>
 
 
 // ===========================================================================
@@ -74,7 +76,7 @@ protected:
      */
     virtual MSLaneSpeedTrigger* buildLaneSpeedTrigger(MSNet& net,
             const std::string& id, const std::vector<MSLane*>& destLanes,
-            const std::string& file);
+            const std::string& file) override;
 
 
     /** @brief builds an rerouter
@@ -85,13 +87,11 @@ protected:
      * @param[in] id The id of the rerouter
      * @param[in] edges The edges the rerouter is placed at
      * @param[in] prob The probability the rerouter reoutes vehicles with
-     * @param[in] file The file to read the reroute definitions from
      */
     virtual MSTriggeredRerouter* buildRerouter(MSNet& net,
             const std::string& id, MSEdgeVector& edges,
-            double prob, const std::string& file, bool off,
-            SUMOTime timeThreshold,
-            const std::string& vTypes);
+            double prob, bool off, SUMOTime timeThreshold,
+            const std::string& vTypes) override;
 
 
     /** @brief Builds a bus stop
@@ -109,7 +109,7 @@ protected:
      */
     virtual void buildStoppingPlace(MSNet& net, std::string id, std::vector<std::string> lines, MSLane* lane,
                                     double frompos, double topos, const SumoXMLTag element, std::string string,
-                                    int personCapacity, double parkingLength);
+                                    int personCapacity, double parkingLength, RGBColor& color) override;
 
 
     /** @brief Builds a parking area
@@ -133,7 +133,8 @@ protected:
                                   double frompos, double topos,
                                   unsigned int capacity,
                                   double width, double length, double angle, const std::string& name,
-                                  bool onRoad);
+                                  bool onRoad,
+                                  const std::string& departPos) override;
 
 
     /** @brief Builds a charging station
@@ -154,7 +155,7 @@ protected:
     virtual void buildChargingStation(MSNet& net, const std::string& id, MSLane* lane,
                                       double frompos, double topos, const std::string& name,
                                       double chargingPower, double efficiency,
-                                      bool chargeInTransit, double chargeDelay);
+                                      bool chargeInTransit, SUMOTime chargeDelay) override;
 
     /** @brief Builds an overhead wire segment
     *
@@ -169,7 +170,7 @@ protected:
     * @exception InvalidArgument If the overhead wire segment can not be added to the net (is duplicate according to the id)
     */
     virtual void buildOverheadWireSegment(MSNet& net, const std::string& id, MSLane* lane,
-                                          double frompos, double topos, bool voltageSource);
+                                          double frompos, double topos, bool voltageSource) override;
 
     /** @brief Builds an overhead wire clamp
     *
@@ -180,18 +181,18 @@ protected:
     * @param[in] lane_start The lane, where is the overhead wire segment placed, to the start of which the overhead wire clamp is connected
     * @param[in] lane_end The lane, where is the overhead wire segment placed, to the end of which the overhead wire clamp is connected
     */
-    virtual void buildOverheadWireClamp(MSNet& net, const std::string& id, MSLane* lane_start, MSLane* lane_end);
+    virtual void buildOverheadWireClamp(MSNet& net, const std::string& id, MSLane* lane_start, MSLane* lane_end) override;
     /// @}
 
 
     /** @brief End a parking area
      * (it must be added to the SUMORTree after all parking spaces are loaded
      */
-    virtual void endParkingArea();
+    virtual void endParkingArea() override;
 
     /** @brief End a stopping place
      *
      * @exception InvalidArgument If the current stopping place is 0
      */
-    virtual void endStoppingPlace();
+    virtual void endStoppingPlace() override;
 };

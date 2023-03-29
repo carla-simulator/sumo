@@ -1,6 +1,5 @@
 ---
-title: Simulation/Output/Summary
-permalink: /Simulation/Output/Summary/
+title: Summary
 ---
 
 This output contains the simulation-wide number of vehicles that are
@@ -18,7 +17,7 @@ You can force the simulation to generate this output using **--summary** {{DT_FI
 The information containing all those values is computed for each time
 step and the output file looks like following:
 
-```
+```xml
 <summary>
     <step time="<SIMULATION_TIME>" \
             loaded="<LOADED_VEHICLE_NUMBER>" \
@@ -55,3 +54,12 @@ is given in the table below.
 | meanSpeed         | m/s                  | The mean speed over all vehicles in the network (which are not waiting at a `<stop>`).                                                                                          |
 | meanSpeedRelative |                      | The mean speed over all vehicles in the network relative to the speed limit (which are not waiting at a `<stop>`).                                                              |
 | duration          | ms                   | The computation time for that simulation step in milliseconds).                                                                                                         |
+
+## Visualization examples
+
+### Number of running and halting vehicles over time
+
+![plot-running](../../images/plot-running.png)
+
+Generated with [plotXMLAttributes.py](../../Tools/Visualization.md##multiple_timelines_from_summary-output).
+

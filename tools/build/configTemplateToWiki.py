@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 # Eclipse SUMO, Simulation of Urban MObility; see https://eclipse.org/sumo
-# Copyright (C) 2008-2020 German Aerospace Center (DLR) and others.
+# Copyright (C) 2008-2023 German Aerospace Center (DLR) and others.
 # This program and the accompanying materials are made available under the
 # terms of the Eclipse Public License 2.0 which is available at
 # https://www.eclipse.org/legal/epl-2.0/
@@ -68,7 +68,7 @@ class ConfigReader(handler.ContentHandler):
             if a != "":
                 print('**-%s** {{DT_%s}}<br>' % (a, attrs['type']), end=' ', file=self._file)
             print('**--%s** {{DT_%s}}' % (name, attrs['type']), end=' ', file=self._file)
-            helpStr = attrs['help']
+            helpStr = attrs['help'].replace('|', ',')
             if attrs['value']:
                 if helpStr:
                     helpStr += "; "

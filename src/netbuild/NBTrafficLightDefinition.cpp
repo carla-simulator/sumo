@@ -1,6 +1,6 @@
 /****************************************************************************/
 // Eclipse SUMO, Simulation of Urban MObility; see https://eclipse.org/sumo
-// Copyright (C) 2001-2020 German Aerospace Center (DLR) and others.
+// Copyright (C) 2001-2023 German Aerospace Center (DLR) and others.
 // This program and the accompanying materials are made available under the
 // terms of the Eclipse Public License 2.0 which is available at
 // https://www.eclipse.org/legal/epl-2.0/
@@ -44,6 +44,8 @@
 const std::string NBTrafficLightDefinition::DefaultProgramID = "0";
 const std::string NBTrafficLightDefinition::DummyID = "dummy";
 const SUMOTime NBTrafficLightDefinition::UNSPECIFIED_DURATION(-1);
+const int NBTrafficLightDefinition::MIN_YELLOW_SECONDS(3);
+
 
 // ===========================================================================
 // method definitions
@@ -69,8 +71,8 @@ NBTrafficLightDefinition::NBTrafficLightDefinition(const std::string& id,
         i++;
     }
     std::sort(myControlledNodes.begin(), myControlledNodes.end(), NBNode::nodes_by_id_sorter());
-    for (std::vector<NBNode*>::const_iterator i = junctions.begin(); i != junctions.end(); i++) {
-        (*i)->addTrafficLight(this);
+    for (NBNode* const node : junctions) {
+        node->addTrafficLight(this);
     }
 }
 
@@ -110,7 +112,7 @@ NBTrafficLightDefinition::compute(OptionsCont& oc) {
         for (auto it : nodes) {
             it->removeTrafficLight(this);
         }
-        WRITE_WARNING("The traffic light '" + getID() + "' does not control any links; it will not be build.");
+        WRITE_WARNINGF(TL("The traffic light '%' does not control any links; it will not be build."), getID());
         return nullptr;
     }
     // compute the time needed to brake
@@ -134,15 +136,15 @@ NBTrafficLightDefinition::amInvalid() const {
 
 int
 NBTrafficLightDefinition::computeBrakingTime(double minDecel) const {
-    if (myIncomingEdges.size() == 0) {
+    if (myIncomingEdges.empty()) {
         // don't crash
-        return 3;
+        return MIN_YELLOW_SECONDS;
     }
     const double vmax = NBContHelper::maxSpeed(myIncomingEdges);
     if (vmax < 71 / 3.6) {
         // up to 50kmh: 3 seconds , 60km/h: 4, 70kmh: 5
         // @note: these are German regulations, other countries may differ
-        return 3 + (int)MAX2(0.0, (floor((vmax - 50 / 3.6) * 0.37)));
+        return MIN_YELLOW_SECONDS + (int)MAX2(0.0, (floor((vmax - 50 / 3.6) * 0.37)));
     } else {
         // above 70km/h we use a function that grows according to the "natural"
         // formula (vmax / 2 * minDecel) but continues smoothly where the german
@@ -224,7 +226,7 @@ NBTrafficLightDefinition::collectEdges() {
         }
         if (reachable2.count(edge) == 0 && edge->getFirstNonPedestrianLaneIndex(NBNode::FORWARD, true) >= 0
                 && getID() != DummyID) {
-            WRITE_WARNING("Unreachable edge '" + edge->getID() + "' within tlLogic '" + getID() + "'");
+            WRITE_WARNINGF(TL("Unreachable edge '%' within tlLogic '%'"), edge->getID(), getID());
         }
     }
 }
@@ -451,6 +453,7 @@ void
 NBTrafficLightDefinition::collectAllLinks(NBConnectionVector& into) {
     int tlIndex = 0;
     // build the list of links which are controled by the traffic light
+    std::vector<int> indirectLeft;
     for (EdgeVector::iterator i = myIncomingEdges.begin(); i != myIncomingEdges.end(); i++) {
         NBEdge* incoming = *i;
         int noLanes = incoming->getNumLanes();
@@ -468,17 +471,42 @@ NBTrafficLightDefinition::collectAllLinks(NBConnectionVector& into) {
                         // must be registered in MSRailCrossing
                         into.push_back(NBConnection(incoming, el.fromLane, el.toEdge, el.toLane, -1));
                     } else if (incoming->getToNode()->getType() == SumoXMLNodeType::RAIL_SIGNAL
-                               && incoming->getToNode()->getDirection(incoming, el.toEdge) == LinkDirection::TURN) {
+                               && incoming->getToNode()->getDirection(incoming, el.toEdge) == LinkDirection::TURN
+                               // assume explicit connections at sharp turn-arounds are either for reversal or due to a geometry glitch
+                               // (the might also be due to faulty connection
+                               // input but they would not come from guessing)
+                               && (incoming->getBidiEdge() == el.toEdge)
+                              ) {
                         // turnarounds stay uncontrolled at rail signal
                     } else {
                         into.push_back(NBConnection(incoming, el.fromLane, el.toEdge, el.toLane, tlIndex++));
+                        if (el.indirectLeft) {
+                            indirectLeft.push_back((int)into.size() - 1);
+                        }
                     }
                 }
             }
         }
     }
+    if (indirectLeft.size() > 0) {
+        // assign linkIndex2 to indirect left turns
+        for (int i : indirectLeft) {
+            NBConnection& c = into[i];
+            // find straight connection with the same toEdge
+            for (const NBConnection& c2 : into) {
+                if (c2.getTo() == c.getTo() && c2.getFrom() != c.getFrom()) {
+                    LinkDirection dir =  c.getFrom()->getToNode()->getDirection(c2.getFrom(), c2.getTo());
+                    if (dir == LinkDirection::STRAIGHT) {
+                        c.setTLIndex2(c2.getTLIndex());
+                        break;
+                    }
+                }
+            }
+        }
+    }
+
     if (into.size() > 0 && tlIndex == 0) {
-        WRITE_WARNINGF("The rail crossing '%' does not have any roads.", getID());
+        WRITE_WARNINGF(TL("The rail crossing '%' does not have any roads."), getID());
     }
 }
 

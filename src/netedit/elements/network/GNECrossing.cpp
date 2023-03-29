@@ -1,6 +1,6 @@
 /****************************************************************************/
 // Eclipse SUMO, Simulation of Urban MObility; see https://eclipse.org/sumo
-// Copyright (C) 2001-2020 German Aerospace Center (DLR) and others.
+// Copyright (C) 2001-2023 German Aerospace Center (DLR) and others.
 // This program and the accompanying materials are made available under the
 // terms of the Eclipse Public License 2.0 which is available at
 // https://www.eclipse.org/legal/epl-2.0/
@@ -28,6 +28,7 @@
 #include <utils/gui/globjects/GUIGLObjectPopupMenu.h>
 #include <utils/gui/windows/GUIAppEnum.h>
 #include <utils/gui/div/GUIDesigns.h>
+#include <utils/gui/div/GUIGlobalPostDrawing.h>
 
 #include "GNECrossing.h"
 
@@ -35,35 +36,55 @@
 // ===========================================================================
 // method definitions
 // ===========================================================================
+
+GNECrossing::GNECrossing(GNENet* net) :
+    GNENetworkElement(net, "", GLO_CROSSING, SUMO_TAG_CROSSING, GUIIconSubSys::getIcon(GUIIcon::CROSSING), {}, {}, {}, {}, {}, {}),
+                  myParentJunction(nullptr),
+myTemplateNBCrossing(new NBNode::Crossing(nullptr, {}, 0, false, 0, 0, {})) {
+    // reset default values
+    resetDefaultValues();
+}
+
 GNECrossing::GNECrossing(GNEJunction* parentJunction, std::vector<NBEdge*> crossingEdges) :
-    GNENetworkElement(parentJunction->getNet(), parentJunction->getNBNode()->getCrossing(crossingEdges)->id,
-                      GLO_CROSSING, SUMO_TAG_CROSSING,
-{}, {}, {}, {}, {}, {}, {}, {}),
+    GNENetworkElement(parentJunction->getNet(), parentJunction->getNBNode()->getCrossing(crossingEdges)->id, GLO_CROSSING,
+                      SUMO_TAG_CROSSING, GUIIconSubSys::getIcon(GUIIcon::CROSSING), {}, {}, {}, {}, {}, {}),
 myParentJunction(parentJunction),
-myCrossingEdges(crossingEdges) {
+myCrossingEdges(crossingEdges),
+myTemplateNBCrossing(nullptr) {
     // update centering boundary without updating grid
     updateCenteringBoundary(false);
 }
 
 
-GNECrossing::~GNECrossing() {}
+GNECrossing::~GNECrossing() {
+    if (myTemplateNBCrossing) {
+        delete myTemplateNBCrossing;
+    }
+}
+
+
+bool
+GNECrossing::isNetworkElementValid() const {
+    return getNBCrossing()->valid;
+}
+
+
+std::string
+GNECrossing::getNetworkElementProblem() const {
+    return "Crossing's edges don't support pedestrians";
+}
 
 
 const PositionVector&
 GNECrossing::getCrossingShape() const {
-    auto crossing = myParentJunction->getNBNode()->getCrossing(myCrossingEdges);
-    if (crossing) {
-        return (crossing->customShape.size() > 0) ? crossing->customShape : crossing->shape;
-    } else {
-        throw ProcessError("Crossing doesn't exist");
-    }
+    const auto crossing = getNBCrossing();
+    return (crossing->customShape.size() > 0) ? crossing->customShape : crossing->shape;
 }
 
 
 void
 GNECrossing::updateGeometry() {
-    // rebuild crossing and walking areas form node parent
-    auto crossing = myParentJunction->getNBNode()->getCrossing(myCrossingEdges);
+    const auto crossing = getNBCrossing();
     // update crossing geometry
     myCrossingGeometry.updateGeometry(crossing->customShape.size() > 0 ?  crossing->customShape : crossing->shape);
 }
@@ -77,32 +98,12 @@ GNECrossing::getPositionInView() const {
 
 
 GNEMoveOperation*
-GNECrossing::getMoveOperation(const double shapeOffset) {
+GNECrossing::getMoveOperation() {
     // edit depending if shape is being edited
     if (isShapeEdited()) {
-        // get original shape
-        const PositionVector originalShape = getCrossingShape();
-        // declare shape to move
-        PositionVector shapeToMove = originalShape;
-        // first check if in the given shapeOffset there is a geometry point
-        const Position positionAtOffset = shapeToMove.positionAtOffset2D(shapeOffset);
-        // check if position is valid
-        if (positionAtOffset == Position::INVALID) {
-            return nullptr;
-        } else {
-            // obtain index
-            const int index = originalShape.indexOfClosest(positionAtOffset);
-            // declare new index
-            int newIndex = index;
-            // get snap radius
-            const double snap_radius = myNet->getViewNet()->getVisualisationSettings().neteditSizeSettings.crossingGeometryPointRadius;
-            // check if we have to create a new index
-            if (positionAtOffset.distanceSquaredTo2D(shapeToMove[index]) > (snap_radius * snap_radius)) {
-                newIndex = shapeToMove.insertAtClosest(positionAtOffset, true);
-            }
-            // return move operation for edit shape
-            return new GNEMoveOperation(this, originalShape, {index}, shapeToMove, {newIndex});
-        }
+        // calculate move shape operation
+        return calculateMoveShapeOperation(getCrossingShape(), myNet->getViewNet()->getPositionInformation(),
+                                           myNet->getViewNet()->getVisualisationSettings().neteditSizeSettings.crossingGeometryPointRadius, true);
     } else {
         return nullptr;
     }
@@ -126,9 +127,9 @@ GNECrossing::removeGeometryPoint(const Position clickedPosition, GNEUndoList* un
                 // remove geometry point
                 shape.erase(shape.begin() + index);
                 // commit new shape
-                undoList->p_begin("remove geometry point of " + getTagStr());
-                undoList->p_add(new GNEChange_Attribute(this, SUMO_ATTR_CUSTOMSHAPE, toString(shape)));
-                undoList->p_end();
+                undoList->begin(GUIIcon::CROSSING, "remove geometry point of " + getTagStr());
+                undoList->changeAttribute(new GNEChange_Attribute(this, SUMO_ATTR_CUSTOMSHAPE, toString(shape)));
+                undoList->end();
             }
         }
     }
@@ -149,12 +150,19 @@ GNECrossing::getCrossingEdges() const {
 
 NBNode::Crossing*
 GNECrossing::getNBCrossing() const {
-    return myParentJunction->getNBNode()->getCrossing(myCrossingEdges);
+    if (myTemplateNBCrossing) {
+        return myTemplateNBCrossing;
+    } else {
+        return myParentJunction->getNBNode()->getCrossing(myCrossingEdges);
+    }
 }
 
 
 void
 GNECrossing::drawGL(const GUIVisualizationSettings& s) const {
+    // check if draw start und end
+    const bool drawExtremeSymbols = myNet->getViewNet()->getEditModes().isCurrentSupermodeNetwork() &&
+                                    myNet->getViewNet()->getEditModes().networkEditMode == NetworkEditMode::NETWORK_MOVE;
     // declare flag for drawing crossing
     bool drawCrossing = s.drawCrossingsAndWalkingareas;
     // don't draw in supermode data
@@ -176,7 +184,7 @@ GNECrossing::drawGL(const GUIVisualizationSettings& s) const {
     // continue depending of drawCrossing flag
     if (drawCrossing) {
         // get NBCrossing
-        const auto NBCrossing = myParentJunction->getNBNode()->getCrossing(myCrossingEdges);
+        const auto NBCrossing = getNBCrossing();
         // draw crossing checking whether it is not too small if isn't being drawn for selecting
         const double selectionScale = isAttributeCarrierSelected() ? s.selectorFrameScale : 1;
         // set default values
@@ -187,92 +195,131 @@ GNECrossing::drawGL(const GUIVisualizationSettings& s) const {
         RGBColor crossingColor;
         // first check if we're editing shape
         if (myShapeEdited) {
-            crossingColor = s.colorSettings.editShape;
+            crossingColor = s.colorSettings.editShapeColor;
         } else if (drawUsingSelectColor()) {
             crossingColor = s.colorSettings.selectedCrossingColor;
         } else if (!NBCrossing->valid) {
-            crossingColor = s.colorSettings.crossingInvalid;
+            crossingColor = s.colorSettings.crossingInvalidColor;
         } else if (NBCrossing->priority) {
-            crossingColor = s.colorSettings.crossingPriority;
+            crossingColor = s.colorSettings.crossingPriorityColor;
         } else if (myNet->getViewNet()->getEditModes().isCurrentSupermodeData()) {
             crossingColor = s.laneColorer.getSchemes()[0].getColor(8);
         } else {
-            crossingColor = s.colorSettings.crossing;
+            crossingColor = s.colorSettings.crossingColor;
         }
-        // check that current mode isn't TLS
-        if (myNet->getViewNet()->getEditModes().networkEditMode != NetworkEditMode::NETWORK_TLS) {
-            // push name
-            glPushName(getGlID());
-            // push layer matrix
-            glPushMatrix();
-            // translate to front
-            myNet->getViewNet()->drawTranslateFrontAttributeCarrier(this, GLO_CROSSING);
-            // set color
-            GLHelper::setColor(crossingColor);
-            // draw depending of selection
-            if (s.drawForRectangleSelection || s.drawForPositionSelection) {
-                // just drawn a box line
-                GLHelper::drawBoxLines(myCrossingGeometry.getShape(), halfWidth);
-            } else {
-                // push rail matrix
-                glPushMatrix();
-                // draw on top of of the white area between the rails
-                glTranslated(0, 0, 0.1);
-                for (int i = 0; i < (int)myCrossingGeometry.getShape().size() - 1; i++) {
-                    // push draw matrix
-                    glPushMatrix();
-                    // translate and rotate
-                    glTranslated(myCrossingGeometry.getShape()[i].x(), myCrossingGeometry.getShape()[i].y(), 0.0);
-                    glRotated(myCrossingGeometry.getShapeRotations()[i], 0, 0, 1);
-                    // draw crossing depending if isn't being drawn for selecting
-                    for (double t = 0; t < myCrossingGeometry.getShapeLengths()[i]; t += spacing) {
-                        glBegin(GL_QUADS);
-                        glVertex2d(-halfWidth, -t);
-                        glVertex2d(-halfWidth, -t - length);
-                        glVertex2d(halfWidth, -t - length);
-                        glVertex2d(halfWidth, -t);
-                        glEnd();
+        // avoid draw invisible elements
+        if (crossingColor.alpha() != 0) {
+            // check that current mode isn't TLS
+            if (myNet->getViewNet()->getEditModes().networkEditMode != NetworkEditMode::NETWORK_TLS) {
+                // push name
+                GLHelper::pushName(getGlID());
+                // push layer matrix
+                GLHelper::pushMatrix();
+                // translate to front
+                myNet->getViewNet()->drawTranslateFrontAttributeCarrier(this, GLO_CROSSING);
+                // set color
+                GLHelper::setColor(crossingColor);
+                // draw depending of selection
+                if (s.drawForRectangleSelection || s.drawForPositionSelection) {
+                    // just drawn a box line
+                    GLHelper::drawBoxLines(myCrossingGeometry.getShape(), halfWidth);
+                } else {
+                    // push rail matrix
+                    GLHelper::pushMatrix();
+                    // draw on top of of the white area between the rails
+                    glTranslated(0, 0, 0.1);
+                    for (int i = 0; i < (int)myCrossingGeometry.getShape().size() - 1; i++) {
+                        // push draw matrix
+                        GLHelper::pushMatrix();
+                        // translate and rotate
+                        glTranslated(myCrossingGeometry.getShape()[i].x(), myCrossingGeometry.getShape()[i].y(), 0.0);
+                        glRotated(myCrossingGeometry.getShapeRotations()[i], 0, 0, 1);
+                        // draw crossing depending if isn't being drawn for selecting
+                        for (double t = 0; t < myCrossingGeometry.getShapeLengths()[i]; t += spacing) {
+                            glBegin(GL_QUADS);
+                            glVertex2d(-halfWidth, -t);
+                            glVertex2d(-halfWidth, -t - length);
+                            glVertex2d(halfWidth, -t - length);
+                            glVertex2d(halfWidth, -t);
+                            glEnd();
+                        }
+                        // pop draw matrix
+                        GLHelper::popMatrix();
                     }
-                    // pop draw matrix
-                    glPopMatrix();
+                    // pop rail matrix
+                    GLHelper::popMatrix();
                 }
-                // pop rail matrix
-                glPopMatrix();
+                // draw shape points only in Network supemode
+                if (myShapeEdited && s.drawMovingGeometryPoint(selectionScale, s.neteditSizeSettings.crossingGeometryPointRadius) && myNet->getViewNet()->getEditModes().isCurrentSupermodeNetwork()) {
+                    // color
+                    const RGBColor darkerColor = crossingColor.changedBrightness(-32);
+                    // draw geometry points
+                    GUIGeometry::drawGeometryPoints(s, myNet->getViewNet()->getPositionInformation(), myCrossingGeometry.getShape(), darkerColor, RGBColor::BLACK,
+                                                    s.neteditSizeSettings.crossingGeometryPointRadius, selectionScale,
+                                                    myNet->getViewNet()->getNetworkViewOptions().editingElevation(), drawExtremeSymbols);
+                    // draw moving hint
+                    if (myNet->getViewNet()->getEditModes().networkEditMode == NetworkEditMode::NETWORK_MOVE) {
+                        GUIGeometry::drawMovingHint(s, myNet->getViewNet()->getPositionInformation(), myCrossingGeometry.getShape(), darkerColor,
+                                                    s.neteditSizeSettings.crossingGeometryPointRadius, selectionScale);
+                    }
+                }
+                // pop layer matrix
+                GLHelper::popMatrix();
+                // pop name
+                GLHelper::popName();
             }
-            // draw shape points only in Network supemode
-            if (myShapeEdited && s.drawMovingGeometryPoint(selectionScale, s.neteditSizeSettings.crossingGeometryPointRadius) && myNet->getViewNet()->getEditModes().isCurrentSupermodeNetwork()) {
-                // color
-                const RGBColor darkerColor = crossingColor.changedBrightness(-32);
-                // draw geometry points
-                GNEGeometry::drawGeometryPoints(s, myNet->getViewNet(), myCrossingGeometry.getShape(), darkerColor, darkerColor, s.neteditSizeSettings.crossingGeometryPointRadius, selectionScale);
-                // draw moving hint
-                GNEGeometry::drawMovingHint(s, myNet->getViewNet(), myCrossingGeometry.getShape(), darkerColor, s.neteditSizeSettings.crossingGeometryPointRadius, selectionScale);
+            // link indices must be drawn in all edit modes if isn't being drawn for selecting
+            if (s.drawLinkTLIndex.show(myParentJunction) && !s.drawForRectangleSelection) {
+                drawTLSLinkNo(s, NBCrossing);
             }
-            // pop layer matrix
-            glPopMatrix();
-            // pop name
-            glPopName();
+            // draw crosing name
+            if (s.cwaEdgeName.show(this)) {
+                drawName(myCrossingGeometry.getShape().getCentroid(), s.scale, s.edgeName, 0, true);
+            }
+            // draw lock icon
+            GNEViewNetHelper::LockIcon::drawLockIcon(this, getType(), getPositionInView(), 1);
         }
-        // link indices must be drawn in all edit modes if isn't being drawn for selecting
-        if (s.drawLinkTLIndex.show && !s.drawForRectangleSelection) {
-            drawTLSLinkNo(s, NBCrossing);
+        // check if mouse is over element
+        mouseWithinGeometry(myCrossingGeometry.getShape(), halfWidth);
+        // inspect contour
+        if (myNet->getViewNet()->isAttributeCarrierInspected(this)) {
+            GUIDottedGeometry::drawDottedContourShape(s, GUIDottedGeometry::DottedContourType::INSPECT, myCrossingGeometry.getShape(), halfWidth,
+                    selectionScale, true, true);
         }
-        // check if dotted contour has to be drawn (not useful at high zoom)
-        if (s.drawDottedContour() || myNet->getViewNet()->isAttributeCarrierInspected(this)) {
-            GNEGeometry::drawDottedContourShape(GNEGeometry::DottedContourType::INSPECT, s, myCrossingGeometry.getShape(), halfWidth, selectionScale);
+        // front contour
+        if (myNet->getViewNet()->getFrontAttributeCarrier() == this) {
+            GUIDottedGeometry::drawDottedContourShape(s, GUIDottedGeometry::DottedContourType::FRONT, myCrossingGeometry.getShape(), halfWidth,
+                    selectionScale, true, true);
         }
-        // check if dotted contour has to be drawn (not useful at high zoom)
-        if (s.drawDottedContour() || (myNet->getViewNet()->getFrontAttributeCarrier() == this)) {
-            GNEGeometry::drawDottedContourShape(GNEGeometry::DottedContourType::FRONT, s, myCrossingGeometry.getShape(), halfWidth, selectionScale);
+        // delete contour
+        if (myNet->getViewNet()->drawDeleteContour(this, this)) {
+            GUIDottedGeometry::drawDottedContourShape(s, GUIDottedGeometry::DottedContourType::REMOVE, myCrossingGeometry.getShape(), halfWidth,
+                    selectionScale, true, true);
+        }
+        // delete contour
+        if (myNet->getViewNet()->drawSelectContour(this, this)) {
+            GUIDottedGeometry::drawDottedContourShape(s, GUIDottedGeometry::DottedContourType::SELECT, myCrossingGeometry.getShape(), halfWidth,
+                    selectionScale, true, true);
         }
     }
+}
+
+
+void GNECrossing::deleteGLObject() {
+    myNet->deleteNetworkElement(this, myNet->getViewNet()->getUndoList());
+}
+
+
+void
+GNECrossing::updateGLObject() {
+    updateGeometry();
 }
 
 
 void
 GNECrossing::drawTLSLinkNo(const GUIVisualizationSettings& s, const NBNode::Crossing* crossing) const {
     // push matrix
-    glPushMatrix();
+    GLHelper::pushMatrix();
     // move to GLO_Crossing
     glTranslated(0, 0, GLO_CROSSING + 0.5);
     // make a copy of shape
@@ -286,7 +333,7 @@ GNECrossing::drawTLSLinkNo(const GUIVisualizationSettings& s, const NBNode::Cros
     GLHelper::drawTextAtEnd(toString(linkNo2), shape, 0, s.drawLinkTLIndex, s.scale);
     GLHelper::drawTextAtEnd(toString(linkNo), shape.reverse(), 0, s.drawLinkTLIndex, s.scale);
     // push matrix
-    glPopMatrix();
+    GLHelper::popMatrix();
 }
 
 
@@ -300,7 +347,7 @@ GNECrossing::getPopUpMenu(GUIMainWindow& app, GUISUMOAbstractView& parent) {
     myNet->getViewNet()->buildSelectionACPopupEntry(ret, this);
     buildShowParamsPopupEntry(ret);
     // build position copy entry
-    buildPositionCopyEntry(ret, false);
+    buildPositionCopyEntry(ret, app);
     // check if we're in supermode network
     if (myNet->getViewNet()->getEditModes().isCurrentSupermodeNetwork()) {
         // create menu commands
@@ -317,7 +364,7 @@ GNECrossing::getPopUpMenu(GUIMainWindow& app, GUISUMOAbstractView& parent) {
 
 void
 GNECrossing::updateCenteringBoundary(const bool /*updateGrid*/) {
-    auto crossing = myParentJunction->getNBNode()->getCrossing(myCrossingEdges);
+    const auto crossing = getNBCrossing();
     if (crossing) {
         if (crossing->customShape.size() > 0) {
             myBoundary = crossing->customShape.getBoxBoundary();
@@ -337,7 +384,7 @@ GNECrossing::updateCenteringBoundary(const bool /*updateGrid*/) {
 
 std::string
 GNECrossing::getAttribute(SumoXMLAttr key) const {
-    auto crossing = myParentJunction->getNBNode()->getCrossing(myCrossingEdges, (key != SUMO_ATTR_ID));
+    const auto crossing = getNBCrossing();
     switch (key) {
         case SUMO_ATTR_ID:
             // get attribute requires a special case
@@ -400,7 +447,7 @@ GNECrossing::isAttributeEnabled(SumoXMLAttr key) const {
             return false;
         case SUMO_ATTR_TLLINKINDEX:
         case SUMO_ATTR_TLLINKINDEX2:
-            return (myParentJunction->getNBNode()->getCrossing(myCrossingEdges)->tlID != "");
+            return (getNBCrossing()->tlID != "");
         default:
             return true;
     }
@@ -409,7 +456,7 @@ GNECrossing::isAttributeEnabled(SumoXMLAttr key) const {
 
 bool
 GNECrossing::isValid(SumoXMLAttr key, const std::string& value) {
-    auto crossing = myParentJunction->getNBNode()->getCrossing(myCrossingEdges);
+    const auto crossing = getNBCrossing();
     switch (key) {
         case SUMO_ATTR_ID:
             return false;
@@ -435,12 +482,12 @@ GNECrossing::isValid(SumoXMLAttr key, const std::string& value) {
                 return false;
             }
         case SUMO_ATTR_WIDTH:
-            return canParse<double>(value) && ((parse<double>(value) > 0) || (parse<double>(value) == -1)); // kann NICHT 0 sein, oder -1 (bedeutet default)
+            return canParse<double>(value) && ((parse<double>(value) > 0) || (parse<double>(value) == -1)); // can not be 0, or -1 (it means default)
         case SUMO_ATTR_PRIORITY:
             return canParse<bool>(value);
         case SUMO_ATTR_TLLINKINDEX:
         case SUMO_ATTR_TLLINKINDEX2:
-            // -1 means that tlLinkIndex2 takes on the same value as tlLinkIndex when setting idnices
+            // -1 means that tlLinkIndex2 takes on the same value as tlLinkIndex when setting indices
             return (isAttributeEnabled(key) &&
                     canParse<int>(value)
                     && (parse<double>(value) >= 0 || parse<double>(value) == -1)
@@ -460,15 +507,15 @@ GNECrossing::isValid(SumoXMLAttr key, const std::string& value) {
 }
 
 
-const std::map<std::string, std::string>&
+const Parameterised::Map&
 GNECrossing::getACParametersMap() const {
-    return myParentJunction->getNBNode()->getCrossing(myCrossingEdges)->getParametersMap();
+    return getNBCrossing()->getParametersMap();
 }
 
 
 bool
 GNECrossing::checkEdgeBelong(GNEEdge* edge) const {
-    auto crossing = myParentJunction->getNBNode()->getCrossing(myCrossingEdges);
+    const auto crossing = getNBCrossing();
     if (std::find(crossing->edges.begin(), crossing->edges.end(), edge->getNBEdge()) !=  crossing->edges.end()) {
         return true;
     } else {
@@ -493,7 +540,7 @@ GNECrossing::checkEdgeBelong(const std::vector<GNEEdge*>& edges) const {
 
 void
 GNECrossing::setAttribute(SumoXMLAttr key, const std::string& value) {
-    auto crossing = myParentJunction->getNBNode()->getCrossing(myCrossingEdges);
+    const auto crossing = getNBCrossing();
     switch (key) {
         case SUMO_ATTR_ID:
             throw InvalidArgument("Modifying attribute '" + toString(key) + "' of " + getTagStr() + " isn't allowed");
@@ -518,7 +565,9 @@ GNECrossing::setAttribute(SumoXMLAttr key, const std::string& value) {
             // Change width an refresh element
             crossing->customWidth = parse<double>(value);
             // update boundary
-            updateCenteringBoundary(false);
+            if (myParentJunction) {
+                updateCenteringBoundary(false);
+            }
             break;
         case SUMO_ATTR_PRIORITY:
             crossing->priority = parse<bool>(value);
@@ -537,7 +586,9 @@ GNECrossing::setAttribute(SumoXMLAttr key, const std::string& value) {
             // set custom shape
             crossing->customShape = parse<PositionVector>(value);
             // update boundary
-            updateCenteringBoundary(false);
+            if (myParentJunction) {
+                updateCenteringBoundary(false);
+            }
             break;
         }
         case GNE_ATTR_SELECTED:
@@ -554,16 +605,18 @@ GNECrossing::setAttribute(SumoXMLAttr key, const std::string& value) {
             throw InvalidArgument(getTagStr() + " doesn't have an attribute of type '" + toString(key) + "'");
     }
     // Crossing are a special case and we need ot update geometry of junction instead of crossing
-    if ((key != SUMO_ATTR_ID) && (key != GNE_ATTR_PARAMETERS) && (key != GNE_ATTR_SELECTED)) {
+    if (myParentJunction && (key != SUMO_ATTR_ID) && (key != GNE_ATTR_PARAMETERS) && (key != GNE_ATTR_SELECTED)) {
         myParentJunction->updateGeometry();
     }
+    // invalidate path calculator
+    myNet->getPathManager()->getPathCalculator()->invalidatePathCalculator();
 }
 
 
 void
 GNECrossing::setMoveShape(const GNEMoveResult& moveResult) {
     // set custom shape
-    myParentJunction->getNBNode()->getCrossing(myCrossingEdges)->customShape = moveResult.shapeToUpdate;
+    getNBCrossing()->customShape = moveResult.shapeToUpdate;
     // update geometry
     updateGeometry();
 }
@@ -572,9 +625,9 @@ GNECrossing::setMoveShape(const GNEMoveResult& moveResult) {
 void
 GNECrossing::commitMoveShape(const GNEMoveResult& moveResult, GNEUndoList* undoList) {
     // commit new shape
-    undoList->p_begin("moving " + toString(SUMO_ATTR_CUSTOMSHAPE) + " of " + getTagStr());
-    undoList->p_add(new GNEChange_Attribute(this, SUMO_ATTR_CUSTOMSHAPE, toString(moveResult.shapeToUpdate)));
-    undoList->p_end();
+    undoList->begin(GUIIcon::CROSSING, "moving " + toString(SUMO_ATTR_CUSTOMSHAPE) + " of " + getTagStr());
+    undoList->changeAttribute(new GNEChange_Attribute(this, SUMO_ATTR_CUSTOMSHAPE, toString(moveResult.shapeToUpdate)));
+    undoList->end();
 }
 
 /****************************************************************************/

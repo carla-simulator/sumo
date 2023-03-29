@@ -1,6 +1,6 @@
 /****************************************************************************/
 // Eclipse SUMO, Simulation of Urban MObility; see https://eclipse.org/sumo
-// Copyright (C) 2001-2020 German Aerospace Center (DLR) and others.
+// Copyright (C) 2001-2023 German Aerospace Center (DLR) and others.
 // This program and the accompanying materials are made available under the
 // terms of the Eclipse Public License 2.0 which is available at
 // https://www.eclipse.org/legal/epl-2.0/
@@ -45,7 +45,44 @@ struct GUIVisualizationTextSettings;
  * This class offers some static methods for drawing primitives in openGL.
  */
 class GLHelper {
+
 public:
+    /// @brief Storage for precomputed sin/cos-values describing a circle
+    static const std::vector<std::pair<double, double> >& getCircleCoords();
+
+    /// @brief normalize angle for lookup in myCircleCoords
+    static int angleLookup(double angleDeg);
+
+    /// @brief push matrix
+    static void pushMatrix();
+
+    /// @brief pop matrix
+    static void popMatrix();
+
+    /// @brief push Name
+    static void pushName(unsigned int name);
+
+    /// @brief pop Name
+    static void popName();
+
+    /// @brief get matrix counter
+    static int getMatrixCounter();
+
+    /// @brief reset matrix counter
+    static void resetMatrixCounter();
+
+    /// @brief get vertex counter
+    static int getVertexCounter();
+
+    /// @brief reset vertex counter
+    static void resetVertexCounter();
+
+    /// @brief check counter matrix (for debug purposes)
+    static void checkCounterMatrix();
+
+    /// @brief check counter name (for debug purposes)
+    static void checkCounterName();
+
     /** @brief Draws a filled polygon described by the list of points
      * @note this only works well for convex polygons
      *
@@ -228,8 +265,8 @@ public:
      *
      * @param[in] width The width of the circle
      * @param[in] steps The number of steps to divide the circle into
-     * @param[in] beg The begin angle in degress
-     * @param[in] end The end angle in degress
+     * @param[in] beg The begin angle in degrees
+     * @param[in] end The end angle in degrees
      */
     static void drawFilledCircle(double width, int steps,
                                  double beg, double end);
@@ -254,8 +291,8 @@ public:
      * @param[in] width The (outer) width of the circle
      * @param[in] iwidth The inner width of the circle
      * @param[in] steps The number of steps to divide the circle into
-     * @param[in] beg The begin angle in degress
-     * @param[in] end The end angle in degress
+     * @param[in] beg The begin angle in degrees
+     * @param[in] end The end angle in degrees
      */
     static void drawOutlineCircle(double width, double iwidth,
                                   int steps, double beg, double end);
@@ -267,15 +304,19 @@ public:
      * @param[in] p2 The end of the line at which end the triangle shall be drawn
      * @param[in] tLength The length of the triangle
      * @param[in] tWidth The width of the triangle
+     * @param[in] extraOffset extra offset at end
      */
-    static void drawTriangleAtEnd(const Position& p1, const Position& p2,
-                                  double tLength, double tWidth);
+    static void drawTriangleAtEnd(const Position& p1, const Position& p2, double tLength,
+                                  double tWidth, const double extraOffset = 0);
 
     /// @brief Sets the gl-color to this value
     static void setColor(const RGBColor& c);
 
     /// @brief gets the gl-color
     static RGBColor getColor();
+
+    /// @brief get required width of text
+    static double getTextWidth(const std::string& text, double size);
 
     /* @brief draw Text with given parameters
      * when width is not given (negative) the font is scaled proportionally in
@@ -317,10 +358,17 @@ public:
     static void drawCrossTies(const PositionVector& geom,
                               const std::vector<double>& rots,
                               const std::vector<double>& lengths,
-                              double length, double spacing, double halfWidth, bool drawForRectangleSelection);
+                              double length, double spacing, double halfWidth, bool drawForSelection);
+
+    /// @bried draw the space between markings (in road color)
+    static void drawInverseMarkings(const PositionVector& geom,
+                                    const std::vector<double>& rots,
+                                    const std::vector<double>& lengths,
+                                    double maxLength, double spacing,
+                                    double halfWidth, bool cl, bool cr, bool lefthand, double scale);
 
     /// @brief draw vertex numbers for the given shape (in a random color)
-    static void debugVertices(const PositionVector& shape, double size, double layer = 256);
+    static void debugVertices(const PositionVector& shape, const GUIVisualizationTextSettings& settings, double scale, double layer = 1024);
 
     /// @brief Draw a boundary (used for debugging)
     static void drawBoundary(const Boundary& b);
@@ -328,14 +376,14 @@ public:
     /// @brief to be called when the font context is invalidated
     static void resetFont();
 
-    static void setGL2PS(bool active = true) {
-        myGL2PSActive = active;
-    }
+    /// @brief set GL2PS
+    static void setGL2PS(bool active = true);
+
+    /// @brief draw
+    static void drawSpaceOccupancies(const double exaggeration, const Position& pos, const double rotation,
+                                     const double width, const double length, const bool vehicle);
 
 private:
-    /// @brief normalize angle for lookup in myCircleCoords
-    static int angleLookup(double angleDeg);
-
     /// @brief whether the road makes a right turn (or goes straight)
     static bool rightTurn(double angle1, double angle2);
 
@@ -344,6 +392,18 @@ private:
 
     /// @brief get dotted contour colors (black and white). Vector will be automatically increased if current size is minor than size
     static const std::vector<RGBColor>& getDottedcontourColors(const int size);
+
+    /// @brief matrix counter (for debug purposes)
+    static int myMatrixCounter;
+
+    /// @brief matrix counter (for debug purposes)
+    static int myVertexCounter;
+
+    /// @brief matrix counter (for debug purposes)
+    static int myMatrixCounterDebug;
+
+    /// @brief name counter
+    static int myNameCounter;
 
     /// @brief Storage for precomputed sin/cos-values describing a circle
     static std::vector<std::pair<double, double> > myCircleCoords;
@@ -355,6 +415,6 @@ private:
     /// @brief whether we are currently rendering for gl2ps
     static bool myGL2PSActive;
 
-    /// @brief static vector with a list of alternated black/white colors (used for contourns)
+    /// @brief static vector with a list of alternated black/white colors (used for contours)
     static std::vector<RGBColor> myDottedcontourColors;
 };

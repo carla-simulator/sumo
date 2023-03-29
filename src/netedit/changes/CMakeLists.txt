@@ -1,14 +1,14 @@
 set(netedit_changes_SRCS
    GNEChange.h
    GNEChange.cpp
+   GNEChangeGroup.h
+   GNEChangeGroup.cpp
    GNEChange_Junction.h
    GNEChange_Junction.cpp
    GNEChange_Edge.h
    GNEChange_Edge.cpp
    GNEChange_EdgeType.h
    GNEChange_EdgeType.cpp
-   GNEChange_LaneType.h
-   GNEChange_LaneType.cpp
    GNEChange_Crossing.h
    GNEChange_Crossing.cpp
    GNEChange_Lane.h
@@ -31,10 +31,8 @@ set(netedit_changes_SRCS
    GNEChange_DataInterval.cpp
    GNEChange_GenericData.h
    GNEChange_GenericData.cpp
-   GNEChange_Shape.h
-   GNEChange_Shape.cpp
-   GNEChange_TAZElement.h
-   GNEChange_TAZElement.cpp
+   GNEChange_MeanData.h
+   GNEChange_MeanData.cpp
    GNEChange_Children.h
    GNEChange_Children.cpp
    )

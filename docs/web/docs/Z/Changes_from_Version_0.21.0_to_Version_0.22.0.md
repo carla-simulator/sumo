@@ -1,9 +1,8 @@
 ---
-title: Z/Changes from Version 0.21.0 to Version 0.22.0
-permalink: /Z/Changes_from_Version_0.21.0_to_Version_0.22.0/
+title: Changes from Version 0.21.0 to Version 0.22.0
 ---
 
-## Version 0.22.0 (11.11.2014)
+**Release date: 11.11.2014**
 
 ### Bugfixes
 

@@ -1,6 +1,5 @@
 ---
 title: sumo
-permalink: /sumo/
 ---
 
 # From 30.000 feet
@@ -50,6 +49,7 @@ configuration:
 |--------|-------------|
 | **-c** {{DT_FILE}}<br> **--configuration-file** {{DT_FILE}} | Loads the named config on startup |
 | **-C** {{DT_FILE}}<br> **--save-configuration** {{DT_FILE}} | Saves current configuration into FILE |
+| **--save-configuration.relative** {{DT_BOOL}} | Enforce relative paths when saving the configuration; *default:* **false** |
 | **--save-template** {{DT_FILE}} | Saves a configuration template (empty) into FILE |
 | **--save-schema** {{DT_FILE}} | Saves the configuration schema into FILE |
 | **--save-commented** {{DT_BOOL}} | Adds comments to saved template, configuration, or schema; *default:* **false** |
@@ -82,6 +82,8 @@ configuration:
 | **--netstate-dump.precision** {{DT_INT}} | Write positions and speeds with the given precision (default 2); *default:* **2** |
 | **--emission-output** {{DT_FILE}} | Save the emission values of each vehicle |
 | **--emission-output.precision** {{DT_INT}} | Write emission values with the given precision (default 2); *default:* **2** |
+| **--emission-output.geo** {{DT_BOOL}} | Save the positions in emission output using geo-coordinates (lon/lat); *default:* **false** |
+| **--emission-output.step-scaled** {{DT_BOOL}} | Write emission values scaled to the step length rather than as per-second values; *default:* **false** |
 | **--battery-output** {{DT_FILE}} | Save the battery values of each vehicle |
 | **--battery-output.precision** {{DT_INT}} | Write battery values with the given precision (default 2); *default:* **2** |
 | **--elechybrid-output** {{DT_FILE}} | Save the elecHybrid values of each vehicle |
@@ -90,6 +92,7 @@ configuration:
 | **--chargingstations-output** {{DT_FILE}} | Write data of charging stations |
 | **--overheadwiresegments-output** {{DT_FILE}} | Write data of overhead wire segments |
 | **--substations-output** {{DT_FILE}} | Write data of electrical substation stations |
+| **--substations-output.precision** {{DT_INT}} | Write substation values with the given precision (default 2); *default:* **2** |
 | **--fcd-output** {{DT_FILE}} | Save the Floating Car Data |
 | **--fcd-output.geo** {{DT_BOOL}} | Save the Floating Car Data using geo-coordinates (lon/lat); *default:* **false** |
 | **--fcd-output.signals** {{DT_BOOL}} | Add the vehicle signal state to the FCD output (brake lights etc.); *default:* **false** |
@@ -98,14 +101,20 @@ configuration:
 | **--fcd-output.max-leader-distance** {{DT_FLOAT}} | Add leader vehicle information to the FCD output (within the given distance); *default:* **-1** |
 | **--fcd-output.params** {{DT_STR[]}} | Add generic parameter values to the FCD output |
 | **--fcd-output.filter-edges.input-file** {{DT_FILE}} | Restrict fcd output to the edge selection from the given input file |
+| **--fcd-output.attributes** {{DT_STR[]}} | List attributes that should be included in the FCD output |
+| **--fcd-output.filter-shapes** {{DT_STR[]}} | List shape names that should be used to filter the FCD output |
+| **--device.ssm.filter-edges.input-file** {{DT_FILE}} | Restrict SSM device output to the edge selection from the given input file |
 | **--full-output** {{DT_FILE}} | Save a lot of information for each timestep (very redundant) |
 | **--queue-output** {{DT_FILE}} | Save the vehicle queues at the junctions (experimental) |
+| **--queue-output.period** {{DT_TIME}} | Save vehicle queues with the given period; *default:* **-1** |
 | **--vtk-output** {{DT_FILE}} | Save complete vehicle positions inclusive speed values in the VTK Format (usage: /path/out will produce /path/out_$TIMESTEP$.vtp files) |
 | **--amitran-output** {{DT_FILE}} | Save the vehicle trajectories in the Amitran format |
 | **--summary-output** {{DT_FILE}} | Save aggregated vehicle departure info into FILE |
+| **--summary-output.period** {{DT_TIME}} | Save summary-output with the given period; *default:* **-1** |
 | **--person-summary-output** {{DT_FILE}} | Save aggregated person counts into FILE |
 | **--tripinfo-output** {{DT_FILE}} | Save single vehicle trip info into FILE |
 | **--tripinfo-output.write-unfinished** {{DT_BOOL}} | Write tripinfo output for vehicles which have not arrived at simulation end; *default:* **false** |
+| **--tripinfo-output.write-undeparted** {{DT_BOOL}} | Write tripinfo output for vehicles which have not departed at simulation end because of depart delay; *default:* **false** |
 | **--vehroute-output** {{DT_FILE}} | Save single vehicle route info into FILE |
 | **--vehroute-output.exit-times** {{DT_BOOL}} | Write the exit times for all edges; *default:* **false** |
 | **--vehroute-output.last-route** {{DT_BOOL}} | Write the last route only; *default:* **false** |
@@ -118,6 +127,9 @@ configuration:
 | **--vehroute-output.skip-ptlines** {{DT_BOOL}} | Skip vehroute output for public transport vehicles; *default:* **false** |
 | **--vehroute-output.incomplete** {{DT_BOOL}} | Include invalid routes and route stubs in vehroute output; *default:* **false** |
 | **--vehroute-output.stop-edges** {{DT_BOOL}} | Include information about edges between stops; *default:* **false** |
+| **--vehroute-output.speedfactor** {{DT_BOOL}} | Write the vehicle speedFactor (defaults to 'true' if departSpeed is written); *default:* **false** |
+| **--vehroute-output.internal** {{DT_BOOL}} | Include internal edges in the output; *default:* **false** |
+| **--personroute-output** {{DT_FILE}} | Save person and container routes to separate FILE |
 | **--link-output** {{DT_FILE}} | Save links states into FILE |
 | **--railsignal-block-output** {{DT_FILE}} | Save railsignal-blocks into FILE |
 | **--bt-output** {{DT_FILE}} | Save bluetooth visibilities into FILE (in conjunction with device.btreceiver and device.btsender) |
@@ -126,14 +138,21 @@ configuration:
 | **--lanechange-output.ended** {{DT_BOOL}} | Record end of lane change manoeuvres; *default:* **false** |
 | **--lanechange-output.xy** {{DT_BOOL}} | Record coordinates of lane change manoeuvres; *default:* **false** |
 | **--stop-output** {{DT_FILE}} | Record stops and loading/unloading of passenger and containers for all vehicles into FILE |
+| **--stop-output.write-unfinished** {{DT_BOOL}} | Write stop output for stops which have not ended at simulation end; *default:* **false** |
+| **--collision-output** {{DT_FILE}} | Write collision information into FILE |
+| **--edgedata-output** {{DT_FILE}} | Write aggregated traffic statistics for all edges into FILE |
+| **--lanedata-output** {{DT_FILE}} | Write aggregated traffic statistics for all lanes into FILE |
 | **--statistic-output** {{DT_FILE}} | Write overall statistics into FILE |
 | **--save-state.times** {{DT_STR[]}} | Use TIME[] as times at which a network state written |
 | **--save-state.period** {{DT_TIME}} | save state repeatedly after TIME period; *default:* **-1** |
+| **--save-state.period.keep** {{DT_INT}} | Keep only the last INT periodic state files; *default:* **0** |
 | **--save-state.prefix** {{DT_FILE}} | Prefix for network states; *default:* **state** |
 | **--save-state.suffix** {{DT_STR}} | Suffix for network states (.xml.gz or .xml); *default:* **.xml.gz** |
 | **--save-state.files** {{DT_FILE}} | Files for network states |
 | **--save-state.rng** {{DT_BOOL}} | Save random number generator states; *default:* **false** |
 | **--save-state.transportables** {{DT_BOOL}} | Save person and container states (experimental); *default:* **false** |
+| **--save-state.constraints** {{DT_BOOL}} | Save rail signal constraints; *default:* **false** |
+| **--save-state.precision** {{DT_INT}} | Write internal state values with the given precision (default 2); *default:* **2** |
 
 ### Time
 
@@ -154,45 +173,66 @@ configuration:
 | **-s** {{DT_TIME}}<br> **--route-steps** {{DT_TIME}} | Load routes for the next number of seconds ahead; *default:* **200** |
 | **--no-internal-links** {{DT_BOOL}} | Disable (junction) internal links; *default:* **false** |
 | **--ignore-junction-blocker** {{DT_TIME}} | Ignore vehicles which block the junction after they have been standing for SECONDS (-1 means never ignore); *default:* **-1** |
-| **--ignore-route-errors** {{DT_BOOL}} | (1) Do not check whether routes are connected. (2) Allow inserting a vehicle in a situation which requires emergency braking.; *default:* **false** |
+| **--ignore-route-errors** {{DT_BOOL}} | Do not check whether routes are connected; *default:* **false** |
 | **--ignore-accidents** {{DT_BOOL}} | Do not check whether accidents occur; *default:* **false** |
 | **--collision.action** {{DT_STR}} | How to deal with collisions: [none,warn,teleport,remove]; *default:* **teleport** |
 | **--collision.stoptime** {{DT_TIME}} | Let vehicle stop for TIME before performing collision.action (except for action 'none'); *default:* **0** |
 | **--collision.check-junctions** {{DT_BOOL}} | Enables collisions checks on junctions; *default:* **false** |
+| **--collision.check-junctions.mingap** {{DT_FLOAT}} | Increase or decrease sensitivity for junction collision check; *default:* **0** |
 | **--collision.mingap-factor** {{DT_FLOAT}} | Sets the fraction of minGap that must be maintained to avoid collision detection. If a negative value is given, the carFollowModel parameter is used; *default:* **-1** |
 | **--max-num-vehicles** {{DT_INT}} | Delay vehicle insertion to stay within the given maximum number; *default:* **-1** |
 | **--max-num-teleports** {{DT_INT}} | Abort the simulation if the given maximum number of teleports is exceeded; *default:* **-1** |
 | **--scale** {{DT_FLOAT}} | Scale demand by the given factor (by discarding or duplicating vehicles); *default:* **1** |
+| **--scale-suffix** {{DT_STR}} | Suffix to be added when creating ids for cloned vehicles; *default:* **.** |
 | **--time-to-teleport** {{DT_TIME}} | Specify how long a vehicle may wait until being teleported, defaults to 300, non-positive values disable teleporting; *default:* **300** |
 | **--time-to-teleport.highways** {{DT_TIME}} | The waiting time after which vehicles on a fast road (speed > 69km/h) are teleported if they are on a non-continuing lane; *default:* **0** |
+| **--time-to-teleport.highways.min-speed** {{DT_FLOAT}} | The waiting time after which vehicles on a fast road (default: speed > 69km/h) are teleported if they are on a non-continuing lane; *default:* **19.1667** |
+| **--time-to-teleport.disconnected** {{DT_TIME}} | The waiting time after which vehicles with a disconnected route are teleported. Negative values disable teleporting; *default:* **-1** |
+| **--time-to-teleport.remove** {{DT_BOOL}} | Whether vehicles shall be removed after waiting too long instead of being teleported; *default:* **false** |
+| **--time-to-teleport.ride** {{DT_TIME}} | The waiting time after which persons / containers waiting for a pickup are teleported. Negative values disable teleporting; *default:* **-1** |
+| **--time-to-teleport.bidi** {{DT_TIME}} | The waiting time after which vehicles on bidirectional edges are teleported; *default:* **-1** |
 | **--waiting-time-memory** {{DT_TIME}} | Length of time interval, over which accumulated waiting time is taken into account (default is 100s.); *default:* **100** |
+| **--startup-wait-threshold** {{DT_TIME}} | Minimum consecutive waiting time before applying startupDelay; *default:* **2** |
 | **--max-depart-delay** {{DT_TIME}} | How long vehicles wait for departure before being skipped, defaults to -1 which means vehicles are never skipped; *default:* **-1** |
 | **--sloppy-insert** {{DT_BOOL}} | Whether insertion on an edge shall not be repeated in same step once failed; *default:* **false** |
 | **--eager-insert** {{DT_BOOL}} | Whether each vehicle is checked separately for insertion on an edge; *default:* **false** |
+| **--emergency-insert** {{DT_BOOL}} | Allow inserting a vehicle in a situation which requires emergency braking; *default:* **false** |
 | **--random-depart-offset** {{DT_TIME}} | Each vehicle receives a random offset to its depart value drawn uniformly from [0, TIME]; *default:* **0** |
 | **--lanechange.duration** {{DT_TIME}} | Duration of a lane change maneuver (default 0); *default:* **0** |
 | **--lanechange.overtake-right** {{DT_BOOL}} | Whether overtaking on the right on motorways is permitted; *default:* **false** |
 | **--tls.all-off** {{DT_BOOL}} | Switches off all traffic lights.; *default:* **false** |
 | **--tls.actuated.show-detectors** {{DT_BOOL}} | Sets default visibility for actuation detectors; *default:* **false** |
+| **--tls.actuated.jam-threshold** {{DT_FLOAT}} | Sets default jam-threshold parameter for all actuation detectors; *default:* **-1** |
+| **--tls.actuated.detector-length** {{DT_FLOAT}} | Sets default detector length parameter for all actuation detectors; *default:* **0** |
 | **--tls.delay_based.detector-range** {{DT_FLOAT}} | Sets default range for detecting delayed vehicles; *default:* **100** |
-| **--time-to-impatience** {{DT_TIME}} | Specify how long a vehicle may wait until impatience grows from 0 to 1, defaults to 300, non-positive values disable impatience growth; *default:* **300** |
+| **--tls.yellow.min-decel** {{DT_FLOAT}} | Minimum deceleration when braking at yellow; *default:* **3** |
+| **--railsignal-moving-block** {{DT_BOOL}} | Let railsignals operate in moving-block mode by default; *default:* **false** |
+| **--time-to-impatience** {{DT_TIME}} | Specify how long a vehicle may wait until impatience grows from 0 to 1, defaults to 300, non-positive values disable impatience growth; *default:* **180** |
 | **--default.action-step-length** {{DT_FLOAT}} | Length of the default interval length between action points for the car-following and lane-change models (in seconds). If not specified, the simulation step-length is used per default. Vehicle- or VType-specific settings override the default. Must be a multiple of the simulation step-length.; *default:* **0** |
 | **--default.carfollowmodel** {{DT_STR}} | Select default car following model (Krauss, IDM, ...); *default:* **Krauss** |
 | **--default.speeddev** {{DT_FLOAT}} | Select default speed deviation. A negative value implies vClass specific defaults (0.1 for the default passenger class; *default:* **-1** |
 | **--default.emergencydecel** {{DT_STR}} | Select default emergencyDecel value among ('decel', 'default', FLOAT) which sets the value either to the same as the deceleration value, a vClass-class specific default or the given FLOAT in m/s^2; *default:* **default** |
-| **--overhead-wire-solver** {{DT_BOOL}} | Use Kirchhoff's laws for solving overhead wire circuit; *default:* **true** |
+| **--overhead-wire.solver** {{DT_BOOL}} | Use Kirchhoff's laws for solving overhead wire circuit; *default:* **true** |
+| **--overhead-wire.recuperation** {{DT_BOOL}} | Enable recuperation from the vehicle equipped with elecHybrid device into the ovrehead wire.; *default:* **true** |
+| **--overhead-wire.substation-current-limits** {{DT_BOOL}} | Enable current limits of traction substation during solving the overhead wire electrical circuit.; *default:* **true** |
 | **--emergencydecel.warning-threshold** {{DT_FLOAT}} | Sets the fraction of emergency decel capability that must be used to trigger a warning.; *default:* **1** |
-| **--parking.maneuver** {{DT_BOOL}} | Whether parking simulation includes manoeuvering time and associated lane blocking; *default:* **false** |
+| **--parking.maneuver** {{DT_BOOL}} | Whether parking simulation includes maneuvering time and associated lane blocking; *default:* **false** |
+| **--use-stop-ended** {{DT_BOOL}} | Override stop until times with stop ended times when given; *default:* **false** |
 | **--pedestrian.model** {{DT_STR}} | Select among pedestrian models ['nonInteracting', 'striping', 'remote']; *default:* **striping** |
 | **--pedestrian.striping.stripe-width** {{DT_FLOAT}} | Width of parallel stripes for segmenting a sidewalk (meters) for use with model 'striping'; *default:* **0.64** |
 | **--pedestrian.striping.dawdling** {{DT_FLOAT}} | Factor for random slow-downs [0,1] for use with model 'striping'; *default:* **0.2** |
+| **--pedestrian.striping.mingap-to-vehicle** {{DT_FLOAT}} | Minimal gap / safety buffer (in meters) from a pedestrian to another vehicle for use with model 'striping'; *default:* **0.25** |
 | **--pedestrian.striping.jamtime** {{DT_TIME}} | Time in seconds after which pedestrians start squeezing through a jam when using model 'striping' (non-positive values disable squeezing); *default:* **300** |
 | **--pedestrian.striping.jamtime.crossing** {{DT_TIME}} | Time in seconds after which pedestrians start squeezing through a jam while on a pedestrian crossing when using model 'striping' (non-positive values disable squeezing); *default:* **10** |
 | **--pedestrian.striping.jamtime.narrow** {{DT_TIME}} | Time in seconds after which pedestrians start squeezing through a jam while on a narrow lane when using model 'striping'; *default:* **1** |
 | **--pedestrian.striping.reserve-oncoming** {{DT_FLOAT}} | Fraction of stripes to reserve for oncoming pedestrians; *default:* **0** |
 | **--pedestrian.striping.reserve-oncoming.junctions** {{DT_FLOAT}} | Fraction of stripes to reserve for oncoming pedestrians on crossings and walkingareas; *default:* **0.34** |
+| **--pedestrian.striping.reserve-oncoming.max** {{DT_FLOAT}} | Maximum width in m to reserve for oncoming pedestrians; *default:* **1.28** |
+| **--pedestrian.striping.legacy-departposlat** {{DT_BOOL}} | Interpret departPosLat for walks in legacy style; *default:* **false** |
+| **--pedestrian.striping.walkingarea-detail** {{DT_INT}} | Generate INT intermediate points to smooth out lanes within the walkingarea; *default:* **4** |
 | **--pedestrian.remote.address** {{DT_STR}} | The address (host:port) of the external simulation; *default:* **localhost:9000** |
 | **--ride.stop-tolerance** {{DT_FLOAT}} | Tolerance to apply when matching pedestrian and vehicle positions on boarding at individual stops; *default:* **10** |
+| **--persontrip.walk-opposite-factor** {{DT_FLOAT}} | Use FLOAT as a factor on walking speed against vehicle traffic direction; *default:* **1** |
 
 ### Routing
 
@@ -201,7 +241,9 @@ configuration:
 | **--routing-algorithm** {{DT_STR}} | Select among routing algorithms ['dijkstra', 'astar', 'CH', 'CHWrapper']; *default:* **dijkstra** |
 | **--weights.random-factor** {{DT_FLOAT}} | Edge weights for routing are dynamically disturbed by a random factor drawn uniformly from [1,FLOAT); *default:* **1** |
 | **--weights.minor-penalty** {{DT_FLOAT}} | Apply the given time penalty when computing minimum routing costs for minor-link internal lanes; *default:* **1.5** |
+| **--weights.tls-penalty** {{DT_FLOAT}} | Apply scaled travel time penalties based on green split when computing minimum routing costs for internal lanes at traffic lights; *default:* **0** |
 | **--weights.priority-factor** {{DT_FLOAT}} | Consider edge priorities in addition to travel times, weighted by factor; *default:* **0** |
+| **--weights.separate-turns** {{DT_FLOAT}} | Distinguish travel time by turn direction and shift a fraction of the estimated time loss ahead of the intersection onto the internal edges; *default:* **0** |
 | **--astar.all-distances** {{DT_FILE}} | Initialize lookup table for astar from the given file (generated by marouter --all-pairs-output) |
 | **--astar.landmark-distances** {{DT_FILE}} | Initialize lookup table for astar ALT-variant from the given file |
 | **--persontrip.walkfactor** {{DT_FLOAT}} | Use FLOAT as a factor on pedestrian maximum speed during intermodal routing; *default:* **0.75** |
@@ -210,7 +252,8 @@ configuration:
 | **--persontrip.transfer.walk-taxi** {{DT_STR[]}} | Where taxis can pick up customers ('allJunctions, 'ptStops') |
 | **--persontrip.default.group** {{DT_STR}} | When set, trips between the same origin and destination will share a taxi by default |
 | **--persontrip.taxi.waiting-time** {{DT_TIME}} | Estimated time for taxi pickup; *default:* **300** |
-| **--railway.max-train-length** {{DT_FLOAT}} | Use FLOAT as a maximum train length when initializing the railway router; *default:* **5000** |
+| **--railway.max-train-length** {{DT_FLOAT}} | Use FLOAT as a maximum train length when initializing the railway router; *default:* **1000** |
+| **--replay-rerouting** {{DT_BOOL}} | Replay exact rerouting sequence from vehroute-output; *default:* **false** |
 | **--device.rerouting.probability** {{DT_FLOAT}} | The probability for a vehicle to have a 'rerouting' device; *default:* **-1** |
 | **--device.rerouting.explicit** {{DT_STR[]}} | Assign a 'rerouting' device to named vehicles |
 | **--device.rerouting.deterministic** {{DT_BOOL}} | The 'rerouting' devices are set deterministic using a fraction of 1000; *default:* **false** |
@@ -239,14 +282,15 @@ configuration:
 | **--print-options** {{DT_BOOL}} | Prints option values before processing; *default:* **false** |
 | **-?** {{DT_BOOL}}<br> **--help** {{DT_BOOL}} | Prints this screen or selected topics; *default:* **false** |
 | **-V** {{DT_BOOL}}<br> **--version** {{DT_BOOL}} | Prints the current version; *default:* **false** |
-| **-X** {{DT_STR}}<br> **--xml-validation** {{DT_STR}} | Set schema validation scheme of XML inputs ("never", "auto" or "always"); *default:* **auto** |
-| **--xml-validation.net** {{DT_STR}} | Set schema validation scheme of SUMO network inputs ("never", "auto" or "always"); *default:* **never** |
-| **--xml-validation.routes** {{DT_STR}} | Set schema validation scheme of SUMO route inputs ("never", "auto" or "always"); *default:* **auto** |
+| **-X** {{DT_STR}}<br> **--xml-validation** {{DT_STR}} | Set schema validation scheme of XML inputs ("never", "local", "auto" or "always"); *default:* **local** |
+| **--xml-validation.net** {{DT_STR}} | Set schema validation scheme of SUMO network inputs ("never", "local", "auto" or "always"); *default:* **never** |
+| **--xml-validation.routes** {{DT_STR}} | Set schema validation scheme of SUMO route inputs ("never", "local", "auto" or "always"); *default:* **local** |
 | **-W** {{DT_BOOL}}<br> **--no-warnings** {{DT_BOOL}} | Disables output of warnings; *default:* **false** |
 | **--aggregate-warnings** {{DT_INT}} | Aggregate warnings of the same type whenever more than INT occur; *default:* **-1** |
 | **-l** {{DT_FILE}}<br> **--log** {{DT_FILE}} | Writes all messages to FILE (implies verbose) |
 | **--message-log** {{DT_FILE}} | Writes all non-error messages to FILE (implies verbose) |
 | **--error-log** {{DT_FILE}} | Writes all warnings and errors to FILE |
+| **--language** {{DT_STR}} | Language to use in messages; *default:* **C** |
 | **--duration-log.disable** {{DT_BOOL}} | Disable performance reports for individual simulation steps; *default:* **false** |
 | **-t** {{DT_BOOL}}<br> **--duration-log.statistics** {{DT_BOOL}} | Enable statistics on vehicle trips; *default:* **false** |
 | **--no-step-log** {{DT_BOOL}} | Disable console output of current simulation step; *default:* **false** |
@@ -256,10 +300,14 @@ configuration:
 
 | Option | Description |
 |--------|-------------|
-| **--phemlight-path** {{DT_FILE}} | Determines where to load PHEMlight definitions from.; *default:* **./PHEMlight/** |
+| **--emissions.volumetric-fuel** {{DT_BOOL}} | Return fuel consumption values in (legacy) unit l instead of mg; *default:* **false** |
+| **--phemlight-path** {{DT_FILE}} | Determines where to load PHEMlight definitions from; *default:* **./PHEMlight/** |
+| **--phemlight-year** {{DT_INT}} | Enable fleet age modelling with the given reference year in PHEMlight5; *default:* **0** |
+| **--phemlight-temperature** {{DT_FLOAT}} | Set ambient temperature to correct NOx emissions in PHEMlight5; *default:* **1.79769e+308** |
 | **--device.emissions.probability** {{DT_FLOAT}} | The probability for a vehicle to have a 'emissions' device; *default:* **-1** |
 | **--device.emissions.explicit** {{DT_STR[]}} | Assign a 'emissions' device to named vehicles |
 | **--device.emissions.deterministic** {{DT_BOOL}} | The 'emissions' devices are set deterministic using a fraction of 1000; *default:* **false** |
+| **--device.emissions.begin** {{DT_STR}} | Recording begin time for emission-data; *default:* **-1** |
 | **--device.emissions.period** {{DT_STR}} | Recording period for emission-output; *default:* **0** |
 
 ### Communication
@@ -275,6 +323,12 @@ configuration:
 | **--device.btsender.probability** {{DT_FLOAT}} | The probability for a vehicle to have a 'btsender' device; *default:* **-1** |
 | **--device.btsender.explicit** {{DT_STR[]}} | Assign a 'btsender' device to named vehicles |
 | **--device.btsender.deterministic** {{DT_BOOL}} | The 'btsender' devices are set deterministic using a fraction of 1000; *default:* **false** |
+| **--person-device.btsender.probability** {{DT_FLOAT}} | The probability for a person to have a 'btsender' device; *default:* **-1** |
+| **--person-device.btsender.explicit** {{DT_STR[]}} | Assign a 'btsender' device to named persons |
+| **--person-device.btsender.deterministic** {{DT_BOOL}} | The 'btsender' devices are set deterministic using a fraction of 1000; *default:* **false** |
+| **--person-device.btreceiver.probability** {{DT_FLOAT}} | The probability for a person to have a 'btreceiver' device; *default:* **-1** |
+| **--person-device.btreceiver.explicit** {{DT_STR[]}} | Assign a 'btreceiver' device to named persons |
+| **--person-device.btreceiver.deterministic** {{DT_BOOL}} | The 'btreceiver' devices are set deterministic using a fraction of 1000; *default:* **false** |
 
 ### Battery
 
@@ -283,6 +337,7 @@ configuration:
 | **--device.battery.probability** {{DT_FLOAT}} | The probability for a vehicle to have a 'battery' device; *default:* **-1** |
 | **--device.battery.explicit** {{DT_STR[]}} | Assign a 'battery' device to named vehicles |
 | **--device.battery.deterministic** {{DT_BOOL}} | The 'battery' devices are set deterministic using a fraction of 1000; *default:* **false** |
+| **--device.battery.track-fuel** {{DT_BOOL}} | Track fuel consumption for non-electric vehicles; *default:* **false** |
 
 ### Example Device
 
@@ -300,13 +355,15 @@ configuration:
 | **--device.ssm.probability** {{DT_FLOAT}} | The probability for a vehicle to have a 'ssm' device; *default:* **-1** |
 | **--device.ssm.explicit** {{DT_STR[]}} | Assign a 'ssm' device to named vehicles |
 | **--device.ssm.deterministic** {{DT_BOOL}} | The 'ssm' devices are set deterministic using a fraction of 1000; *default:* **false** |
-| **--device.ssm.measures** {{DT_STR}} | Specifies which measures will be logged (as a space separated sequence of IDs in ('TTC', 'DRAC', 'PET')). |
-| **--device.ssm.thresholds** {{DT_STR}} | Specifies thresholds corresponding to the specified measures (see documentation and watch the order!). Only events exceeding the thresholds will be logged. |
-| **--device.ssm.trajectories** {{DT_BOOL}} | Specifies whether trajectories will be logged (if false, only the extremal values and times are reported, this is the default). |
-| **--device.ssm.range** {{DT_FLOAT}} | Specifies the detection range in meters (default is 50.00m.). For vehicles below this distance from the equipped vehicle, SSM values are traced. |
-| **--device.ssm.extratime** {{DT_FLOAT}} | Specifies the time in seconds to be logged after a conflict is over (default is 5.00secs.). Required >0 if PET is to be calculated for crossing conflicts. |
-| **--device.ssm.file** {{DT_STR}} | Give a global default filename for the SSM output. |
-| **--device.ssm.geo** {{DT_BOOL}} | Whether to use coordinates of the original reference system in output (default is false). |
+| **--device.ssm.measures** {{DT_STR}} | Specifies which measures will be logged (as a space or comma-separated sequence of IDs in ('TTC', 'DRAC', 'PET')) |
+| **--device.ssm.thresholds** {{DT_STR}} | Specifies space or comma-separated thresholds corresponding to the specified measures (see documentation and watch the order!). Only events exceeding the thresholds will be logged. |
+| **--device.ssm.trajectories** {{DT_BOOL}} | Specifies whether trajectories will be logged (if false, only the extremal values and times are reported).; *default:* **false** |
+| **--device.ssm.range** {{DT_FLOAT}} | Specifies the detection range in meters. For vehicles below this distance from the equipped vehicle, SSM values are traced.; *default:* **50** |
+| **--device.ssm.extratime** {{DT_FLOAT}} | Specifies the time in seconds to be logged after a conflict is over. Required >0 if PET is to be calculated for crossing conflicts.; *default:* **5** |
+| **--device.ssm.file** {{DT_STR}} | Give a global default filename for the SSM output |
+| **--device.ssm.geo** {{DT_BOOL}} | Whether to use coordinates of the original reference system in output; *default:* **false** |
+| **--device.ssm.write-positions** {{DT_BOOL}} | Whether to write positions (coordinates) for each timestep; *default:* **false** |
+| **--device.ssm.write-lane-positions** {{DT_BOOL}} | Whether to write lanes and their positions for each timestep; *default:* **false** |
 
 ### Toc Device
 
@@ -368,6 +425,7 @@ configuration:
 | **--device.fcd.probability** {{DT_FLOAT}} | The probability for a vehicle to have a 'fcd' device; *default:* **-1** |
 | **--device.fcd.explicit** {{DT_STR[]}} | Assign a 'fcd' device to named vehicles |
 | **--device.fcd.deterministic** {{DT_BOOL}} | The 'fcd' devices are set deterministic using a fraction of 1000; *default:* **false** |
+| **--device.fcd.begin** {{DT_STR}} | Recording begin time for FCD-data; *default:* **-1** |
 | **--device.fcd.period** {{DT_STR}} | Recording period for FCD-data; *default:* **0** |
 | **--device.fcd.radius** {{DT_FLOAT}} | Record objects in a radius around equipped vehicles; *default:* **0** |
 | **--person-device.fcd.probability** {{DT_FLOAT}} | The probability for a person to have a 'fcd' device; *default:* **-1** |
@@ -388,12 +446,22 @@ configuration:
 | **--device.taxi.probability** {{DT_FLOAT}} | The probability for a vehicle to have a 'taxi' device; *default:* **-1** |
 | **--device.taxi.explicit** {{DT_STR[]}} | Assign a 'taxi' device to named vehicles |
 | **--device.taxi.deterministic** {{DT_BOOL}} | The 'taxi' devices are set deterministic using a fraction of 1000; *default:* **false** |
-| **--device.taxi.dispatch-algorithm** {{DT_STR}} | The dispatch algorithm [greedy|greedyClosest|greedyShared|routeExtension|traci]; *default:* **greedy** |
-| **--device.taxi.dispatch-algorithm.output** {{DT_STR}} | Write information from the dispatch algorithm to FILE |
+| **--device.taxi.dispatch-algorithm** {{DT_STR}} | The dispatch algorithm [greedy,greedyClosest,greedyShared,routeExtension,traci]; *default:* **greedy** |
+| **--device.taxi.dispatch-algorithm.output** {{DT_FILE}} | Write information from the dispatch algorithm to FILE |
 | **--device.taxi.dispatch-algorithm.params** {{DT_STR}} | Load dispatch algorithm parameters in format KEY1:VALUE1[,KEY2:VALUE] |
 | **--device.taxi.dispatch-period** {{DT_TIME}} | The period between successive calls to the dispatcher; *default:* **60** |
-| **--device.taxi.idle-algorithm** {{DT_STR}} | The behavior of idle taxis [stop|randomCircling]; *default:* **stop** |
-| **--device.taxi.idle-algorithm.output** {{DT_STR}} | Write information from the idling algorithm to FILE |
+| **--device.taxi.idle-algorithm** {{DT_STR}} | The behavior of idle taxis [stop,randomCircling]; *default:* **stop** |
+| **--device.taxi.idle-algorithm.output** {{DT_FILE}} | Write information from the idling algorithm to FILE |
+
+### Glosa Device
+| Option | Description |
+|--------|-------------|
+| **--device.glosa.probability** {{DT_FLOAT}} | The probability for a vehicle to have a 'glosa' device; *default:* **-1** |
+| **--device.glosa.explicit** {{DT_STR[]}} | Assign a 'glosa' device to named vehicles |
+| **--device.glosa.deterministic** {{DT_BOOL}} | The 'glosa' devices are set deterministic using a fraction of 1000; *default:* **false** |
+| **--device.glosa.range** {{DT_FLOAT}} | The communication range to the traffic light; *default:* **100** |
+| **--device.glosa.max-speedfactor** {{DT_FLOAT}} | The maximum speed factor when approaching a green light; *default:* **1.1** |
+| **--device.glosa.min-speed** {{DT_FLOAT}} | Minimum speed when coasting towards a red light; *default:* **5** |
 
 ### Tripinfo Device
 | Option | Description |
@@ -408,6 +476,15 @@ configuration:
 | **--device.vehroute.probability** {{DT_FLOAT}} | The probability for a vehicle to have a 'vehroute' device; *default:* **-1** |
 | **--device.vehroute.explicit** {{DT_STR[]}} | Assign a 'vehroute' device to named vehicles |
 | **--device.vehroute.deterministic** {{DT_BOOL}} | The 'vehroute' devices are set deterministic using a fraction of 1000; *default:* **false** |
+
+### Friction Device
+| Option | Description |
+|--------|-------------|
+| **--device.friction.probability** {{DT_FLOAT}} | The probability for a vehicle to have a 'friction' device; *default:* **-1** |
+| **--device.friction.explicit** {{DT_STR[]}} | Assign a 'friction' device to named vehicles |
+| **--device.friction.deterministic** {{DT_BOOL}} | The 'friction' devices are set deterministic using a fraction of 1000; *default:* **false** |
+| **--device.friction.stdDev** {{DT_FLOAT}} | The measurement noise parameter which can be applied to the friction device; *default:* **0.1** |
+| **--device.friction.offset** {{DT_FLOAT}} | The measurement offset parameter which can be applied to the friction device -> e.g. to force false measurements; *default:* **0** |
 
 ### Traci Server
 | Option | Description |
@@ -428,6 +505,7 @@ configuration:
 | **--meso-jam-threshold** {{DT_FLOAT}} | Minimum percentage of occupied space to consider a segment jammed. A negative argument causes thresholds to be computed based on edge speed and tauff (default); *default:* **-1** |
 | **--meso-multi-queue** {{DT_BOOL}} | Enable multiple queues at edge ends; *default:* **true** |
 | **--meso-lane-queue** {{DT_BOOL}} | Enable separate queues for every lane; *default:* **false** |
+| **--meso-ignore-lanes-by-vclass** {{DT_STR[]}} | Do not build queues (or reduce capacity) for lanes allowing only the given vclasses; *default:* **pedestrian,bicycle** |
 | **--meso-junction-control** {{DT_BOOL}} | Enable mesoscopic traffic light and priority junction handling; *default:* **false** |
 | **--meso-junction-control.limited** {{DT_BOOL}} | Enable mesoscopic traffic light and priority junction handling for saturated links. This prevents faulty traffic lights from hindering flow in low-traffic situations; *default:* **false** |
 | **--meso-tls-penalty** {{DT_FLOAT}} | Apply scaled travel time penalties when driving across tls controlled junctions based on green split instead of checking actual phases; *default:* **0** |
@@ -461,13 +539,21 @@ configuration:
 | **--registry-viewport** {{DT_BOOL}} | Load current viewport from registry; *default:* **false** |
 | **--window-size** {{DT_STR[]}} | Create initial window with the given x,y size |
 | **--window-pos** {{DT_STR[]}} | Create initial window at the given x,y position |
-| **--tracker-interval** {{DT_FLOAT}} | The aggregation period for value tracker windows; *default:* **1** |
+| **--tracker-interval** {{DT_TIME}} | The aggregation period for value tracker windows; *default:* **1** |
 | **--osg-view** {{DT_BOOL}} | Start with an OpenSceneGraph view instead of the regular 2D view; *default:* **false** |
 | **--gui-testing** {{DT_BOOL}} | Enable overlay for screen recognition; *default:* **false** |
 | **--gui-testing-debug** {{DT_BOOL}} | Enable output messages during GUI-Testing; *default:* **false** |
 | **--gui-testing.setting-output** {{DT_FILE}} | Save gui settings in the given settings output file |
 
 # Loading order of input files
+
+Sumo loads it's input files in the following order
+
+- net-file
+- additional-files
+- weight-files
+- state-files
+- route-files
 
 Whenever a simulation object A (such as a vehicle) defined in an input
 file refers to another simulation object B (such as a vehicle type), the
@@ -500,9 +586,9 @@ definitions](Simulation/Output/Induction_Loops_Detectors_(E1).md),
 [variable speed signs](Simulation/Variable_Speed_Signs.md) and
 [bus stops](Simulation/Public_Transport.md). These files are
 also used to configure simulation outputs such as [edge-based traffic
-measures](Simulation/Output.md#values_for_edges_or_lanes) or
+measures](Simulation/Output/index.md#values_for_edges_or_lanes) or
 [traffic light switching
-information](Simulation/Output.md#traffic_lights-based_information).
+information](Simulation/Output/index.md#traffic_lights-based_information).
 Furthermore, any element permitted in a route file such as
 [vTypes](Definition_of_Vehicles,_Vehicle_Types,_and_Routes.md#vehicle_types),
 [routes](Definition_of_Vehicles,_Vehicle_Types,_and_Routes.md#routes)
@@ -516,8 +602,8 @@ The additional file always needs a top level tag with arbitrary name
 
 ```
 <additional>
-    <inductionLoop id="myLoop1" lane="foo_0" pos="42" freq="900" file="out.xml"/>
-    <inductionLoop id="myLoop2" lane="foo_2" pos="42" freq="900" file="out.xml"/>
+    <inductionLoop id="myLoop1" lane="foo_0" pos="42" period="900" file="out.xml"/>
+    <inductionLoop id="myLoop2" lane="foo_2" pos="42" period="900" file="out.xml"/>
 
     <busStop id="station1" lane="foo_0" startPos="5" endPos="20"/>
 

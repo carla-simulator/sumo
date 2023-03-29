@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 # Eclipse SUMO, Simulation of Urban MObility; see https://eclipse.org/sumo
-# Copyright (C) 2008-2020 German Aerospace Center (DLR) and others.
+# Copyright (C) 2008-2023 German Aerospace Center (DLR) and others.
 # This program and the accompanying materials are made available under the
 # terms of the Eclipse Public License 2.0 which is available at
 # https://www.eclipse.org/legal/epl-2.0/
@@ -22,11 +22,8 @@ from __future__ import absolute_import
 import os
 import sys
 
-if 'SUMO_HOME' in os.environ:
-    tools = os.path.join(os.environ['SUMO_HOME'], 'tools')
-    sys.path.append(tools)
-else:
-    sys.exit("please declare environment variable 'SUMO_HOME'")
+if "SUMO_HOME" in os.environ:
+    sys.path.append(os.path.join(os.environ["SUMO_HOME"], "tools"))
 
 import traci  # noqa
 import sumolib  # noqa
@@ -39,6 +36,7 @@ traci.start([sumoBinary,
              "-r", "input_routes.rou.xml",
              "--no-step-log",
              "--vehroute-output", "vehroutes.xml",
+             "--vehroute-output.write-unfinished",
              "--tripinfo-output", "tripinfos.xml",
              "--stop-output", "stops.xml",
              "--device.taxi.dispatch-algorithm", "traci",
@@ -47,6 +45,7 @@ traci.start([sumoBinary,
 
 traci.simulationStep()
 fleet = traci.vehicle.getTaxiFleet(0)
+taxiID = fleet[0]
 print("taxiFleet", fleet)
 reservations = traci.person.getTaxiReservations(0)
 print("reservations", reservations)
@@ -58,8 +57,12 @@ a, b, c = reservation_ids
 # pickup b
 # pickup c, dropoff b
 # dropoff a, c
-traci.vehicle.dispatchTaxi(fleet[0], [a, b, c, b, a, c])
+traci.vehicle.dispatchTaxi(taxiID, [a, b, c, b, a, c])
+print("currentCustomers", traci.vehicle.getParameter(taxiID, "device.taxi.currentCustomers"))
 
 while traci.simulation.getMinExpectedNumber() > 0:
     traci.simulationStep()
+    print("%s reservations %s" % (
+        traci.simulation.getTime(),
+        traci.person.getTaxiReservations(0)))
 traci.close()

@@ -1,6 +1,6 @@
 /****************************************************************************/
 // Eclipse SUMO, Simulation of Urban MObility; see https://eclipse.org/sumo
-// Copyright (C) 2010-2020 German Aerospace Center (DLR) and others.
+// Copyright (C) 2010-2023 German Aerospace Center (DLR) and others.
 // activitygen module
 // Copyright 2010 TUM (Technische Universitaet Muenchen, http://www.tum.de/)
 // This program and the accompanying materials are made available under the
@@ -32,6 +32,7 @@
 #include <map>
 #include <iomanip>
 #include <utils/common/RandHelper.h>
+#include <utils/common/SUMOVehicleClass.h>
 #include <utils/options/OptionsCont.h>
 #include <router/RONet.h>
 #include <router/ROEdge.h>
@@ -59,6 +60,9 @@ AGCity::completeStreets() {
     for (it = streets.begin(); it != streets.end(); ++it) {
         pop += (*it)->getPopulation();
         work += (*it)->getWorkplaceNumber();
+        if (((*it)->getPermissions() & SVC_PASSENGER) == SVC_PASSENGER) {
+            passengerStreets.push_back(*it);
+        }
     }
     statData.factorInhabitants = (double)statData.inhabitants / pop;
     //can be improved with other input data
@@ -88,6 +92,9 @@ AGCity::completeStreets() {
         //if this edge isn't represented by a street
         if (itS == streets.end() && !itE.second->isInternal()) {
             streets.push_back(static_cast<AGStreet*>(itE.second));
+            if (((itE.second)->getPermissions() & SVC_PASSENGER) == SVC_PASSENGER) {
+                passengerStreets.push_back(static_cast<AGStreet*>(itE.second));
+            }
         }
     }
 }
@@ -130,7 +137,7 @@ AGCity::generateOutgoingWP() {
     /**
      * N_out = N_in * (ProportionOut / (1 - ProportionOut)) = N_out = N_in * (Noutworkers / (Nworkers - Noutworkers))
      */
-    int nbrOutWorkPositions = static_cast<int>(workPositions.size() * (static_cast<double>(statData.outgoingTraffic)) / (nbrWorkers - static_cast<double>(statData.outgoingTraffic)));
+    int nbrOutWorkPositions = (int)((double)workPositions.size() * (double)statData.outgoingTraffic / (nbrWorkers - (double)statData.outgoingTraffic));
 
     if (cityGates.empty()) {
         return;
@@ -372,11 +379,11 @@ AGCity::carAllocation() {
     }
 
     nbrCars = 0;
-    int nbrAdults = 0;
+    //int nbrAdults = 0;
     for (it = households.begin(); it != households.end(); ++it) {
         it->generateCars(newRate);
         nbrCars += it->getCarNbr();
-        nbrAdults += it->getAdultNbr();
+        //nbrAdults += it->getAdultNbr();
     }
     //TEST RESULTS
     //std::cout << "number of cars: " << nbrCars << std::endl;
@@ -411,15 +418,15 @@ AGCity::getStreet(const std::string& edge) {
         ++it;
     }
     std::cout << "===> ERROR: WRONG STREET EDGE (" << edge << ") given and not found in street set." << std::endl;
-    throw (std::runtime_error("Street not found with edge id " + edge));
+    throw ProcessError("Street not found with edge id " + edge);
 }
 
 const AGStreet&
 AGCity::getRandomStreet() {
-    if (streets.empty()) {
-        throw (std::runtime_error("No street found in this city"));
+    if (passengerStreets.empty()) {
+        throw ProcessError(TL("No street that allows passenger vehicles found in this city."));
     }
-    return *RandHelper::getRandomFrom(streets);
+    return *RandHelper::getRandomFrom(passengerStreets);
 }
 
 

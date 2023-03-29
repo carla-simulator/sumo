@@ -1,6 +1,5 @@
 ---
-title: Demand/Routing by Turn Probabilities
-permalink: /Demand/Routing_by_Turn_Probabilities/
+title: Routing by Turn Probabilities
 ---
 
 The [jtrrouter](../jtrrouter.md) is a routing applications which
@@ -15,7 +14,7 @@ parameter must be supplied:
 A call may look like this:
 
 ```
-jtrrouter --flow-files=<FLOW_DEFS> --turn-ratio-files=<TURN_DEFINITIONS> --net-file=<SUMO_NET> \
+jtrrouter --route-files=<FLOW_DEFS> --turn-ratio-files=<TURN_DEFINITIONS> --net-file=<SUMO_NET> \
   --output-file=MySUMORoutes.rou.xml --begin <UINT> --end <UINT>
 ```
 
@@ -40,8 +39,8 @@ use a certain follower edge has to be given. An example:
 <edgeRelations>
    <interval begin="0" end="3600">
       <edgeRelation from="myEdge0" to="myEdge1" probability="0.2"/>
-      <edgeRelation from="myEdge0" to="myEdge1" probability="0.7"/>
-      <edgeRelation from="myEdge0" to="myEdge1" probability="0.1"/>
+      <edgeRelation from="myEdge0" to="myEdge2" probability="0.7"/>
+      <edgeRelation from="myEdge0" to="myEdge3" probability="0.1"/>
 
       ... any other edges ...
 
@@ -64,7 +63,7 @@ probability of 10%. Another possibility to save time on preparing the
 description is to use default values. The parameter **--turn-defaults (-T) <TURN_DEFAULTS\>** can be used to
 describe the default ratios that will be used for all junctions for all
 time steps. <TURN_DEFAULTS\> is a list of doubles, separated by a ','. To
-achieve the same behaviour as in the example above, use **--turn-defaults 20,70,10**. The values
+achieve the same behavior as in the example above, use **--turn-defaults 20,70,10**. The values
 will be applied to an edge's following edges beginning at the right edge
 (20%) and ending at the leftmost edge (10%). As the number of possible
 followers changes for different edges, the values are resampled for
@@ -78,7 +77,7 @@ the one to the left with 45%.
 For automatic, yet artificial, turn definitions generation based on the
 network structure, see [generateTurnDefs.py](../Tools/Turns.md#generateturndefspy).
 
-You can also generate turn definitions from an existing route file. see [genrateTurnRatios.py](../Tools/Turns.md#generateturnratiospy).
+You can also generate turn definitions from an existing route file. see [generateTurnRatios.py](../Tools/Turns.md#generateturnratiospy).
 
 ## Sinks Definitions
 
@@ -110,7 +109,11 @@ network as the route it uses is randomly computed, the route must be
 specified using attribute *from* and attribute *to* must be omitted:
 
 ```
-<flow id="0" from="A" begin="0" end="3600" probability="0.5"/>
+<routes>
+   <flow id="example0" from="A" begin="0" end="3600" probability="0.5"/>
+   <flow id="example1" ... />
+   ....
+</routes>
 ```
 
 ### Random Flows

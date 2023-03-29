@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 # Eclipse SUMO, Simulation of Urban MObility; see https://eclipse.org/sumo
-# Copyright (C) 2008-2020 German Aerospace Center (DLR) and others.
+# Copyright (C) 2008-2023 German Aerospace Center (DLR) and others.
 # This program and the accompanying materials are made available under the
 # terms of the Eclipse Public License 2.0 which is available at
 # https://www.eclipse.org/legal/epl-2.0/
@@ -24,8 +24,8 @@ from __future__ import absolute_import
 import os
 import sys
 
-SUMO_HOME = os.path.join(os.path.dirname(__file__), "..", "..", "..", "..", "..")
-sys.path.append(os.path.join(os.environ.get("SUMO_HOME", SUMO_HOME), "tools"))
+if "SUMO_HOME" in os.environ:
+    sys.path.append(os.path.join(os.environ["SUMO_HOME"], "tools"))
 import traci  # noqa
 import sumolib  # noqa
 
@@ -73,6 +73,12 @@ for i in range(2):
     print("step", step())
 
 while egoID in traci.vehicle.getIDList():
+    if traci.simulation.getTime() == 10:
+        print("vehicle changes after ego")
+        traci.vehicle.changeLaneRelative("r0.0", 1, 999)
+    elif traci.simulation.getTime() == 15:
+        print("vehicle changes after ego")
+        traci.vehicle.changeLaneRelative("r0.0", -1, 999)
     printNeighInfo()
     print("step", step())
 step()

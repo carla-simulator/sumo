@@ -26,5 +26,11 @@ prefix
 # build turning lanes
 turnlanes
 
+# bidi-probability=0
+oneway
+
+# add outer attachments
+attachLength
+
 # Tests processing of errors in input
 errors

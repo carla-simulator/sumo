@@ -1,6 +1,6 @@
 /****************************************************************************/
 // Eclipse SUMO, Simulation of Urban MObility; see https://eclipse.org/sumo
-// Copyright (C) 2017-2020 German Aerospace Center (DLR) and others.
+// Copyright (C) 2017-2023 German Aerospace Center (DLR) and others.
 // This program and the accompanying materials are made available under the
 // terms of the Eclipse Public License 2.0 which is available at
 // https://www.eclipse.org/legal/epl-2.0/
@@ -91,16 +91,16 @@ ParkingArea::getVehicleIDs(const std::string& stopID) {
 
 std::string
 ParkingArea::getParameter(const std::string& stopID, const std::string& param) {
-    const MSStoppingPlace* s = getParkingArea(stopID);
-    return s->getParameter(param, "");
+    return getParkingArea(stopID)->getParameter(param, "");
 }
+
 
 LIBSUMO_GET_PARAMETER_WITH_KEY_IMPLEMENTATION(ParkingArea)
 
+
 void
 ParkingArea::setParameter(const std::string& stopID, const std::string& key, const std::string& value) {
-    MSStoppingPlace* s = getParkingArea(stopID);
-    s->setParameter(key, value);
+    getParkingArea(stopID)->setParameter(key, value);
 }
 
 
@@ -109,11 +109,7 @@ LIBSUMO_SUBSCRIPTION_IMPLEMENTATION(ParkingArea, PARKINGAREA)
 
 MSStoppingPlace*
 ParkingArea::getParkingArea(const std::string& id) {
-    MSStoppingPlace* s = MSNet::getInstance()->getStoppingPlace(id, SUMO_TAG_PARKING_AREA);
-    if (s == nullptr) {
-        throw TraCIException("ParkingArea '" + id + "' is not known");
-    }
-    return s;
+    return Helper::getStoppingPlace(id, SUMO_TAG_PARKING_AREA);
 }
 
 
@@ -124,7 +120,7 @@ ParkingArea::makeWrapper() {
 
 
 bool
-ParkingArea::handleVariable(const std::string& objID, const int variable, VariableWrapper* wrapper) {
+ParkingArea::handleVariable(const std::string& objID, const int variable, VariableWrapper* wrapper, tcpip::Storage* paramData) {
     switch (variable) {
         case TRACI_ID_LIST:
             return wrapper->wrapStringList(objID, variable, getIDList());
@@ -142,6 +138,12 @@ ParkingArea::handleVariable(const std::string& objID, const int variable, Variab
             return wrapper->wrapInt(objID, variable, getVehicleCount(objID));
         case VAR_STOP_STARTING_VEHICLES_IDS:
             return wrapper->wrapStringList(objID, variable, getVehicleIDs(objID));
+        case libsumo::VAR_PARAMETER:
+            paramData->readUnsignedByte();
+            return wrapper->wrapString(objID, variable, getParameter(objID, paramData->readString()));
+        case libsumo::VAR_PARAMETER_WITH_KEY:
+            paramData->readUnsignedByte();
+            return wrapper->wrapStringPair(objID, variable, getParameterWithKey(objID, paramData->readString()));
         default:
             return false;
     }

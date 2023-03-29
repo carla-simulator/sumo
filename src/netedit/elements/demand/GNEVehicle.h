@@ -1,6 +1,6 @@
 /****************************************************************************/
 // Eclipse SUMO, Simulation of Urban MObility; see https://eclipse.org/sumo
-// Copyright (C) 2001-2020 German Aerospace Center (DLR) and others.
+// Copyright (C) 2001-2023 German Aerospace Center (DLR) and others.
 // This program and the accompanying materials are made available under the
 // terms of the Eclipse Public License 2.0 which is available at
 // https://www.eclipse.org/legal/epl-2.0/
@@ -15,10 +15,10 @@
 /// @author  Pablo Alvarez Lopez
 /// @date    Jan 2019
 ///
-// Representation of vehicles in NETEDIT
+// Representation of vehicles in netedit
 /****************************************************************************/
 #pragma once
-#include <utils/vehicle/SUMOVehicleParameter.h>
+#include <config.h>
 #include <utils/gui/globjects/GUIGLObjectPopupMenu.h>
 
 #include "GNEDemandElement.h"
@@ -144,23 +144,37 @@ public:
         FXMenuCommand* myTransformAllVehiclesToFlow;
     };
 
+    /// @brief default constructor
+    GNEVehicle(SumoXMLTag tag, GNENet* net);
+
     /// @brief default constructor for vehicles and routeFlows without embedded routes
     GNEVehicle(SumoXMLTag tag, GNENet* net, const std::string& vehicleID, GNEDemandElement* vehicleType, GNEDemandElement* route);
 
     /// @brief parameter constructor for vehicles and routeFlows without embedded routes
-    GNEVehicle(GNENet* net, GNEDemandElement* vehicleType, GNEDemandElement* route, const SUMOVehicleParameter& vehicleParameters);
+    GNEVehicle(SumoXMLTag tag, GNENet* net, GNEDemandElement* vehicleType, GNEDemandElement* route, const SUMOVehicleParameter& vehicleParameters);
 
     /// @brief parameter constructor for vehicles and routeFlows with embedded routes (note: After creation create immediately a embedded route referencing this vehicle)
-    GNEVehicle(GNENet* net, GNEDemandElement* vehicleType, const SUMOVehicleParameter& vehicleParameters);
+    GNEVehicle(SumoXMLTag tag, GNENet* net, GNEDemandElement* vehicleType, const SUMOVehicleParameter& vehicleParameters);
 
-    /// @brief default constructor for trips and Flows
-    GNEVehicle(SumoXMLTag tag, GNENet* net, const std::string& vehicleID, GNEDemandElement* vehicleType, GNEEdge* fromEdge, GNEEdge* toEdge, const std::vector<GNEEdge*>& via);
+    /// @brief default constructor for trips and Flows over edges
+    GNEVehicle(SumoXMLTag tag, GNENet* net, const std::string& vehicleID, GNEDemandElement* vehicleType, GNEEdge* fromEdge, GNEEdge* toEdge);
 
-    /// @brief parameter constructor for trips and Flows
-    GNEVehicle(GNENet* net, GNEDemandElement* vehicleType, GNEEdge* fromEdge, GNEEdge* toEdge, const std::vector<GNEEdge*>& via, const SUMOVehicleParameter& vehicleParameters);
+    /// @brief parameter constructor for trips and Flows over junctions
+    GNEVehicle(SumoXMLTag tag, GNENet* net, GNEDemandElement* vehicleType, GNEEdge* fromEdge, GNEEdge* toEdge, const SUMOVehicleParameter& vehicleParameters);
+
+    /// @brief default constructor for trips and Flows over junctions
+    GNEVehicle(SumoXMLTag tag, GNENet* net, const std::string& vehicleID, GNEDemandElement* vehicleType, GNEJunction* fromJunction, GNEJunction* toJunction);
+
+    /// @brief parameter constructor for trips and Flows over junctions
+    GNEVehicle(SumoXMLTag tag, GNENet* net, GNEDemandElement* vehicleType, GNEJunction* fromJunction, GNEJunction* toJunction, const SUMOVehicleParameter& vehicleParameters);
 
     /// @brief destructor
     ~GNEVehicle();
+
+    /**@brief get move operation
+     * @note returned GNEMoveOperation can be nullptr
+     */
+    GNEMoveOperation* getMoveOperation();
 
     /**@brief get begin time of demand element
      * @note: used by demand elements of type "Vehicle", and it has to be implemented as children
@@ -168,13 +182,13 @@ public:
      */
     std::string getBegin() const;
 
-    /**@brief writte demand element element into a xml file
+    /**@brief write demand element element into a xml file
      * @param[in] device device in which write parameters of demand element element
      */
     void writeDemandElement(OutputDevice& device) const;
 
     /// @brief check if current demand element is valid to be writed into XML (by default true, can be reimplemented in children)
-    bool isDemandElementValid() const;
+    Problem isDemandElementValid() const;
 
     /// @brief return a string with the current demand element problem (by default empty, can be reimplemented in children)
     std::string getDemandElementProblem() const;
@@ -194,30 +208,8 @@ public:
 
     /// @name Functions related with geometry of element
     /// @{
-    /// @brief start geometry movement
-    void startGeometryMoving();
-
-    /// @brief end geometry movement
-    void endGeometryMoving();
-
-    /**@brief change the position of the element geometry without saving in undoList
-     * @param[in] offset Position used for calculate new position of geometry without updating RTree
-     */
-    void moveGeometry(const Position& offset);
-
-    /**@brief commit geometry changes in the attributes of an element after use of moveGeometry(...)
-     * @param[in] undoList The undoList on which to register changes
-     */
-    void commitGeometryMoving(GNEUndoList* undoList);
-
     /// @brief update pre-computed geometry information
     void updateGeometry();
-
-    /// @brief compute path
-    void computePath();
-
-    /// @brief invalidate path
-    void invalidatePath();
 
     /// @brief Returns position of demand element in view
     Position getPositionInView() const;
@@ -239,6 +231,9 @@ public:
      */
     std::string getParentName() const;
 
+    /// @brief return exaggeration associated with this GLObject
+    double getExaggeration(const GUIVisualizationSettings& s) const;
+
     /**@brief Returns the boundary to which the view shall be centered in order to show the object
      * @return The boundary the object is within
      */
@@ -253,28 +248,44 @@ public:
      */
     void drawGL(const GUIVisualizationSettings& s) const;
 
+    /// @}
+
+    /// @name inherited from GNEPathManager::PathElement
+    /// @{
+
+    /// @brief compute pathElement
+    void computePathElement();
+
     /**@brief Draws partial object
-    * @param[in] s The settings for the current view (may influence drawing)
-    * @param[in] lane lane in which draw partial
-    * @param[in] drawGeometry flag to enable/disable draw geometry (lines, boxLines, etc.)
-    */
-    void drawPartialGL(const GUIVisualizationSettings& s, const GNELane* lane, const double offsetFront) const;
+     * @param[in] s The settings for the current view (may influence drawing)
+     * @param[in] lane lane in which draw partial
+     * @param[in] drawGeometry flag to enable/disable draw geometry (lines, boxLines, etc.)
+     * @param[in] offsetFront extra front offset (used for drawing partial gl above other elements)
+     */
+    void drawPartialGL(const GUIVisualizationSettings& s, const GNELane* lane, const GNEPathManager::Segment* segment, const double offsetFront) const;
 
     /**@brief Draws partial object (junction)
      * @param[in] s The settings for the current view (may influence drawing)
      * @param[in] fromLane from GNELane
      * @param[in] toLane to GNELane
-     * @param[in] offsetFront offset for drawing element front (needed for selected elements)
+     * @param[in] segment PathManager segment (used for segment options)
+     * @param[in] offsetFront extra front offset (used for drawing partial gl above other elements)
      */
-    void drawPartialGL(const GUIVisualizationSettings& s, const GNELane* fromLane, const GNELane* toLane, const double offsetFront) const;
+    void drawPartialGL(const GUIVisualizationSettings& s, const GNELane* fromLane, const GNELane* toLane, const GNEPathManager::Segment* segment, const double offsetFront) const;
+
+    /// @brief get first path lane
+    GNELane* getFirstPathLane() const;
+
+    /// @brief get last path lane
+    GNELane* getLastPathLane() const;
     /// @}
 
     /// @brief inherited from GNEAttributeCarrier
     /// @{
     /* @brief method for getting the Attribute of an XML key
-    * @param[in] key The attribute key
-    * @return string with the value associated to key
-    */
+     * @param[in] key The attribute key
+     * @return string with the value associated to key
+     */
     std::string getAttribute(SumoXMLAttr key) const;
 
     /* @brief method for getting the Attribute of an XML key in double format (to avoid unnecessary parse<double>(...) for certain attributes)
@@ -283,19 +294,25 @@ public:
      */
     double getAttributeDouble(SumoXMLAttr key) const;
 
+    /* @brief method for getting the Attribute of an XML key in Position format (used in person plans)
+     * @param[in] key The attribute key
+     * @return double with the value associated to key
+     */
+    Position getAttributePosition(SumoXMLAttr key) const;
+
     /* @brief method for setting the attribute and letting the object perform demand element changes
-    * @param[in] key The attribute key
-    * @param[in] value The new value
-    * @param[in] undoList The undoList on which to register changes
-    * @param[in] net optionally the GNENet to inform about gui updates
-    */
+     * @param[in] key The attribute key
+     * @param[in] value The new value
+     * @param[in] undoList The undoList on which to register changes
+     * @param[in] net optionally the GNENet to inform about gui updates
+     */
     void setAttribute(SumoXMLAttr key, const std::string& value, GNEUndoList* undoList);
 
     /* @brief method for setting the attribute and letting the object perform demand element changes
-    * @param[in] key The attribute key
-    * @param[in] value The new value
-    * @param[in] undoList The undoList on which to register changes
-    */
+     * @param[in] key The attribute key
+     * @param[in] value The new value
+     * @param[in] undoList The undoList on which to register changes
+     */
     bool isValid(SumoXMLAttr key, const std::string& value);
 
     /* @brief method for enable attribute
@@ -325,24 +342,27 @@ public:
     /// @}
 
     /// @brief get parameters map
-    const std::map<std::string, std::string>& getACParametersMap() const;
+    const Parameterised::Map& getACParametersMap() const;
 
 protected:
     /// @brief sets the color according to the currente settings
-    void setColor(const GUIVisualizationSettings& s) const;
+    RGBColor setColor(const GUIVisualizationSettings& s) const;
 
 private:
+    /// @brief vehicle arrival position radius
+    static const double myArrivalPositionDiameter;
+
     /// @brief method for setting the attribute and nothing else
     void setAttribute(SumoXMLAttr key, const std::string& value);
 
-    /// @brief method for enabling the attribute and nothing else (used in GNEChange_EnableAttribute)
-    void setEnabledAttribute(const int enabledAttributes);
+    /// @brief method for enable or disable the attribute and nothing else (used in GNEChange_EnableAttribute)
+    void toggleAttribute(SumoXMLAttr key, const bool value);
 
-    /// @brief draw stack label
-    void drawStackLabel(const Position& vehiclePosition, const double vehicleRotation, const double width, const double length, const double exaggeration) const;
+    /// @brief set move shape
+    void setMoveShape(const GNEMoveResult& moveResult);
 
-    /// @brief draw flow label
-    void drawFlowLabel(const Position& vehiclePosition, const double vehicleRotation, const double width, const double length, const double exaggeration) const;
+    /// @brief commit move shape
+    void commitMoveShape(const GNEMoveResult& moveResult, GNEUndoList* undoList);
 
     /// @brief Invalidated copy constructor.
     GNEVehicle(const GNEVehicle&) = delete;

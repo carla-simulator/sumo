@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 # Eclipse SUMO, Simulation of Urban MObility; see https://eclipse.org/sumo
-# Copyright (C) 2012-2020 German Aerospace Center (DLR) and others.
+# Copyright (C) 2012-2023 German Aerospace Center (DLR) and others.
 # This program and the accompanying materials are made available under the
 # terms of the Eclipse Public License 2.0 which is available at
 # https://www.eclipse.org/legal/epl-2.0/
@@ -18,7 +18,7 @@
 """
 Cut down trips from a large scenario to a sub-scenario.
 Only trips that start and end in the sub-scenario network are kept
-(This differs from cutRoutes.py which also keeps routes passing throu the
+(This differs from cutRoutes.py which also keeps routes passing through the
 sub-scenario network)
 """
 from __future__ import absolute_import

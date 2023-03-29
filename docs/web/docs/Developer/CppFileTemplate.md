@@ -1,6 +1,5 @@
 ---
-title: Developer/CppFileTemplate
-permalink: /Developer/CppFileTemplate/
+title: CppFileTemplate
 ---
 
 ```cpp

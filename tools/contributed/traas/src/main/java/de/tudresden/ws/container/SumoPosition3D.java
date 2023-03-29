@@ -1,6 +1,6 @@
 /****************************************************************************/
 // Eclipse SUMO, Simulation of Urban MObility; see https://eclipse.org/sumo
-// Copyright (C) 2017-2020 German Aerospace Center (DLR) and others.
+// Copyright (C) 2017-2023 German Aerospace Center (DLR) and others.
 // TraaS module
 // Copyright (C) 2016-2017 Dresden University of Technology
 // This program and the accompanying materials are made available under the
@@ -25,29 +25,7 @@ package de.tudresden.ws.container;
 /**
  *
  * @author Mario Krumnow
- *
+ * @deprecated use package {@link de.tudresden.sumo.objects} instead.
  */
 
-public class SumoPosition3D implements SumoObject {
-
-    public double x;
-    public double y;
-    public double z;
-
-    public SumoPosition3D() {
-        this.x = 0;
-        this.y = 0;
-        this.z = 0;
-    }
-
-    public SumoPosition3D(double x, double y, double z) {
-        this.x = x;
-        this.y = y;
-        this.z = z;
-    }
-
-    public String toString() {
-        return this.x + "," + this.y + "," + this.z;
-    }
-
-}
+public class SumoPosition3D extends de.tudresden.sumo.objects.SumoPosition3D {}

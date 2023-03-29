@@ -1,6 +1,6 @@
 /****************************************************************************/
 // Eclipse SUMO, Simulation of Urban MObility; see https://eclipse.org/sumo
-// Copyright (C) 2017-2020 German Aerospace Center (DLR) and others.
+// Copyright (C) 2017-2023 German Aerospace Center (DLR) and others.
 // This program and the accompanying materials are made available under the
 // terms of the Eclipse Public License 2.0 which is available at
 // https://www.eclipse.org/legal/epl-2.0/
@@ -160,7 +160,7 @@ POI::add(const std::string& poiID, double x, double y, const TraCIColor& color, 
     ShapeContainer& shapeCont = MSNet::getInstance()->getShapeContainer();
     bool ok = shapeCont.addPOI(poiID, poiType,
                                Helper::makeRGBColor(color),
-                               Position(x, y), false, "", 0, 0, (double)layer,
+                               Position(x, y), false, "", 0, false, 0, (double)layer,
                                angle,
                                imgFile,
                                Shape::DEFAULT_RELATIVEPATH,
@@ -298,7 +298,7 @@ POI::makeWrapper() {
 
 
 bool
-POI::handleVariable(const std::string& objID, const int variable, VariableWrapper* wrapper) {
+POI::handleVariable(const std::string& objID, const int variable, VariableWrapper* wrapper, tcpip::Storage* paramData) {
     switch (variable) {
         case TRACI_ID_LIST:
             return wrapper->wrapStringList(objID, variable, getIDList());
@@ -320,6 +320,12 @@ POI::handleVariable(const std::string& objID, const int variable, VariableWrappe
             return wrapper->wrapDouble(objID, variable, getAngle(objID));
         case VAR_IMAGEFILE:
             return wrapper->wrapString(objID, variable, getImageFile(objID));
+        case libsumo::VAR_PARAMETER:
+            paramData->readUnsignedByte();
+            return wrapper->wrapString(objID, variable, getParameter(objID, paramData->readString()));
+        case libsumo::VAR_PARAMETER_WITH_KEY:
+            paramData->readUnsignedByte();
+            return wrapper->wrapStringPair(objID, variable, getParameterWithKey(objID, paramData->readString()));
         default:
             return false;
     }

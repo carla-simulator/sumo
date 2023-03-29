@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 # Eclipse SUMO, Simulation of Urban MObility; see https://eclipse.org/sumo
-# Copyright (C) 2011-2020 German Aerospace Center (DLR) and others.
+# Copyright (C) 2011-2023 German Aerospace Center (DLR) and others.
 # This program and the accompanying materials are made available under the
 # terms of the Eclipse Public License 2.0 which is available at
 # https://www.eclipse.org/legal/epl-2.0/
@@ -21,60 +21,15 @@ from __future__ import absolute_import
 import os
 import sys
 import subprocess
-from xml.sax import parseString, handler
-from optparse import OptionParser, OptionGroup, Option
+import warnings
+from optparse import OptionParser
 
 from . import files, net, output, sensors, shapes, statistics, fpdiff  # noqa
-from . import color, geomhelper, miscutils, options, route, version  # noqa
-from .xml import writeHeader as writeXMLHeader  # noqa
+from . import color, geomhelper, miscutils, options, route, vehicletype, version  # noqa
 # the visualization submodule is not imported to avoid an explicit matplotlib dependency
-
-
-class ConfigurationReader(handler.ContentHandler):
-
-    """Reads a configuration template, storing the options in an OptionParser"""
-
-    def __init__(self, optParse, groups, configoptions):
-        self._opts = optParse
-        self._groups = groups
-        self._options = configoptions
-        self._group = self._opts
-
-    def startElement(self, name, attrs):
-        if len(attrs) == 0:
-            self._group = OptionGroup(self._opts, name)
-        if self._group != self._opts and self._groups and self._group.title not in self._groups:
-            return
-        if 'type' in attrs and name != "help":
-            if self._options and name not in self._options:
-                return
-            help = attrs.get("help", "")
-            option = Option("--" + name, help=help)
-            if attrs["type"] == "BOOL":
-                option = Option(
-                    "--" + name, action="store_true", default=False, help=help)
-            elif attrs["type"] in ["FLOAT", "TIME"]:
-                option.type = "float"
-                if attrs["value"]:
-                    option.default = float(attrs["value"])
-            elif attrs["type"] == "INT":
-                option.type = "int"
-                if attrs["value"]:
-                    option.default = int(attrs["value"])
-            else:
-                option.default = attrs["value"]
-            self._group.add_option(option)
-
-    def endElement(self, name):
-        if self._group != self._opts and name == self._group.title:
-            self._opts.add_option_group(self._group)
-            self._group = self._opts
-
-
-def pullOptions(executable, optParse, groups=None, configoptions=None):
-    optoutput = subprocess.Popen(
-        [executable, "--save-template", "-"], stdout=subprocess.PIPE).communicate()[0]
-    parseString(optoutput, ConfigurationReader(optParse, groups, configoptions))
+from .miscutils import openz
+from .options import pullOptions
+from .xml import writeHeader as writeXMLHeader  # noqa
 
 
 def saveConfiguration(executable, configoptions, filename):
@@ -86,7 +41,7 @@ def call(executable, args):
     optParser = OptionParser()
     pullOptions(executable, optParser)
     cmd = [executable]
-    for option, value in args.__dict__.iteritems():
+    for option, value in args.__dict__.items():
         o = "--" + option.replace("_", "-")
         opt = optParser.get_option(o)
         if opt is not None and value is not None and opt.default != value:
@@ -207,6 +162,12 @@ class TeeFile:
                 except OSError:
                     pass
 
+    def close(self):
+        """closes all closable outputs"""
+        for fp in self.files:
+            if hasattr(fp, "close"):
+                fp.close()
+
 
 def _intTime(tStr):
     """
@@ -217,3 +178,9 @@ def _intTime(tStr):
 
 def _laneID2edgeID(laneID):
     return laneID[:laneID.rfind("_")]
+
+
+def open(fileOrURL, tryGZip=True, mode="rb"):
+    warnings.warn("sumolib.open is deprecated, due to the name clash and strange signature! "
+                  "Use sumolib.miscutils.openz instead.")
+    return openz(fileOrURL, mode, tryGZip=tryGZip)

@@ -1,6 +1,6 @@
 /****************************************************************************/
 // Eclipse SUMO, Simulation of Urban MObility; see https://eclipse.org/sumo
-// Copyright (C) 2001-2020 German Aerospace Center (DLR) and others.
+// Copyright (C) 2001-2023 German Aerospace Center (DLR) and others.
 // This program and the accompanying materials are made available under the
 // terms of the Eclipse Public License 2.0 which is available at
 // https://www.eclipse.org/legal/epl-2.0/
@@ -15,6 +15,7 @@
 /// @author  Daniel Krajzewicz
 /// @author  Jakob Erdmann
 /// @author  Michael Behrisch
+/// @author  Johannes Rummel
 /// @date    Mon, 26.04.2004
 ///
 // Builds trigger objects for guisim
@@ -23,11 +24,11 @@
 
 #include <string>
 #include <fstream>
+#include <utils/common/RGBColor.h>
 #include <guisim/GUILaneSpeedTrigger.h>
 #include <guisim/GUINet.h>
 #include <guisim/GUITriggeredRerouter.h>
 #include <guisim/GUIBusStop.h>
-#include <guisim/GUIContainerStop.h>
 #include <guisim/GUIParkingArea.h>
 #include <guisim/GUICalibrator.h>
 #include <guisim/GUIChargingStation.h>
@@ -50,18 +51,16 @@ GUITriggerBuilder::buildLaneSpeedTrigger(MSNet& net,
         const std::string& id, const std::vector<MSLane*>& destLanes,
         const std::string& file) {
     GUILaneSpeedTrigger* lst = new GUILaneSpeedTrigger(id, destLanes, file);
-    static_cast<GUINet&>(net).getVisualisationSpeedUp().addAdditionalGLObject(lst);
+    static_cast<GUINet&>(net).registerRenderedObject(lst);
     return lst;
 }
 
 
 MSTriggeredRerouter*
 GUITriggerBuilder::buildRerouter(MSNet& net, const std::string& id,
-                                 MSEdgeVector& edges,
-                                 double prob, const std::string& file, bool off,
-                                 SUMOTime timeThreshold,
-                                 const std::string& vTypes) {
-    GUITriggeredRerouter* rr = new GUITriggeredRerouter(id, edges, prob, file, off, timeThreshold, vTypes,
+                                 MSEdgeVector& edges, double prob, bool off,
+                                 SUMOTime timeThreshold, const std::string& vTypes) {
+    GUITriggeredRerouter* rr = new GUITriggeredRerouter(id, edges, prob, off, timeThreshold, vTypes,
             dynamic_cast<GUINet&>(net).getVisualisationSpeedUp());
     return rr;
 }
@@ -70,13 +69,8 @@ GUITriggerBuilder::buildRerouter(MSNet& net, const std::string& id,
 void
 GUITriggerBuilder::buildStoppingPlace(MSNet& net, std::string id, std::vector<std::string> lines, MSLane* lane,
                                       double frompos, double topos, const SumoXMLTag element, std::string name,
-                                      int personCapacity, double parkingLength) {
-    if (element == SUMO_TAG_CONTAINER_STOP) {
-        //TODO: shall we also allow names for container stops? might make sense [GL March '17]
-        myCurrentStop = new GUIContainerStop(id, lines, *lane, frompos, topos, name, personCapacity, parkingLength);
-    } else {
-        myCurrentStop = new GUIBusStop(id, lines, *lane, frompos, topos, name, personCapacity, parkingLength);
-    }
+                                      int personCapacity, double parkingLength, RGBColor& color) {
+    myCurrentStop = new GUIBusStop(id, element, lines, *lane, frompos, topos, name, personCapacity, parkingLength, color);
     if (!net.addStoppingPlace(element, myCurrentStop)) {
         delete myCurrentStop;
         myCurrentStop = nullptr;
@@ -92,9 +86,10 @@ GUITriggerBuilder::beginParkingArea(MSNet& net, const std::string& id,
                                     double frompos, double topos,
                                     unsigned int capacity,
                                     double width, double length, double angle, const std::string& name,
-                                    bool onRoad) {
+                                    bool onRoad,
+                                    const std::string& departPos) {
     assert(myParkingArea == 0);
-    GUIParkingArea* stop = new GUIParkingArea(id, lines, *lane, frompos, topos, capacity, width, length, angle, name, onRoad);
+    GUIParkingArea* stop = new GUIParkingArea(id, lines, *lane, frompos, topos, capacity, width, length, angle, name, onRoad, departPos);
     if (!net.addStoppingPlace(SUMO_TAG_PARKING_AREA, stop)) {
         delete stop;
         throw InvalidArgument("Could not build parking area '" + id + "'; probably declared twice.");
@@ -106,14 +101,14 @@ GUITriggerBuilder::beginParkingArea(MSNet& net, const std::string& id,
 
 void
 GUITriggerBuilder::buildChargingStation(MSNet& net, const std::string& id, MSLane* lane, double frompos, double topos, const std::string& name,
-                                        double chargingPower, double efficiency, bool chargeInTransit, double chargeDelay) {
+                                        double chargingPower, double efficiency, bool chargeInTransit, SUMOTime chargeDelay) {
     GUIChargingStation* chargingStation = new GUIChargingStation(id, *lane, frompos, topos, name, chargingPower, efficiency, chargeInTransit, chargeDelay);
     if (!net.addStoppingPlace(SUMO_TAG_CHARGING_STATION, chargingStation)) {
         delete chargingStation;
         throw InvalidArgument("Could not build charging station '" + id + "'; probably declared twice.");
     }
     myCurrentStop = chargingStation;
-    static_cast<GUINet&>(net).getVisualisationSpeedUp().addAdditionalGLObject(chargingStation);
+    static_cast<GUINet&>(net).registerRenderedObject(chargingStation);
 }
 
 
@@ -125,20 +120,20 @@ GUITriggerBuilder::buildOverheadWireSegment(MSNet& net, const std::string& id, M
         delete overheadWire;
         throw InvalidArgument("Could not build overheadWireSegment '" + id + "'; probably declared twice.");
     }
-    static_cast<GUINet&>(net).getVisualisationSpeedUp().addAdditionalGLObject(overheadWire);
+    static_cast<GUINet&>(net).registerRenderedObject(overheadWire);
 }
 
 void
 GUITriggerBuilder::buildOverheadWireClamp(MSNet& net, const std::string& id, MSLane* lane_start, MSLane* lane_end) {
     GUIOverheadWireClamp* overheadWireClamp = new GUIOverheadWireClamp(id, *lane_start, *lane_end);
-    static_cast<GUINet&>(net).getVisualisationSpeedUp().addAdditionalGLObject(overheadWireClamp);
+    static_cast<GUINet&>(net).registerRenderedObject(overheadWireClamp);
 }
 
 
 void
 GUITriggerBuilder::endParkingArea() {
     if (myParkingArea != nullptr) {
-        static_cast<GUINet*>(MSNet::getInstance())->getVisualisationSpeedUp().addAdditionalGLObject(static_cast<GUIParkingArea*>(myParkingArea));
+        static_cast<GUINet*>(MSNet::getInstance())->registerRenderedObject(static_cast<GUIParkingArea*>(myParkingArea));
         myParkingArea = nullptr;
     } else {
         throw InvalidArgument("Could not end a parking area that is not opened.");
@@ -149,7 +144,7 @@ GUITriggerBuilder::endParkingArea() {
 void
 GUITriggerBuilder::endStoppingPlace() {
     if (myCurrentStop != nullptr) {
-        static_cast<GUINet*>(MSNet::getInstance())->getVisualisationSpeedUp().addAdditionalGLObject(dynamic_cast<GUIGlObject*>(myCurrentStop));
+        static_cast<GUINet*>(MSNet::getInstance())->registerRenderedObject(dynamic_cast<GUIGlObject*>(myCurrentStop));
         myCurrentStop = nullptr;
     } else {
         throw InvalidArgument("Could not end a stopping place that is not opened.");

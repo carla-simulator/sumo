@@ -47,3 +47,12 @@ ticket6579
 
 # parallel intermodal routing
 ticket7627
+
+# different lane lengths on the same edge
+ticket8974
+
+# skipping some flows
+ticket8995
+
+# transport without container
+ticket9008

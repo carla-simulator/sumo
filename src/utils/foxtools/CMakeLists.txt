@@ -1,37 +1,65 @@
 set(utils_foxtools_STAT_SRCS
-   FXBaseObject.cpp
-   FXBaseObject.h
-   FXConditionalLock.h
+   fxheader.h
    fxexdefs.h
-   MFXImageHelper.cpp
-   MFXImageHelper.h
-   FXLCDLabel.cpp
-   FXLCDLabel.h
-   FXLinkLabel.cpp
-   FXLinkLabel.h
-   FXSevenSegment.cpp
-   FXSevenSegment.h
-   FXSingleEventThread.cpp
-   FXSingleEventThread.h
-   FXSynchQue.h
-   FXSynchSet.h
-   FXThreadEvent.cpp
-   FXThreadEvent.h
-   FXWorkerThread.h
-   MsgHandlerSynchronized.h
+   MFXBaseObject.cpp
+   MFXBaseObject.h
+   MFXButtonTooltip.cpp
+   MFXButtonTooltip.h
+   MFXDecalsTable.cpp
+   MFXDecalsTable.h
+   MFXToggleButtonTooltip.cpp
+   MFXToggleButtonTooltip.h
    MFXCheckableButton.cpp
    MFXCheckableButton.h
+   MFXComboBox.cpp
+   MFXComboBox.h
+   MFXGroupBoxModule.cpp
+   MFXGroupBoxModule.h
+   MFXComboBoxIcon.cpp
+   MFXComboBoxIcon.h
+   MFXListIcon.cpp
+   MFXListIcon.h
+   MFXListItemIcon.cpp
+   MFXListItemIcon.h
+   MFXImageHelper.cpp
+   MFXImageHelper.h
    MFXInterThreadEventClient.h
-   MFXAddEditTypedTable.cpp
-   MFXAddEditTypedTable.h
-   MFXEditableTable.cpp
-   MFXEditableTable.h
+   MFXLabelTooltip.cpp
+   MFXLabelTooltip.h
+   MFXLCDLabel.cpp
+   MFXLCDLabel.h
+   MFXLinkLabel.cpp
+   MFXLinkLabel.h
+   MFXMenuButtonTooltip.cpp
+   MFXMenuButtonTooltip.h
+   MFXMenuCheckIcon.cpp
+   MFXMenuCheckIcon.h
    MFXMenuHeader.cpp
    MFXMenuHeader.h
-   MFXIconComboBox.cpp
-   MFXIconComboBox.h
+   MFXRealSpinner.cpp
+   MFXRealSpinner.h
+   MFXRecentNetworks.cpp
+   MFXRecentNetworks.h
+   MFXSevenSegment.cpp
+   MFXSevenSegment.h
+   MFXSingleEventThread.cpp
+   MFXSingleEventThread.h
+   MFXStaticToolTip.cpp
+   MFXStaticToolTip.h
+   MFXSynchQue.h
+   MFXSynchSet.h
+   MFXTextFieldIcon.cpp
+   MFXTextFieldIcon.h
+   MFXTextFieldTooltip.cpp
+   MFXTextFieldTooltip.h
+   MFXThreadEvent.cpp
+   MFXThreadEvent.h
+   MFXTreeListDynamic.cpp
+   MFXTreeListDynamic.h
    MFXUtils.cpp
    MFXUtils.h
+   MFXWorkerThread.h
+   MsgHandlerSynchronized.h
 )
 
 add_library(utils_foxtools STATIC ${utils_foxtools_STAT_SRCS})

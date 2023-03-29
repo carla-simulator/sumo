@@ -1,6 +1,6 @@
 /****************************************************************************/
 // Eclipse SUMO, Simulation of Urban MObility; see https://eclipse.org/sumo
-// Copyright (C) 2001-2020 German Aerospace Center (DLR) and others.
+// Copyright (C) 2001-2023 German Aerospace Center (DLR) and others.
 // This program and the accompanying materials are made available under the
 // terms of the Eclipse Public License 2.0 which is available at
 // https://www.eclipse.org/legal/epl-2.0/
@@ -26,10 +26,10 @@
 #include <vector>
 #include <set>
 #include <iostream>
-#include <fx.h>
-#include <utils/foxtools/FXSingleEventThread.h>
-#include <utils/foxtools/FXThreadEvent.h>
-#include <utils/foxtools/FXSynchQue.h>
+#include <utils/foxtools/fxheader.h>
+#include <utils/foxtools/MFXSingleEventThread.h>
+#include <utils/foxtools/MFXThreadEvent.h>
+#include <utils/foxtools/MFXSynchQue.h>
 #include <utils/common/SUMOTime.h>
 
 
@@ -51,11 +51,12 @@ class OutputDevice;
  * The avoidance of collisions between the simulation execution and its
  * visualisation is done individually for every lane using mutexes
  */
-class GUIRunThread : public FXSingleEventThread {
+class GUIRunThread : public MFXSingleEventThread {
 public:
     /// constructor
     GUIRunThread(FXApp* app, MFXInterThreadEventClient* mw,
-                 double& simDelay, FXSynchQue<GUIEvent*>& eq, FXEX::FXThreadEvent& ev);
+                 double& simDelay, MFXSynchQue<GUIEvent*>& eq,
+                 FXEX::MFXThreadEvent& ev);
 
     /// destructor
     virtual ~GUIRunThread();
@@ -111,6 +112,12 @@ public:
         return myBreakpointLock;
     }
 
+    void enableLibsumo() {
+        myAmLibsumo = true;
+    }
+
+    void tryStep();
+
 protected:
     void makeStep();
 
@@ -149,9 +156,9 @@ protected:
 
     double& mySimDelay;
 
-    FXSynchQue<GUIEvent*>& myEventQue;
+    MFXSynchQue<GUIEvent*>& myEventQue;
 
-    FXEX::FXThreadEvent& myEventThrow;
+    FXEX::MFXThreadEvent& myEventThrow;
 
     FXMutex mySimulationLock;
 
@@ -160,5 +167,14 @@ protected:
 
     /// @brief Lock for modifying the list of breakpoints
     FXMutex myBreakpointLock;
+
+    /// end of the last simulation step
+    long myLastEndMillis;
+
+    /// last time the simulation took a microsecond break for the fox event loop to catch up (#9028)
+    long myLastBreakMillis;
+
+    /// whether we are running in libsumo
+    bool myAmLibsumo;
 
 };

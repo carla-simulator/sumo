@@ -1,6 +1,6 @@
 /****************************************************************************/
 // Eclipse SUMO, Simulation of Urban MObility; see https://eclipse.org/sumo
-// Copyright (C) 2001-2020 German Aerospace Center (DLR) and others.
+// Copyright (C) 2001-2023 German Aerospace Center (DLR) and others.
 // This program and the accompanying materials are made available under the
 // terms of the Eclipse Public License 2.0 which is available at
 // https://www.eclipse.org/legal/epl-2.0/
@@ -56,7 +56,7 @@
 /** @class TraCIServer
  * @brief TraCI server used to control sumo by a remote TraCI client
  */
-class TraCIServer final : public MSNet::VehicleStateListener, public libsumo::VariableWrapper {
+class TraCIServer final : public MSNet::VehicleStateListener, public libsumo::VariableWrapper, public MSNet::TransportableStateListener {
 public:
     /// @brief Definition of a method to be called for serving an associated commandID
     typedef bool(*CmdExecutor)(TraCIServer& server, tcpip::Storage& inputStorage, tcpip::Storage& outputStorage);
@@ -92,13 +92,15 @@ public:
     /// @brief process all commands until the next SUMO simulation step.
     ///        It is guaranteed that t->getTargetTime() >= myStep after call
     ///        (except the case that a load or close command is received)s
-    void processCommandsUntilSimStep(SUMOTime step);
+    int processCommands(const SUMOTime step, const bool afterMove=false);
 
     /// @brief clean up subscriptions
     void cleanup();
 
 
     void vehicleStateChanged(const SUMOVehicle* const vehicle, MSNet::VehicleState to, const std::string& info = "");
+
+    void transportableStateChanged(const MSTransportable* const transportable, MSNet::TransportableState to, const std::string& info = "");
 
     /// @name Writing Status Messages
     /// @{
@@ -137,6 +139,16 @@ public:
         } else {
             // Requested in the context of a custom query by active client
             return myCurrentSocket->second->vehicleStateChanges;
+        }
+    }
+
+    const std::map<MSNet::TransportableState, std::vector<std::string> >& getTransportableStateChanges() const {
+        if (myCurrentSocket == mySockets.end()) {
+            // Requested in context of a subscription update
+            return myTransportableStateChanges;
+        } else {
+            // Requested in the context of a custom query by active client
+            return myCurrentSocket->second->transportableStateChanges;
         }
     }
 
@@ -254,9 +266,12 @@ public:
     bool wrapInt(const std::string& objID, const int variable, const int value);
     bool wrapString(const std::string& objID, const int variable, const std::string& value);
     bool wrapStringList(const std::string& objID, const int variable, const std::vector<std::string>& value);
+    bool wrapDoubleList(const std::string& objID, const int variable, const std::vector<double>& value);
     bool wrapPosition(const std::string& objID, const int variable, const libsumo::TraCIPosition& value);
+    bool wrapPositionVector(const std::string& objID, const int variable, const libsumo::TraCIPositionVector& value);
     bool wrapColor(const std::string& objID, const int variable, const libsumo::TraCIColor& value);
-    bool wrapRoadPosition(const std::string& objID, const int variable, const libsumo::TraCIRoadPosition& value);
+    bool wrapStringDoublePair(const std::string& objID, const int variable, const std::pair<std::string, double>& value);
+    bool wrapStringPair(const std::string& objID, const int variable, const std::pair<std::string, std::string>& value);
     tcpip::Storage& getWrapperStorage();
     /// @}
 
@@ -282,12 +297,16 @@ private:
         ~SocketInfo() {
             delete socket;
         }
-        /// @brief Target time: next point of action for the client
+        /// @brief next point of action for the client
         SUMOTime targetTime;
+        /// @brief whether a "half step" has been done, executing only the move
+        bool executeMove = false;
         /// @brief Socket object for this client
         tcpip::Socket* socket;
         /// @brief container for vehicle state changes since last step taken by this client
         std::map<MSNet::VehicleState, std::vector<std::string> > vehicleStateChanges;
+        /// @brief container for transportable state changes since last step taken by this client
+        std::map<MSNet::TransportableState, std::vector<std::string> > transportableStateChanges;
     private:
         SocketInfo(const SocketInfo&);
     };
@@ -299,7 +318,6 @@ private:
      * @return Always true
      */
     bool commandGetVersion();
-
 
     /** @brief Handles subscriptions to send after a simstep2 command
      */
@@ -370,8 +388,8 @@ private:
     /// @brief Map of commandIds -> their executors; applicable if the executor applies to the method footprint
     std::map<int, CmdExecutor> myExecutors;
 
-    /// @brief Map of variable ids to the size of the parameter in bytes
-    std::map<int, int> myParameterSizes;
+    /// @brief Set of variables which have parameters
+    std::set<std::pair<int, int>> myParameterized;
 
     std::vector<std::string> myLoadArgs;
 
@@ -389,6 +407,15 @@ private:
     /// with a proper vehicleStateChanges container mySockets[...].second->vehicleStateChanges
     /// Performance could be improved if for a single client, myVehicleStateChanges is used only.
     std::map<MSNet::VehicleState, std::vector<std::string> > myVehicleStateChanges;
+
+    /// @brief Changes in the states of simulated transportables
+    /// @note
+    /// Server cache myTransportableStateChanges is used for managing last steps subscription updates
+    /// and for client information in case that myAmEmbedded==true, which implies a single client.
+    /// For the potential multiclient case (myAmEmbedded==false), each socket in mySockets is associated
+    /// with a proper TransportableStateChanges container mySockets[...].second->TransportableStateChanges
+    /// Performance could be improved if for a single client, myTransportableStateChanges is used only.
+    std::map<MSNet::TransportableState, std::vector<std::string> > myTransportableStateChanges;
 
 private:
     bool addObjectVariableSubscription(const int commandId, const bool hasContext);
@@ -408,7 +435,7 @@ private:
     // TODO: for libsumo, implement convenience definitions present in python client:
     //    void addSubscriptionFilterCF();
     //    void addSubscriptionFilterLC(int direction);
-    void addSubscriptionFilterTurn();
+    void addSubscriptionFilterTurn(double dist);
     void addSubscriptionFilterVClass(SVCPermissions vClasses);
     void addSubscriptionFilterVType(std::set<std::string> vTypes);
     /** @brief Filter only vehicles within field of vision
@@ -422,15 +449,13 @@ private:
      */
     void addSubscriptionFilterLateralDistance(double dist);
 
-    bool findObjectShape(int domain, const std::string& id, PositionVector& shape);
-
     /// @brief check whether a found objID refers to the central object of a context subscription
     bool centralObject(const libsumo::Subscription& s, const std::string& objID);
 
 
 private:
     /// @brief Invalidated assignment operator
-    TraCIServer& operator=(const TraCIServer& s);
+    TraCIServer& operator=(const TraCIServer& s) = delete;
 
 };
 

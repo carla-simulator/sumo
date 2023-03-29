@@ -1,7 +1,8 @@
 ---
-title: Z/Changes from Version 0.10.1 to Version 0.10.2
-permalink: /Z/Changes_from_Version_0.10.1_to_Version_0.10.2/
+title: Changes from Version 0.10.1 to Version 0.10.2
 ---
+
+**Release date: 16.03.2009**
 
 - All
   - If configuration is written using **--write-config**, the
@@ -11,10 +12,10 @@ permalink: /Z/Changes_from_Version_0.10.1_to_Version_0.10.2/
     **NUL** (MS Windows) or **/dev/null** (Linux)
 
 - sumo-gui
-  - solved [bug 2519476: vss are not shown properly](http://sourceforge.net/tracker/index.php?func=detail&aid=2519476&group_id=45607&atid=443424)
-  - solved [bug 2510002: Crash on vss manipulator](http://sourceforge.net/tracker/index.php?func=detail&aid=2510002&group_id=45607&atid=443424)
+  - solved bug 2519476: vss are not shown properly
+  - solved bug 2510002: Crash on vss manipulator
   - debugged size info ("legend") drawing
-  - solved [bug 2519761: guisim crashes on "show all routes"](http://sourceforge.net/tracker/index.php?func=detail&aid=2519761&group_id=45607&atid=443424)
+  - solved bug 2519761: guisim crashes on "show all routes"
   - changed how decals are aligned (see
     [sumo-gui\#Using_Decals_within_sumo-gui](../sumo-gui.md#using_decals_within_sumo-gui))
   - Consolidated the startup-options **--suppress-end-info** and
@@ -29,14 +30,13 @@ permalink: /Z/Changes_from_Version_0.10.1_to_Version_0.10.2/
     Thanks to Michael Behrisch for this very nice work
 
 - Simulation
-  - solved [bug 2524031: sumo xml parser relies on sequence order
-    instead
-    IDs](http://sourceforge.net/tracker/index.php?func=detail&aid=2524031&group_id=45607&atid=443424);
+  - solved bug 2524031: sumo xml parser relies on sequence order
+    instead IDs;
     thanks to Andrey Gursky for supplying the example
-  - solved [bug 2519762: rerouter are not shown
-    properly](http://sourceforge.net/tracker/index.php?func=detail&aid=2519762&group_id=45607&atid=443424)
-  - solved [bug 2105526: Subsecond simulation does not
-    compile](http://sourceforge.net/tracker/index.php?func=detail&aid=2105526&group_id=45607&atid=443424)
+  - solved bug 2519762: rerouter are not shown
+    properly
+  - solved bug 2105526: Subsecond simulation does not
+    compile
   - changed default simulation end time to INT_MAX
   - simulation stops on running empty only if there is no end time
     specified
@@ -45,14 +45,14 @@ permalink: /Z/Changes_from_Version_0.10.1_to_Version_0.10.2/
 - netconvert / Netgen
   - trying to deal with problems on network building; networks are
     more correct for most cases, but may look weird sometimes
-  - solved [defect 38: speed instead of length while importing XML](http://apps.sourceforge.net/trac/sumo/ticket/38)
+  - solved [defect 38: speed instead of length while importing XML](https://github.com/eclipse/sumo/issues/38)
   - changed the tls-guessing procedure (unverified, yet); tls which
     span over multiple junctions can now been "guessed" if both,
     nodes are marked as being controlled by traffic lights or not
-    within the imported data; see also: [task 42: (TAPAS) add possibility to generate joined tls if tls are given](http://apps.sourceforge.net/trac/sumo/ticket/42)
+    within the imported data; see also: [task 42: (TAPAS) add possibility to generate joined tls if tls are given](https://github.com/eclipse/sumo/issues/42)
 
 - polyconvert
-  - solved [defect 14: polyconvert does not report about double ids](http://apps.sourceforge.net/trac/sumo/ticket/14)
+  - solved [defect 14: polyconvert does not report about double ids](https://github.com/eclipse/sumo/issues/14)
   - renamed option **--xml-points** to **--xml**
   - renamed option **--shape-files** to **--shape-file**
 
@@ -60,7 +60,7 @@ permalink: /Z/Changes_from_Version_0.10.1_to_Version_0.10.2/
   - Rebuilt traceExporter; added tests
 
 - Documentation
-  - solved [bug 1993983: Errors in User Documentation](http://sourceforge.net/tracker/index.php?func=detail&aid=19939836&group_id=45607&atid=443424)
+  - solved bug 1993983: Errors in User Documentation
 
 - TAPAS
   - see [TAPASCologne Change Log](../Data/Scenarios/TAPASCologne.md#change_log)

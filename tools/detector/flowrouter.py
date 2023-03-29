@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 # Eclipse SUMO, Simulation of Urban MObility; see https://eclipse.org/sumo
-# Copyright (C) 2007-2020 German Aerospace Center (DLR) and others.
+# Copyright (C) 2007-2023 German Aerospace Center (DLR) and others.
 # This program and the accompanying materials are made available under the
 # terms of the Eclipse Public License 2.0 which is available at
 # https://www.eclipse.org/legal/epl-2.0/
@@ -20,7 +20,7 @@
 This script does flow routing similar to the dfrouter.
 It has three mandatory parameters, the SUMO net (.net.xml), a file
 specifying detectors and one for the flows. It may detect the type
-of the detectors (source, sink, inbetween) itself or read it from
+of the detectors (source, sink, in between) itself or read it from
 the detectors file.
 """
 from __future__ import absolute_import
@@ -88,6 +88,7 @@ class Vertex:
 # as well as flow and capacity for the flow computation and some parameters
 # read from the net. The members are accessed directly.
 class Edge:
+    lanebased = False
 
     def __init__(self, label, source, target, kind, linkDir=None):
         self.label = label
@@ -167,12 +168,13 @@ class Net:
         self._routeRestriction = {}
         if options.restrictionfile:
             for f in options.restrictionfile.split(","):
-                for line in open(f):
-                    ls = line.split()
-                    if len(ls) == 2:
-                        self._edgeRestriction[ls[1]] = int(ls[0])
-                    else:
-                        self._routeRestriction[tuple(ls[1:])] = int(ls[0])
+                with open(f) as fp:
+                    for line in fp:
+                        ls = line.split()
+                        if len(ls) == 2:
+                            self._edgeRestriction[ls[1]] = int(ls[0])
+                        else:
+                            self._routeRestriction[tuple(ls[1:])] = int(ls[0])
             if options.verbose:
                 print("Loaded %s edge restrictions and %s route restrictions" %
                       (len(self._edgeRestriction), len(self._routeRestriction)))
@@ -493,7 +495,11 @@ class Net:
             edge = currVertex.inPathEdge
             if edge.target == currVertex:
                 if edge.kind == "real":
-                    route.insert(0, edge.label)
+                    if Edge.lanebased:
+                        edgeID = edge.label[:edge.label.rfind("_")]
+                        route.insert(0, edgeID)
+                    else:
+                        route.insert(0, edge.label)
                 routeEdgeObj.insert(0, edge)
                 currVertex = edge.source
             else:
@@ -753,9 +759,15 @@ class Net:
                                 viaEdges.append(e)
                         if viaEdges:
                             via = ' via="%s"' % " ".join(viaEdges)
-                    print('    <flow id="%s" %s route="%s" number="%s" begin="%s" end="%s"%s/>' %
-                          (route.routeID, options.params, route.routeID,
-                           int(route.frequency), begin, end, via), file=emitOut)
+                    if options.pedestrians:
+                        print('    <personFlow id="%s" %s number="%s" begin="%s" end="%s">' %
+                              (route.routeID, options.params, int(route.frequency), begin, end), file=emitOut)
+                        print('        <walk route="%s"/>' % route.routeID, file=emitOut)
+                        print('    </personFlow>', file=emitOut)
+                    else:
+                        print('    <flow id="%s" %s route="%s" number="%s" begin="%s" end="%s"%s/>' %
+                              (route.routeID, options.params, route.routeID,
+                               int(route.frequency), begin, end, via), file=emitOut)
 
         if options.verbose:
             print("Writing %s vehicles from %s sources between time %s and %s (minutes)" % (
@@ -952,6 +964,8 @@ optParser.add_option("-l", "--lane-based", action="store_true", dest="lanebased"
                      default=False, help="do not aggregate detector data and connections to edges")
 optParser.add_option("-i", "--interval", type="int", help="aggregation interval in minutes")
 optParser.add_option("-b", "--begin", type="int", help="begin time in minutes")
+optParser.add_option("--pedestrians", action="store_true",
+                     default=False, help="write pedestrian flows instead of vehicles flows")
 optParser.add_option("--limit", type="int", help="limit the amount of flow assigned in a single step")
 optParser.add_option("--vclass", help="only consider lanes that allow the given vehicle class")
 optParser.add_option("-q", "--quiet", action="store_true", dest="quiet",
@@ -975,10 +989,21 @@ if (options.restrictionfile is not None or options.maxflow is not None) and opti
     optParser.print_help()
     sys.exit()
 
+if options.pedestrians:
+    if options.random:
+        print("Pedestrian output does not support option 'random'")
+        sys.exit()
+    # filtering out params that are not suitable for persons
+    params = options.params.split()
+    params = [p for p in params if "departSpeed" not in p and "departPos" not in
+              p and "departLane" not in p]
+    options.params = ' '.join(params)
+
 DEBUG = options.debug
 parser = make_parser()
 if options.verbose:
     print("Reading net")
+Edge.lanebased = options.lanebased
 net = Net()
 reader = NetDetectorFlowReader(net)
 parser.setContentHandler(reader)

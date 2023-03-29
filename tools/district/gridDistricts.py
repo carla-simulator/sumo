@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 # Eclipse SUMO, Simulation of Urban MObility; see https://eclipse.org/sumo
-# Copyright (C) 2007-2020 German Aerospace Center (DLR) and others.
+# Copyright (C) 2007-2023 German Aerospace Center (DLR) and others.
 # This program and the accompanying materials are made available under the
 # terms of the Eclipse Public License 2.0 which is available at
 # https://www.eclipse.org/legal/epl-2.0/
@@ -22,6 +22,7 @@ from __future__ import absolute_import
 from __future__ import print_function
 import os
 import sys
+import random
 from optparse import OptionParser
 SUMO_HOME = os.environ.get('SUMO_HOME',
                            os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', '..'))
@@ -51,12 +52,14 @@ def getOptions():
     optParser.add_option("-o", "--output", help="output taz file")
     optParser.add_option("-w", "--grid-width", dest="gridWidth", type="float", default=100.0,
                          help="width of gride cells in m")
+    optParser.add_option("--vclass", help="Include only edges allowing VCLASS")
     optParser.add_option("-u", "--hue", default="random",
                          help="hue for taz (float from [0,1] or 'random')")
     optParser.add_option("-s", "--saturation", default=1,
                          help="saturation for taz (float from [0,1] or 'random')")
     optParser.add_option("-b", "--brightness", default=1,
                          help="brightness for taz (float from [0,1] or 'random')")
+    optParser.add_option("--seed", type="int", default=42, help="random seed")
     (options, args) = optParser.parse_args()
     if not options.netfile or not options.output:
         optParser.print_help()
@@ -67,6 +70,7 @@ def getOptions():
 
 if __name__ == "__main__":
     options = getOptions()
+    random.seed(options.seed)
     if options.verbose:
         print("Reading net")
     net = sumolib.net.readNet(options.netfile)
@@ -76,6 +80,8 @@ if __name__ == "__main__":
     w = options.gridWidth
     w2 = w * 0.5 - 1
     for edge in net.getEdges():
+        if options.vclass is not None and not edge.allows(options.vclass):
+            continue
         x, y = sumolib.geomhelper.positionAtShapeOffset(edge.getShape(True), edge.getLength() / 2)
         xIndex = int((x - xmin + w2) / w)
         yIndex = int((y - ymin + w2) / w)

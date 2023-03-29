@@ -1,6 +1,5 @@
 ---
-title: Simulation/VehiclePermissions
-permalink: /Simulation/VehiclePermissions/
+title: VehiclePermissions
 ---
 
 # Introduction
@@ -19,7 +18,7 @@ The vehicle class of a vehicle is defined by first defining a [vehicle
 type](../Definition_of_Vehicles,_Vehicle_Types,_and_Routes.md#vehicle_types)
 with the appropriate [vehicle
 class](../Definition_of_Vehicles,_Vehicle_Types,_and_Routes.md#abstract_vehicle_class)
-and then[assigning that type to the
+and then [assigning that type to the
 vehicle](../Definition_of_Vehicles,_Vehicle_Types,_and_Routes.md#vehicles_and_routes).
 An example is given below:
 
@@ -54,13 +53,13 @@ classes. This definition is either
   [OpenStreetMap](../Networks/Import/OpenStreetMap.md) according
   to a [customizable
   heuristic](../Networks/Import/OpenStreetMap.md#recommended_typemaps).
-- or set via [netedit](../netedit.md#inspect). Convenience
+- or set via [netedit](../Netedit/index.md#inspect). Convenience
   features exist [for adding bicycle lanes, bus lanes and
-  sidewalks](../netedit.md#restricted_lanes).
+  sidewalks](../Netedit/index.md#restricted_lanes).
 
 For visualizing access permissions, either
 [sumo-gui](../sumo-gui.md#road_access_permissions) or
-[netedit](../netedit.md#correcting_road_access_permissions) may be
+[netedit](../Netedit/index.md#correcting_road_access_permissions) may be
 used.
 
 # Special cases

@@ -1,6 +1,6 @@
 /****************************************************************************/
 // Eclipse SUMO, Simulation of Urban MObility; see https://eclipse.org/sumo
-// Copyright (C) 2001-2020 German Aerospace Center (DLR) and others.
+// Copyright (C) 2001-2023 German Aerospace Center (DLR) and others.
 // This program and the accompanying materials are made available under the
 // terms of the Eclipse Public License 2.0 which is available at
 // https://www.eclipse.org/legal/epl-2.0/
@@ -24,6 +24,7 @@
 #include <utils/common/StringTokenizer.h>
 #include <utils/common/StringUtils.h>
 #include <utils/common/ToString.h>
+#include <utils/common/RandHelper.h>
 #include <utils/iodevices/OutputDevice.h>
 #include <utils/options/OptionsCont.h>
 
@@ -35,19 +36,27 @@
 
 SUMOVehicleParameter::SUMOVehicleParameter()
     : tag(SUMO_TAG_NOTHING), vtypeid(DEFAULT_VTYPE_ID), color(RGBColor::DEFAULT_COLOR),
-      depart(-1), departProcedure(DEPART_GIVEN),
+      depart(-1), departProcedure(DepartDefinition::GIVEN),
       departLane(0), departLaneProcedure(DepartLaneDefinition::DEFAULT),
       departPos(0), departPosProcedure(DepartPosDefinition::DEFAULT),
       departPosLat(0), departPosLatProcedure(DepartPosLatDefinition::DEFAULT),
       departSpeed(-1), departSpeedProcedure(DepartSpeedDefinition::DEFAULT),
-      departEdge(0), departEdgeProcedure(DepartEdgeDefinition::DEFAULT),
+      departEdge(0), departEdgeProcedure(RouteIndexDefinition::DEFAULT),
       arrivalLane(0), arrivalLaneProcedure(ArrivalLaneDefinition::DEFAULT),
       arrivalPos(0), arrivalPosProcedure(ArrivalPosDefinition::DEFAULT),
       arrivalPosLat(0), arrivalPosLatProcedure(ArrivalPosLatDefinition::DEFAULT),
       arrivalSpeed(-1), arrivalSpeedProcedure(ArrivalSpeedDefinition::DEFAULT),
-      repetitionNumber(-1), repetitionsDone(-1), repetitionOffset(-1), repetitionProbability(-1), repetitionEnd(-1),
+      arrivalEdge(-1), arrivalEdgeProcedure(RouteIndexDefinition::DEFAULT),
+      repetitionNumber(-1),
+      repetitionsDone(-1),
+      repetitionOffset(-1),
+      repetitionTotalOffset(0),
+      repetitionProbability(-1),
+      repetitionEnd(-1),
       line(), fromTaz(), toTaz(), personNumber(0), containerNumber(0),
       speedFactor(-1),
+      calibratorSpeed(-1),
+      insertionChecks((int)InsertionCheck::ALL),
       parametersSet(0)
 { }
 
@@ -63,8 +72,11 @@ SUMOVehicleParameter::defaultOptionOverrides(const OptionsCont& oc, const std::s
 
 
 void
-SUMOVehicleParameter::write(OutputDevice& dev, const OptionsCont& oc, const SumoXMLTag tag, const std::string& typeID) const {
-    dev.openTag(tag).writeAttr(SUMO_ATTR_ID, id);
+SUMOVehicleParameter::write(OutputDevice& dev, const OptionsCont& oc, const SumoXMLTag altTag, const std::string& typeID) const {
+    if (!id.empty()) {
+        // only used by calibrator flows
+        dev.openTag(altTag).writeAttr(SUMO_ATTR_ID, id);
+    }
     if (typeID == "") {
         if (wasSet(VEHPARS_VTYPE_SET)) {
             dev.writeAttr(SUMO_ATTR_TYPE, vtypeid);
@@ -73,8 +85,12 @@ SUMOVehicleParameter::write(OutputDevice& dev, const OptionsCont& oc, const Sumo
         dev.writeAttr(SUMO_ATTR_TYPE, typeID);
     }
     // write depart depending of tag
-    if ((tag == SUMO_TAG_FLOW) || (tag == SUMO_TAG_PERSONFLOW) ||
-            (tag == GNE_TAG_FLOW_ROUTE) || (tag == GNE_TAG_FLOW_WITHROUTE)) {
+    if (altTag == SUMO_TAG_FLOW
+            || altTag == SUMO_TAG_PERSONFLOW
+            || altTag == SUMO_TAG_CONTAINERFLOW
+            || altTag == GNE_TAG_FLOW_ROUTE
+            || altTag == GNE_TAG_FLOW_WITHROUTE
+            || altTag == SUMO_TAG_FLOWSTATE) {
         dev.writeAttr(SUMO_ATTR_BEGIN, getDepart());
     } else {
         dev.writeAttr(SUMO_ATTR_DEPART, getDepart());
@@ -130,6 +146,12 @@ SUMOVehicleParameter::write(OutputDevice& dev, const OptionsCont& oc, const Sumo
     } else if (oc.exists("arrivalspeed") && oc.isSet("arrivalspeed")) {
         dev.writeNonEmptyAttr(SUMO_ATTR_ARRIVALSPEED, oc.getString("arrivalspeed"));
     }
+    //  arrivalEdge
+    if (wasSet(VEHPARS_ARRIVALEDGE_SET) && !defaultOptionOverrides(oc, "arrivaledge") && arrivalEdge >= 0) {
+        dev.writeNonEmptyAttr(SUMO_ATTR_ARRIVALEDGE, getArrivalEdge());
+    } else if (oc.exists("arrivaledge") && oc.isSet("arrivaledge")) {
+        dev.writeNonEmptyAttr(SUMO_ATTR_ARRIVALEDGE, oc.getString("arrivaledge"));
+    }
     // color
     if (wasSet(VEHPARS_COLOR_SET)) {
         dev.writeAttr(SUMO_ATTR_COLOR, color);
@@ -156,38 +178,65 @@ SUMOVehicleParameter::write(OutputDevice& dev, const OptionsCont& oc, const Sumo
     }
     // individual speedFactor
     if (wasSet(VEHPARS_SPEEDFACTOR_SET)) {
+        // might be saving state with custom precision
+        const int precision = dev.precision();
+        dev.setPrecision(MAX2(gPrecisionRandom, precision));
         dev.writeAttr(SUMO_ATTR_SPEEDFACTOR, speedFactor);
+        dev.setPrecision(precision);
+    }
+    // speed (only used by calibrators)
+    if (wasSet(VEHPARS_CALIBRATORSPEED_SET)) {
+        dev.writeAttr(SUMO_ATTR_SPEED, calibratorSpeed);
+    }
+    // speed (only used by calibrators)
+    if (insertionChecks != (int)InsertionCheck::ALL) {
+        std::vector<std::string> checks;
+        if (insertionChecks == (int)InsertionCheck::NONE) {
+            checks.push_back(toString(InsertionCheck::NONE));
+        } else {
+            for (auto it : SUMOXMLDefinitions::InsertionChecks.getValues()) {
+                if (((int)it & insertionChecks) != 0) {
+                    checks.push_back(toString(it));
+                }
+            }
+        }
+        dev.writeAttr(SUMO_ATTR_INSERTIONCHECKS, checks);
     }
 }
 
 
 void
-SUMOVehicleParameter::Stop::write(OutputDevice& dev, bool close) const {
-    dev.openTag(SUMO_TAG_STOP);
-    if (busstop != "") {
-        dev.writeAttr(SUMO_ATTR_BUS_STOP, busstop);
-    }
-    if (containerstop != "") {
-        dev.writeAttr(SUMO_ATTR_CONTAINER_STOP, containerstop);
-    }
-    if (chargingStation != "") {
-        dev.writeAttr(SUMO_ATTR_CHARGING_STATION, chargingStation);
-    }
-    if (parkingarea != "") {
-        dev.writeAttr(SUMO_ATTR_PARKING_AREA, parkingarea);
-    }
-    if ((busstop == "") && (containerstop == "") && (parkingarea == "") && (chargingStation == "")) {
-        if (lane != "") {
-            dev.writeAttr(SUMO_ATTR_LANE, lane);
-        } else {
-            dev.writeAttr(SUMO_ATTR_EDGE, edge);
+SUMOVehicleParameter::Stop::write(OutputDevice& dev, const bool close, const bool writeTagAndParents) const {
+    if (writeTagAndParents) {
+        dev.openTag(SUMO_TAG_STOP);
+        if (busstop != "") {
+            dev.writeAttr(SUMO_ATTR_BUS_STOP, busstop);
         }
-        if ((parametersSet & STOP_START_SET) != 0) {
-            dev.writeAttr(SUMO_ATTR_STARTPOS, startPos);
+        if (containerstop != "") {
+            dev.writeAttr(SUMO_ATTR_CONTAINER_STOP, containerstop);
         }
-        if ((parametersSet & STOP_END_SET) != 0) {
-            dev.writeAttr(SUMO_ATTR_ENDPOS, endPos);
+        if (chargingStation != "") {
+            dev.writeAttr(SUMO_ATTR_CHARGING_STATION, chargingStation);
         }
+        if (parkingarea != "") {
+            dev.writeAttr(SUMO_ATTR_PARKING_AREA, parkingarea);
+        }
+        if ((busstop == "") && (containerstop == "") && (parkingarea == "") && (chargingStation == "")) {
+            if (lane != "") {
+                dev.writeAttr(SUMO_ATTR_LANE, lane);
+            } else {
+                dev.writeAttr(SUMO_ATTR_EDGE, edge);
+            }
+            if ((parametersSet & STOP_START_SET) != 0) {
+                dev.writeAttr(SUMO_ATTR_STARTPOS, startPos);
+            }
+            if ((parametersSet & STOP_END_SET) != 0) {
+                dev.writeAttr(SUMO_ATTR_ENDPOS, endPos);
+            }
+        }
+    }
+    if ((parametersSet & STOP_POSLAT_SET) != 0 && posLat != INVALID_DOUBLE) {
+        dev.writeAttr(SUMO_ATTR_POSITION_LAT, posLat);
     }
     if ((parametersSet & STOP_ARRIVAL_SET) && (arrival >= 0)) {
         dev.writeAttr(SUMO_ATTR_ARRIVAL, time2string(arrival));
@@ -198,17 +247,28 @@ SUMOVehicleParameter::Stop::write(OutputDevice& dev, bool close) const {
     if ((parametersSet & STOP_UNTIL_SET) && (until >= 0)) {
         dev.writeAttr(SUMO_ATTR_UNTIL, time2string(until));
     }
+    if ((parametersSet & STOP_STARTED_SET) && (started >= 0)) {
+        dev.writeAttr(SUMO_ATTR_STARTED, time2string(started));
+    }
+    if ((parametersSet & STOP_ENDED_SET) && (ended >= 0)) {
+        dev.writeAttr(SUMO_ATTR_ENDED, time2string(ended));
+    }
     if ((parametersSet & STOP_EXTENSION_SET) && (extension >= 0)) {
         dev.writeAttr(SUMO_ATTR_EXTENSION, time2string(extension));
     }
-    writeTriggers(dev);
+    if ((parametersSet & STOP_TRIGGER_SET) != 0) {
+        dev.writeAttr(SUMO_ATTR_TRIGGERED, getTriggers());
+    }
     if ((parametersSet & STOP_PARKING_SET) != 0) {
         dev.writeAttr(SUMO_ATTR_PARKING, parking);
     }
-    if ((parametersSet & STOP_EXPECTED_SET) != 0) {
+    if ((parametersSet & STOP_EXPECTED_SET) != 0 && awaitedPersons.size() > 0) {
         dev.writeAttr(SUMO_ATTR_EXPECTED, awaitedPersons);
     }
-    if ((parametersSet & STOP_EXPECTED_CONTAINERS_SET) != 0) {
+    if ((parametersSet & STOP_PERMITTED_SET) != 0 && permitted.size() > 0) {
+        dev.writeAttr(SUMO_ATTR_PERMITTED, permitted);
+    }
+    if ((parametersSet & STOP_EXPECTED_CONTAINERS_SET) != 0 && awaitedContainers.size() > 0) {
         dev.writeAttr(SUMO_ATTR_EXPECTED_CONTAINERS, awaitedContainers);
     }
     if ((parametersSet & STOP_TRIP_ID_SET) != 0) {
@@ -226,6 +286,15 @@ SUMOVehicleParameter::Stop::write(OutputDevice& dev, bool close) const {
     if ((parametersSet & STOP_SPEED_SET) != 0) {
         dev.writeAttr(SUMO_ATTR_SPEED, speed);
     }
+    if ((parametersSet & STOP_ONDEMAND_SET) != 0) {
+        dev.writeAttr(SUMO_ATTR_ONDEMAND, onDemand);
+    }
+    if ((parametersSet & STOP_JUMP_SET) != 0 && jump >= 0) {
+        dev.writeAttr(SUMO_ATTR_JUMP, time2string(jump));
+    }
+    if (collision) {
+        dev.writeAttr(SUMO_ATTR_COLLISION, collision);
+    }
     // only write friendly position if is true
     if (friendlyPos == true) {
         dev.writeAttr(SUMO_ATTR_FRIENDLY_POS, friendlyPos);
@@ -242,29 +311,31 @@ SUMOVehicleParameter::Stop::write(OutputDevice& dev, bool close) const {
 
 bool
 SUMOVehicleParameter::parseDepart(const std::string& val, const std::string& element, const std::string& id,
-                                  SUMOTime& depart, DepartDefinition& dd, std::string& error) {
+                                  SUMOTime& depart, DepartDefinition& dd, std::string& error, const std::string& attr) {
     if (val == "triggered") {
-        dd = DEPART_TRIGGERED;
+        dd = DepartDefinition::TRIGGERED;
     } else if (val == "containerTriggered") {
-        dd = DEPART_CONTAINER_TRIGGERED;
-    } else if (val == "split") {
-        dd = DEPART_SPLIT;
+        dd = DepartDefinition::CONTAINER_TRIGGERED;
     } else if (val == "now") {
         // only used via TraCI. depart must be set by the calling code
-        dd = DEPART_NOW;
+        dd = DepartDefinition::NOW;
+    } else if (val == "split") {
+        dd = DepartDefinition::SPLIT;
+    } else if (val == "begin") {
+        dd = DepartDefinition::BEGIN;
     } else {
         try {
             depart = string2time(val);
-            dd = DEPART_GIVEN;
+            dd = DepartDefinition::GIVEN;
             if (depart < 0) {
-                error = "Negative departure time in the definition of '" + id + "'.";
+                error = "Negative " + attr + " time in the definition of " + element + " '" + id + "'.";
                 return false;
             }
         } catch (...) {
             if (id.empty()) {
-                error = "Invalid departure time for " + element + ". Must be one of (\"triggered\", \"containerTriggered\", \"now\", or a float >= 0)";
+                error = "Invalid " + attr + " time for " + element + ". Must be one of (\"triggered\", \"containerTriggered\", \"now\", or a float >= 0)";
             } else {
-                error = "Invalid departure time for " + element + " '" + id + "';\n must be one of (\"triggered\", \"containerTriggered\", \"now\", or a float >= 0)";
+                error = "Invalid " + attr + " time for " + element + " '" + id + "';\n must be one of (\"triggered\", \"containerTriggered\", \"now\", or a float >= 0)";
             }
             return false;
         }
@@ -396,6 +467,10 @@ SUMOVehicleParameter::parseDepartSpeed(const std::string& val, const std::string
         dsd = DepartSpeedDefinition::DESIRED;
     } else if (val == "speedLimit") {
         dsd = DepartSpeedDefinition::LIMIT;
+    } else if (val == "last") {
+        dsd = DepartSpeedDefinition::LAST;
+    } else if (val == "avg") {
+        dsd = DepartSpeedDefinition::AVG;
     } else {
         try {
             speed = StringUtils::toDouble(val);
@@ -418,13 +493,13 @@ SUMOVehicleParameter::parseDepartSpeed(const std::string& val, const std::string
 
 
 bool
-SUMOVehicleParameter::parseDepartEdge(const std::string& val, const std::string& element, const std::string& id,
-                                      int& edgeIndex, DepartEdgeDefinition& ded, std::string& error) {
+SUMOVehicleParameter::parseRouteIndex(const std::string& val, const std::string& element, const std::string& id,
+                                      const SumoXMLAttr attr, int& edgeIndex, RouteIndexDefinition& rid, std::string& error) {
     bool ok = true;
     edgeIndex = -1;
-    ded = DepartEdgeDefinition::GIVEN;
+    rid = RouteIndexDefinition::GIVEN;
     if (val == "random") {
-        ded = DepartEdgeDefinition::RANDOM;
+        rid = RouteIndexDefinition::RANDOM;
     } else {
         try {
             edgeIndex = StringUtils::toInt(val);
@@ -437,9 +512,9 @@ SUMOVehicleParameter::parseDepartEdge(const std::string& val, const std::string&
     }
     if (!ok) {
         if (id.empty()) {
-            error = "Invalid departEdge definition for " + element + ". Must be one of (\"random\", \"free\", or an int>=0)";
+            error = "Invalid " + toString(attr) + " definition for " + element + ". Must be one of (\"random\", \"free\", or an int>=0)";
         } else {
-            error = "Invalid departEdge definition for " + element + " '" + id + "';\n must be one of (\"random\", \"free\", or an int>=0)";
+            error = "Invalid " + toString(attr) + " definition for " + element + " '" + id + "';\n must be one of (\"random\", \"free\", or an int>=0)";
         }
     }
     return ok;
@@ -454,6 +529,10 @@ SUMOVehicleParameter::parseArrivalLane(const std::string& val, const std::string
     ald = ArrivalLaneDefinition::GIVEN;
     if (val == "current") {
         ald = ArrivalLaneDefinition::CURRENT;
+    } else if (val == "random") {
+        ald = ArrivalLaneDefinition::RANDOM;
+    } else if (val == "first") {
+        ald = ArrivalLaneDefinition::FIRST_ALLOWED;
     } else {
         try {
             lane = StringUtils::toInt(val);
@@ -571,7 +650,7 @@ SUMOVehicleParameter::interpretEdgePos(double pos, double maximumValue, SumoXMLA
     }
     if (pos > maximumValue && pos != std::numeric_limits<double>::infinity()) {
         if (!silent) {
-            WRITE_WARNING("Invalid " + toString(attr) + " " + toString(pos) + " given for " + id + ". Using edge end instead.");
+            WRITE_WARNINGF(TL("Invalid % % given for %. Using edge end instead."), toString(attr), toString(pos), id);
         }
         pos = maximumValue;
     }
@@ -621,39 +700,63 @@ SUMOVehicleParameter::parseStopTriggers(const std::vector<std::string>& triggers
             try {
                 stop.triggered = StringUtils::toBool(val);
             } catch (BoolFormatException&) {
-                WRITE_ERROR("Value of stop attribute 'trigger' must be 'person', 'container', 'join' or a boolean");
+                WRITE_ERROR(TL("Value of stop attribute 'trigger' must be 'person', 'container', 'join' or a boolean"));
             }
         }
     }
 }
 
 
-void
-SUMOVehicleParameter::Stop::writeTriggers(OutputDevice& dev) const {
-    if ((parametersSet & STOP_TRIGGER_SET) != 0) {
-        std::vector<std::string> triggers;
-        if (triggered) {
-            triggers.push_back(toString(SUMO_TAG_PERSON));
-        }
-        if (containerTriggered) {
-            triggers.push_back(toString(SUMO_TAG_CONTAINER));
-        }
-        if (joinTriggered) {
-            triggers.push_back(toString(SUMO_ATTR_JOIN));
-        }
-        dev.writeAttr(SUMO_ATTR_TRIGGERED, triggers);
+ParkingType
+SUMOVehicleParameter::parseParkingType(const std::string& value) {
+    if (value == toString(ParkingType::OPPORTUNISTIC)) {
+        return ParkingType::OPPORTUNISTIC;
+    } else {
+        return StringUtils::toBool(value) ? ParkingType::OFFROAD : ParkingType::ONROAD;
     }
+}
+
+
+std::vector<std::string>
+SUMOVehicleParameter::Stop::getTriggers() const {
+    std::vector<std::string> triggers;
+    if (triggered) {
+        triggers.push_back(toString(SUMO_TAG_PERSON));
+    }
+    if (containerTriggered) {
+        triggers.push_back(toString(SUMO_TAG_CONTAINER));
+    }
+    if (joinTriggered) {
+        triggers.push_back(toString(SUMO_ATTR_JOIN));
+    }
+    return triggers;
+}
+
+int
+SUMOVehicleParameter::Stop::getFlags() const {
+    return (((parking == ParkingType::OFFROAD) ? 1 : 0) +
+            (triggered ? 2 : 0) +
+            (containerTriggered ? 4 : 0) +
+            (busstop != "" ? 8 : 0) +
+            (containerstop != "" ? 16 : 0) +
+            (chargingStation != "" ? 32 : 0) +
+            (parkingarea != "" ? 64 : 0) +
+            (overheadWireSegment != "" ? 128 : 0));
 }
 
 
 std::string
 SUMOVehicleParameter::getDepart() const {
-    if (departProcedure == DEPART_TRIGGERED) {
+    if (departProcedure == DepartDefinition::TRIGGERED) {
         return "triggered";
-    } else if (departProcedure == DEPART_CONTAINER_TRIGGERED) {
+    } else if (departProcedure == DepartDefinition::CONTAINER_TRIGGERED) {
         return "containerTriggered";
-    } else if (departProcedure == DEPART_SPLIT) {
+//    } else if (departProcedure == DepartDefinition::NOW) {  // TODO check whether this is useful in XML input (currently TraCI only)
+//        return "now";
+    } else if (departProcedure == DepartDefinition::SPLIT) {
         return "split";
+    } else if (departProcedure == DepartDefinition::BEGIN) {
+        return "begin";
     } else {
         return time2string(depart);
     }
@@ -697,6 +800,9 @@ SUMOVehicleParameter::getDepartPos() const {
         case DepartPosDefinition::GIVEN:
             val = toString(departPos);
             break;
+        case DepartPosDefinition::GIVEN_VEHROUTE:
+            val = StringUtils::pruneZeros(toString(departPos, MAX2(gPrecisionRandom, gPrecision)), 2);
+            break;
         case DepartPosDefinition::RANDOM:
             val = "random";
             break;
@@ -728,7 +834,10 @@ SUMOVehicleParameter::getDepartPosLat() const {
     std::string val;
     switch (departPosLatProcedure) {
         case DepartPosLatDefinition::GIVEN:
-            val = toString(departPos);
+            val = toString(departPosLat);
+            break;
+        case DepartPosLatDefinition::GIVEN_VEHROUTE:
+            val = StringUtils::pruneZeros(toString(departPosLat, MAX2(gPrecisionRandom, gPrecision)), 2);
             break;
         case DepartPosLatDefinition::RANDOM:
             val = "random";
@@ -763,6 +872,9 @@ SUMOVehicleParameter::getDepartSpeed() const {
         case DepartSpeedDefinition::GIVEN:
             val = toString(departSpeed);
             break;
+        case DepartSpeedDefinition::GIVEN_VEHROUTE:
+            val = StringUtils::pruneZeros(toString(departSpeed, MAX2(gPrecisionRandom, gPrecision)), 2);
+            break;
         case DepartSpeedDefinition::RANDOM:
             val = "random";
             break;
@@ -774,6 +886,12 @@ SUMOVehicleParameter::getDepartSpeed() const {
             break;
         case DepartSpeedDefinition::LIMIT:
             val = "speedLimit";
+            break;
+        case DepartSpeedDefinition::LAST:
+            val = "last";
+            break;
+        case DepartSpeedDefinition::AVG:
+            val = "avg";
             break;
         case DepartSpeedDefinition::DEFAULT:
         default:
@@ -787,18 +905,37 @@ std::string
 SUMOVehicleParameter::getDepartEdge() const {
     std::string val;
     switch (departEdgeProcedure) {
-        case DepartEdgeDefinition::GIVEN:
+        case RouteIndexDefinition::GIVEN:
             val = toString(departEdge);
             break;
-        case DepartEdgeDefinition::RANDOM:
+        case RouteIndexDefinition::RANDOM:
             val = "random";
             break;
-        case DepartEdgeDefinition::DEFAULT:
+        case RouteIndexDefinition::DEFAULT:
         default:
             break;
     }
     return val;
 }
+
+std::string
+SUMOVehicleParameter::getArrivalEdge() const {
+    std::string val;
+    switch (arrivalEdgeProcedure) {
+        case RouteIndexDefinition::GIVEN:
+            val = toString(arrivalEdge);
+            break;
+        case RouteIndexDefinition::RANDOM:
+            val = "random";
+            break;
+        case RouteIndexDefinition::DEFAULT:
+        default:
+            break;
+    }
+    return val;
+}
+
+
 
 
 std::string
@@ -810,6 +947,12 @@ SUMOVehicleParameter::getArrivalLane() const {
             break;
         case ArrivalLaneDefinition::CURRENT:
             val = "current";
+            break;
+        case ArrivalLaneDefinition::RANDOM:
+            val = "random";
+            break;
+        case ArrivalLaneDefinition::FIRST_ALLOWED:
+            val = "first";
             break;
         case ArrivalLaneDefinition::DEFAULT:
         default:
@@ -848,7 +991,7 @@ SUMOVehicleParameter::getArrivalPosLat() const {
     std::string val;
     switch (arrivalPosLatProcedure) {
         case ArrivalPosLatDefinition::GIVEN:
-            val = toString(arrivalPos);
+            val = toString(arrivalPosLat);
             break;
         case ArrivalPosLatDefinition::RIGHT:
             val = "right";
@@ -884,5 +1027,71 @@ SUMOVehicleParameter::getArrivalSpeed() const {
     return val;
 }
 
+void
+SUMOVehicleParameter::incrementFlow(double scale, SumoRNG* rng) {
+    repetitionsDone++;
+    // equidistant or exponential offset (for poisson distributed arrivals)
+    if (repetitionProbability < 0) {
+        if (repetitionOffset >= 0) {
+            repetitionTotalOffset += (SUMOTime)((double)repetitionOffset / scale);
+        } else {
+            // we need to cache this do avoid double generation of the rng in the TIME2STEPS macro
+            const double r = RandHelper::randExp(-STEPS2TIME(repetitionOffset), rng);
+            repetitionTotalOffset += TIME2STEPS(r / scale);
+        }
+    }
+}
+
+
+std::string
+SUMOVehicleParameter::getInsertionChecks() const {
+    if ((insertionChecks == 0) || (insertionChecks == (int)InsertionCheck::ALL)) {
+        return SUMOXMLDefinitions::InsertionChecks.getString(InsertionCheck::ALL);
+    } else {
+        std::vector<std::string> insertionChecksStrs;
+        const auto insertionCheckValues = SUMOXMLDefinitions::InsertionChecks.getValues();
+        // iterate over values
+        for (const auto insertionCheckValue : insertionCheckValues) {
+            if ((insertionCheckValue != InsertionCheck::ALL) && (insertionChecks & (int)insertionCheckValue) != 0) {
+                insertionChecksStrs.push_back(SUMOXMLDefinitions::InsertionChecks.getString(insertionCheckValue));
+            }
+        }
+        return toString(insertionChecksStrs);
+    }
+}
+
+
+bool
+SUMOVehicleParameter::areInsertionChecksValid(const std::string& value) const {
+    if (value.empty()) {
+        return true;
+    } else {
+        // split value in substrinsg
+        StringTokenizer valueStrs(value, " ");
+        // iterate over values
+        while (valueStrs.hasNext()) {
+            if (!SUMOXMLDefinitions::InsertionChecks.hasString(valueStrs.next())) {
+                return false;
+            }
+        }
+        return true;
+    }
+}
+
+
+void
+SUMOVehicleParameter::parseInsertionChecks(const std::string& value) {
+    // first reset insertionChecks
+    insertionChecks = 0;
+    if (value.empty()) {
+        insertionChecks = (int)InsertionCheck::ALL;
+    } else {
+        // split value in substrinsg
+        StringTokenizer insertionCheckStrs(value, " ");
+        while (insertionCheckStrs.hasNext()) {
+            insertionChecks |= (int)SUMOXMLDefinitions::InsertionChecks.get(insertionCheckStrs.next());
+        }
+    }
+}
 
 /****************************************************************************/

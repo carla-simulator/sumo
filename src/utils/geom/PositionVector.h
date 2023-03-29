@@ -1,6 +1,6 @@
 /****************************************************************************/
 // Eclipse SUMO, Simulation of Urban MObility; see https://eclipse.org/sumo
-// Copyright (C) 2001-2020 German Aerospace Center (DLR) and others.
+// Copyright (C) 2001-2023 German Aerospace Center (DLR) and others.
 // This program and the accompanying materials are made available under the
 // terms of the Eclipse Public License 2.0 which is available at
 // https://www.eclipse.org/legal/epl-2.0/
@@ -98,6 +98,7 @@ public:
 
     /// @brief clear all elements of position vector
     using vp::clear;
+
     /// @brief returns size of position vector
     using vp::size;
 
@@ -149,11 +150,12 @@ public:
     /// @brief ensures that the last position equals the first
     void closePolygon();
 
-    /// @brief returns the constat position at the given index
-    /// @ToDo !!! exceptions?
+    /// @brief returns the constant position at the given index, negative indices are interpreted python style
+    /// @throws OutOfBoundsException if index >= size or index < -size
     const Position& operator[](int index) const;
 
-    /// @brief returns the position at the given index
+    /// @brief returns the position at the given index, negative indices are interpreted python style
+    /// @throws OutOfBoundsException if index >= size or index < -size
     Position& operator[](int index);
 
     /// @brief Returns the position at the given length
@@ -161,6 +163,10 @@ public:
 
     /// @brief Returns the position at the given length
     Position positionAtOffset2D(double pos, double lateralOffset = 0) const;
+
+    /* @brief Returns position similar to positionAtOffset but instead of applying the
+     * lateral offset orthogonal to the shape, apply it orthogonal to the given angle */
+    Position sidePositionAtAngle(double pos, double lateralOffset, double angle) const;
 
     /// @brief Returns the rotation at the given length
     double rotationAtOffset(double pos) const;
@@ -176,6 +182,10 @@ public:
 
     /// Returns the position between the two given point at the specified position
     static Position positionAtOffset2D(const Position& p1, const Position& p2, double pos, double lateralOffset = 0.);
+
+    /* @brief Returns position similar to positionAtOffset but instead of applying the
+     * lateral offset orthogonal to the shape, apply it orthogonal to the given angle */
+    static Position sidePositionAtAngle(const Position& p1, const Position& p2, double pos, double lateralOffset, double angle);
 
     /// @brief Returns a boundary enclosing this list of lines
     Boundary getBoxBoundary() const;
@@ -217,16 +227,13 @@ public:
     //// @brief check if two positions crosses
     bool crosses(const Position& p1, const Position& p2) const;
 
-    //// @brief add a position
+    //// @brief add an offset to all positions
     void add(double xoff, double yoff, double zoff);
 
-    //// @brief substract a position
+    //// @brief add an offset to all positions
     void add(const Position& offset);
 
-    //// @brief add a position
-    void sub(double xoff, double yoff, double zoff);
-
-    //// @brief substract a position
+    //// @brief subtract an offset from all positions
     void sub(const Position& offset);
 
     //// @brief adds a position without modifying the vector itself but returning the result
@@ -240,6 +247,9 @@ public:
 
     //// @brief append the given vector to this one
     void append(const PositionVector& v, double sameThreshold = 2.0);
+
+    //// @brief prepend the given vector to this one
+    void prepend(const PositionVector& v, double sameThreshold = 2.0);
 
     /// @brief get subpart of a position vector
     PositionVector getSubpart(double beginOffset, double endOffset) const;
@@ -272,7 +282,7 @@ public:
     void move2side(double amount, double maxExtension = 100);
 
     /// @brief move position vector to side using a custom offset for each geometry point
-    void move2side(std::vector<double> amount, double maxExtension = 100);
+    void move2sideCustom(std::vector<double> amount, double maxExtension = 100);
 
     /// @brief get angle in certain position of position vector
     double angleAt2D(int pos) const;
@@ -293,7 +303,7 @@ public:
     /// @brief comparing operation
     bool operator!=(const PositionVector& v2) const;
 
-    /// @brief substracts two vectors (requires vectors of the same length)
+    /// @brief subtracts two vectors (requires vectors of the same length)
     PositionVector operator-(const PositionVector& v2) const;
 
     /// @brief adds two vectors (requires vectors of the same length)
@@ -341,9 +351,11 @@ public:
      */
     Position transformToVectorCoordinates(const Position& p, bool extend = false) const;
 
-    /// @brief index of the closest position to p
-    /// @note: may only be called for a non-empty vector
-    int indexOfClosest(const Position& p) const;
+    /* @brief index of the closest position to p
+     * @in twoD whether all positions should be projected onto the plan
+       @note: may only be called for a non-empty vector
+    */
+    int indexOfClosest(const Position& p, bool twoD = false) const;
 
     /// @brief distances of all my points to s and all of s points to myself
     /// @note if perpendicular is set to true, only the perpendicular distances are returned
@@ -377,7 +389,7 @@ public:
      * @param[in] minDist The minimum accepted distance; default: POSITION_EPS
      * @param[in] assertLength Whether the result must at least contain two points (be a line); default: false, to ensure original behaviour
      */
-    void removeDoublePoints(double minDist = POSITION_EPS, bool assertLength = false);
+    void removeDoublePoints(double minDist = POSITION_EPS, bool assertLength = false, int beginOffset = 0, int endOffset = 0, bool resample = false);
 
     /// @brief return whether two positions differ in z-coordinate
     bool hasElevation() const;
@@ -401,8 +413,8 @@ public:
     PositionVector interpolateZ(double zStart, double zEnd) const;
 
     /**@brief resample shape (i.e. transform to segments, equal spacing)
-     * @param[in] maxLength lenght of every segment
-     * @param[in] adjustEnd enable or disable adjust end (i.e. result has the same original lenght, last segment could be short)
+     * @param[in] maxLength length of every segment
+     * @param[in] adjustEnd enable or disable adjust end (i.e. result has the same original length, last segment could be short)
      */
     PositionVector resample(double maxLength, const bool adjustEnd) const;
 
@@ -414,8 +426,13 @@ public:
      */
     double getMaxGrade(double& maxJump) const;
 
+    /// @brief check if the two vectors have the same length and pairwise similar positions
+    bool almostSame(const PositionVector& v2, double maxDiv = POSITION_EPS) const;
+
     /// @brief return a bezier interpolation
     PositionVector bezier(int numPoints);
+
+    static double localAngle(const Position& from, const Position& pos, const Position& to);
 
 private:
     /// @brief return whether the line segments defined by Line p11,p12 and Line p21,p22 intersect

@@ -1,6 +1,5 @@
 ---
-title: Simulation/Output/Lane- or Edge-based Noise Measures
-permalink: /Simulation/Output/Lane-_or_Edge-based_Noise_Measures/
+title: Lane- or Edge-based Noise Measures
 ---
 
 The edge/lane based noise output based on Harmonoise writes information
@@ -23,8 +22,8 @@ model](http://www.imagine-project.org/bestanden/D18_WP3_HAR32TR-040922-DGMR20.pd
 An edge-based noise emissions output is defined way within an additional
 file as following:
 
-```
-<edgeData id="<DETECTOR_ID>" type="harmonoise" freq="<FREQUENCY>" file="<OUTPUT_FILE>" [excludeEmpty="true"]/>
+```xml
+<edgeData id="<DETECTOR_ID>" type="harmonoise" period="<PERIOD>" file="<OUTPUT_FILE>" [excludeEmpty="true"]/>
 ```
 
 ### Lane-Based Noise Output
@@ -32,8 +31,8 @@ file as following:
 An edge-based noise emissions output is defined way within an additional
 file as following:
 
-```
-<laneData id="<DETECTOR_ID>" type="harmonoise" freq="<FREQUENCY>" file="<OUTPUT_FILE>" [excludeEmpty="true"]/>
+```xml
+<laneData id="<DETECTOR_ID>" type="harmonoise" period="<PERIOD>" file="<OUTPUT_FILE>" [excludeEmpty="true"]/>
 ```
 
 ### Attributes, for both Edge- and Lane-Based Noise Output
@@ -42,7 +41,7 @@ file as following:
 | -------------- | ----------- | --------------------------------------------- |
 | **id**         | id (string) | The id of the detector       |
 | **file**       | filename    | The path to the output file. The path may be relative.     |
-| freq           | int (time)  | The aggregation period the values the detector collects shall be summed up. If not given, the whole time range between begin and end is aggregated |
+| period (alias freq) | int (time)  | The aggregation period the values the detector collects shall be summed up. If not given, the whole time range between begin and end is aggregated |
 | begin          | int (time)  | The time to start writing (intervals starting before this time are discarded). If not given, the simulation's begin is used.  |
 | end            | int (time)  | The time to end writing (intervals starting at or after this time are discarded). If not given the simulation's end is used.   |
 | excludeEmpty   | bool        | If set, edges/lanes which were not use by a vehicle during this period will not be written; *default: false*.   |

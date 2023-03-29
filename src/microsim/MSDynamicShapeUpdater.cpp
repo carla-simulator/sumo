@@ -1,6 +1,6 @@
 /****************************************************************************/
 // Eclipse SUMO, Simulation of Urban MObility; see https://eclipse.org/sumo
-// Copyright (C) 2019-2020 German Aerospace Center (DLR) and others.
+// Copyright (C) 2019-2023 German Aerospace Center (DLR) and others.
 // This program and the accompanying materials are made available under the
 // terms of the Eclipse Public License 2.0 which is available at
 // https://www.eclipse.org/legal/epl-2.0/
@@ -28,7 +28,7 @@ MSDynamicShapeUpdater::vehicleStateChanged(const SUMOVehicle* const vehicle, MSN
     /// @brief Definition of a vehicle state
     switch (to) {
         /// @brief The vehicle arrived at his destination (is deleted)
-        case MSNet::VEHICLE_STATE_ARRIVED: {
+        case MSNet::VehicleState::ARRIVED: {
 #ifdef DEBUG_DYNAMIC_SHAPES
             std::cout << "MSDynamicShapeUpdater: Vehicle '" << vehicle->getID() << "' has arrived. Informing ShapeContainer." << std::endl;
 #endif
@@ -36,7 +36,7 @@ MSDynamicShapeUpdater::vehicleStateChanged(const SUMOVehicle* const vehicle, MSN
         }
         break;
         /// @brief The vehicle is involved in a collision
-        case MSNet::VEHICLE_STATE_COLLISION:
+        case MSNet::VehicleState::COLLISION:
             // TODO: can this lead to removal without calling arrived?
             break;
         default:

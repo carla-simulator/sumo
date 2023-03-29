@@ -1,6 +1,6 @@
 /****************************************************************************/
 // Eclipse SUMO, Simulation of Urban MObility; see https://eclipse.org/sumo
-// Copyright (C) 2001-2020 German Aerospace Center (DLR) and others.
+// Copyright (C) 2001-2023 German Aerospace Center (DLR) and others.
 // This program and the accompanying materials are made available under the
 // terms of the Eclipse Public License 2.0 which is available at
 // https://www.eclipse.org/legal/epl-2.0/
@@ -17,17 +17,20 @@
 ///
 // A abstract class to define common parameters of lane area in which vehicles can halt (GNE version)
 /****************************************************************************/
+#include <config.h>
+
+#include <foreign/fontstash/fontstash.h>
 #include <netedit/GNENet.h>
 #include <netedit/GNEUndoList.h>
 #include <netedit/GNEViewNet.h>
-#include <netedit/changes/GNEChange_Attribute.h>
-#include <utils/gui/globjects/GLIncludes.h>
+#include <netedit/GNEViewParent.h>
+#include <netedit/frames/common/GNEMoveFrame.h>
 #include <utils/gui/div/GLHelper.h>
+#include <utils/gui/globjects/GLIncludes.h>
 #include <utils/options/OptionsCont.h>
-#include <utils/vehicle/SUMORouteHandler.h>
-#include <foreign/fontstash/fontstash.h>
 
 #include "GNEStoppingPlace.h"
+#include "GNEAdditionalHandler.h"
 
 // ===========================================================================
 // static members
@@ -42,14 +45,13 @@ const double GNEStoppingPlace::myCircleInText = 1.6;
 // member method definitions
 // ===========================================================================
 
-GNEStoppingPlace::GNEStoppingPlace(const std::string& id, GNENet* net, GUIGlObjectType type, SumoXMLTag tag,
-                                   GNELane* lane, double startPos, double endPos, int parametersSet, const std::string& name,
-                                   bool friendlyPosition, bool blockMovement) :
-    GNEAdditional(id, net, type, tag, name, blockMovement,
-{}, {}, {lane}, {}, {}, {}, {}, {}),
-myStartPosition(startPos),
-myEndPosition(endPos),
-myParametersSet(parametersSet),
+GNEStoppingPlace::GNEStoppingPlace(const std::string& id, GNENet* net, GUIGlObjectType type, SumoXMLTag tag, FXIcon* icon,
+                                   GNELane* lane, const double startPos, const double endPos, const std::string& name, bool friendlyPosition,
+                                   const Parameterised::Map& parameters) :
+    GNEAdditional(id, net, type, tag, icon, name, {}, {}, {lane}, {}, {}, {}),
+              Parameterised(parameters),
+              myStartPosition(startPos),
+              myEndPosition(endPos),
 myFriendlyPosition(friendlyPosition) {
 }
 
@@ -58,60 +60,62 @@ GNEStoppingPlace::~GNEStoppingPlace() {}
 
 
 GNEMoveOperation*
-GNEStoppingPlace::getMoveOperation(const double /*shapeOffset*/) {
-    // check conditions
-    if (myParametersSet == 0) {
+GNEStoppingPlace::getMoveOperation() {
+    // get allow change lane
+    const bool allowChangeLane = myNet->getViewNet()->getViewParent()->getMoveFrame()->getCommonModeOptions()->getAllowChangeLane();
+    // fist check if we're moving only extremes
+    if (myNet->getViewNet()->getEditModes().isCurrentSupermodeNetwork() &&
+            (myNet->getViewNet()->getEditModes().networkEditMode == NetworkEditMode::NETWORK_MOVE) &&
+            myNet->getViewNet()->getMouseButtonKeyPressed().shiftKeyPressed()) {
+        // get snap radius
+        const double snap_radius = myNet->getViewNet()->getVisualisationSettings().neteditSizeSettings.additionalGeometryPointRadius;
+        // get mouse position
+        const Position mousePosition = myNet->getViewNet()->getPositionInformation();
+        // check if we clicked over start or end position
+        if ((myStartPosition != INVALID_DOUBLE) && (myAdditionalGeometry.getShape().front().distanceSquaredTo2D(mousePosition) <= (snap_radius * snap_radius))) {
+            // move only start position
+            return new GNEMoveOperation(this, getParentLanes().front(), myStartPosition, getParentLanes().front()->getLaneShape().length2D() - POSITION_EPS,
+                                        allowChangeLane, GNEMoveOperation::OperationType::ONE_LANE_MOVEFIRST);
+        } else if ((myEndPosition != INVALID_DOUBLE) && (myAdditionalGeometry.getShape().back().distanceSquaredTo2D(mousePosition) <= (snap_radius * snap_radius))) {
+            // move only end position
+            return new GNEMoveOperation(this, getParentLanes().front(), 0, myEndPosition,
+                                        allowChangeLane, GNEMoveOperation::OperationType::ONE_LANE_MOVESECOND);
+        } else {
+            return nullptr;
+        }
+    } else if ((myStartPosition != INVALID_DOUBLE) && (myEndPosition != INVALID_DOUBLE)) {
+        // move both start and end positions
+        return new GNEMoveOperation(this, getParentLanes().front(), myStartPosition, myEndPosition,
+                                    allowChangeLane, GNEMoveOperation::OperationType::ONE_LANE_MOVEBOTH);
+    } else if (myStartPosition != INVALID_DOUBLE) {
+        // move only start position
+        return new GNEMoveOperation(this, getParentLanes().front(), myStartPosition, getParentLanes().front()->getLaneShape().length2D() - POSITION_EPS,
+                                    allowChangeLane, GNEMoveOperation::OperationType::ONE_LANE_MOVEFIRST);
+    } else if (myEndPosition != INVALID_DOUBLE) {
+        // move only end position
+        return new GNEMoveOperation(this, getParentLanes().front(), 0, myEndPosition,
+                                    allowChangeLane, GNEMoveOperation::OperationType::ONE_LANE_MOVESECOND);
+    } else {
         // start and end positions undefined, then nothing to move
         return nullptr;
-    } else if (myBlockMovement) {
-        // element blocked, then nothing to move
-        return nullptr;
-    } else {
-        // return move operation for additional placed over shape
-        return new GNEMoveOperation(this, getParentLanes().front(), {myStartPosition, myEndPosition});
     }
 }
 
 
 bool
 GNEStoppingPlace::isAdditionalValid() const {
-    // with friendly position enabled position are "always fixed"
-    if (myFriendlyPosition) {
-        return true;
-    } else {
-        // obtain lane length
-        double laneLength = getParentLanes().front()->getParentEdge()->getNBEdge()->getFinalLength() * getParentLanes().front()->getLengthGeometryFactor();
-        // calculate start and end positions
-        double startPos = (myParametersSet & STOPPINGPLACE_STARTPOS_SET) ? myStartPosition : 0;
-        double endPos = (myParametersSet & STOPPINGPLACE_ENDPOS_SET) ? myEndPosition : laneLength;
-        // check if position has to be fixed
-        if (startPos < 0) {
-            startPos += laneLength;
-        }
-        if (endPos < 0) {
-            endPos += laneLength;
-        }
-        // check values
-        if (myParametersSet == 0) {
-            return true;
-        } else if ((myParametersSet & STOPPINGPLACE_STARTPOS_SET) == 0) {
-            return (endPos <= getParentLanes().front()->getParentEdge()->getNBEdge()->getFinalLength());
-        } else if ((myParametersSet & STOPPINGPLACE_ENDPOS_SET) == 0) {
-            return (startPos >= 0);
-        } else {
-            return ((startPos >= 0) && (endPos <= getParentLanes().front()->getParentEdge()->getNBEdge()->getFinalLength()) && ((endPos - startPos) >= POSITION_EPS));
-        }
-    }
+    return GNEAdditionalHandler::checkLaneDoublePosition(getAttributeDouble(SUMO_ATTR_STARTPOS), getAttributeDouble(SUMO_ATTR_ENDPOS),
+            getParentLanes().front()->getParentEdge()->getNBEdge()->getFinalLength(), myFriendlyPosition);
 }
 
 
 std::string
 GNEStoppingPlace::getAdditionalProblem() const {
-    // calculate start and end positions
-    double startPos = (myParametersSet & STOPPINGPLACE_STARTPOS_SET) ? myStartPosition : 0;
-    double endPos = (myParametersSet & STOPPINGPLACE_ENDPOS_SET) ? myEndPosition : getParentLanes().front()->getParentEdge()->getNBEdge()->getFinalLength();
     // obtain lane length
-    double laneLength = getParentLanes().front()->getParentEdge()->getNBEdge()->getFinalLength();
+    double laneLength = getParentLanes().front()->getParentEdge()->getNBEdge()->getFinalLength() * getParentLanes().front()->getLengthGeometryFactor();
+    // calculate start and end positions
+    double startPos = getAttributeDouble(SUMO_ATTR_STARTPOS);
+    double endPos = getAttributeDouble(SUMO_ATTR_ENDPOS);
     // check if position has to be fixed
     if (startPos < 0) {
         startPos += laneLength;
@@ -125,16 +129,16 @@ GNEStoppingPlace::getAdditionalProblem() const {
     if (startPos < 0) {
         errorStart = (toString(SUMO_ATTR_STARTPOS) + " < 0");
     } else if (startPos > getParentLanes().front()->getParentEdge()->getNBEdge()->getFinalLength()) {
-        errorStart = (toString(SUMO_ATTR_STARTPOS) + " > lanes's length");
+        errorStart = (toString(SUMO_ATTR_STARTPOS) + TL(" > lanes's length"));
     }
     if (endPos < 0) {
         errorEnd = (toString(SUMO_ATTR_ENDPOS) + " < 0");
     } else if (endPos > getParentLanes().front()->getParentEdge()->getNBEdge()->getFinalLength()) {
-        errorEnd = (toString(SUMO_ATTR_ENDPOS) + " > lanes's length");
+        errorEnd = (toString(SUMO_ATTR_ENDPOS) + TL(" > lanes's length"));
     }
     // check separator
     if ((errorStart.size() > 0) && (errorEnd.size() > 0)) {
-        separator = " and ";
+        separator = TL(" and ");
     }
     return errorStart + separator + errorEnd;
 }
@@ -142,44 +146,36 @@ GNEStoppingPlace::getAdditionalProblem() const {
 
 void
 GNEStoppingPlace::fixAdditionalProblem() {
-    // declare new start and end position
-    double newStartPos = myStartPosition;
-    double newEndPos = myEndPosition;
-    // fix start and end positions using fixStoppingPlacePosition
-    SUMORouteHandler::checkStopPos(newStartPos, newEndPos, getParentLanes().front()->getParentEdge()->getNBEdge()->getFinalLength(), POSITION_EPS, true);
+    // calculate start and end positions
+    double startPos = getAttributeDouble(SUMO_ATTR_STARTPOS);
+    double endPos = getAttributeDouble(SUMO_ATTR_ENDPOS);
+    // fix start and end positions using fixLaneDoublePosition
+    GNEAdditionalHandler::fixLaneDoublePosition(startPos, endPos, getParentLanes().front()->getParentEdge()->getNBEdge()->getFinalLength());
     // set new start and end positions
-    setAttribute(SUMO_ATTR_STARTPOS, toString(newStartPos), myNet->getViewNet()->getUndoList());
-    setAttribute(SUMO_ATTR_ENDPOS, toString(newEndPos), myNet->getViewNet()->getUndoList());
+    setAttribute(SUMO_ATTR_STARTPOS, toString(startPos), myNet->getViewNet()->getUndoList());
+    setAttribute(SUMO_ATTR_ENDPOS, toString(endPos), myNet->getViewNet()->getUndoList());
 }
 
 
+Position
+GNEStoppingPlace::getPositionInView() const {
+    return myAdditionalGeometry.getShape().getPolygonCenter();
+}
+
 
 void
-GNEStoppingPlace::updateCenteringBoundary(const bool updateGrid) {
-    // remove additional from grid
-    if (updateGrid && myTagProperty.isPlacedInRTree()) {
-        myNet->removeGLObjectFromGrid(this);
-    }
-    // update geometry
-    updateGeometry();
-    // add shape boundary
-    myBoundary = myAdditionalGeometry.getShape().getBoxBoundary();
-    // grow with "width"
-    if (myTagProperty.hasAttribute(SUMO_ATTR_WIDTH)) {
-        // we cannot use "getAttributeDouble(...)"
-        myBoundary.growWidth(parse<double>(getAttribute(SUMO_ATTR_WIDTH)));
-    }
-    // grow
-    myBoundary.grow(10);
-    // add parking spaces
-    for (const auto& parkingSpace : getChildAdditionals()) {
-        if (parkingSpace->getTagProperty().getTag() == SUMO_TAG_PARKING_SPACE) {
-            myBoundary.add(parkingSpace->getCenteringBoundary());
+GNEStoppingPlace::updateCenteringBoundary(const bool /*updateGrid*/) {
+    if (!isTemplate()) {
+        // update geometry
+        updateGeometry();
+        // add shape boundary
+        myAdditionalBoundary = myAdditionalGeometry.getShape().getBoxBoundary();
+        // grow with "width"
+        if (myTagProperty.hasAttribute(SUMO_ATTR_WIDTH)) {
+            myAdditionalBoundary.grow(getAttributeDouble(SUMO_ATTR_WIDTH));
         }
-    }
-    // add additional into RTREE again
-    if (updateGrid &&  myTagProperty.isPlacedInRTree()) {
-        myNet->addGLObjectIntoGrid(this);
+        // grow
+        myAdditionalBoundary.grow(10);
     }
 }
 
@@ -188,10 +184,10 @@ void
 GNEStoppingPlace::splitEdgeGeometry(const double splitPosition, const GNENetworkElement* originalElement, const GNENetworkElement* newElement, GNEUndoList* undoList) {
     // first check tat both network elements are lanes and originalElement correspond to stoppingPlace lane
     if ((originalElement->getTagProperty().getTag() == SUMO_TAG_LANE) &&
-            (originalElement->getTagProperty().getTag() == SUMO_TAG_LANE) &&
+            (newElement->getTagProperty().getTag() == SUMO_TAG_LANE) &&
             (getParentLanes().front() == originalElement)) {
         // check if we have to change additional lane depending of split position
-        if ((myParametersSet & STOPPINGPLACE_STARTPOS_SET) && (myParametersSet & STOPPINGPLACE_ENDPOS_SET)) {
+        if ((myStartPosition != INVALID_DOUBLE) && (myEndPosition != INVALID_DOUBLE)) {
             // calculate middle position
             const double middlePosition = ((myEndPosition - myStartPosition) / 2.0) + myStartPosition;
             //  four cases:
@@ -213,96 +209,17 @@ GNEStoppingPlace::splitEdgeGeometry(const double splitPosition, const GNENetwork
             } else if ((splitPosition > myEndPosition)) {
                 // nothing to do
             }
-        } else if ((myParametersSet & STOPPINGPLACE_STARTPOS_SET) && (splitPosition < myStartPosition)) {
+        } else if ((myStartPosition != INVALID_DOUBLE) && (splitPosition < myStartPosition)) {
             // change lane
             setAttribute(SUMO_ATTR_LANE, newElement->getID(), undoList);
             // now adjust start position
-            setAttribute(SUMO_ATTR_STARTPOS, toString(myStartPosition - splitPosition), undoList);
-        } else if ((myParametersSet & STOPPINGPLACE_ENDPOS_SET) && (splitPosition < myEndPosition)) {
+            setAttribute(SUMO_ATTR_STARTPOS, toString(myEndPosition - splitPosition), undoList);
+        } else if ((myEndPosition != INVALID_DOUBLE) && (splitPosition < myEndPosition)) {
             // change lane
             setAttribute(SUMO_ATTR_LANE, newElement->getID(), undoList);
             // now adjust end position
             setAttribute(SUMO_ATTR_ENDPOS, toString(myEndPosition - splitPosition), undoList);
         }
-    }
-}
-
-/*
-
-void
-GNEStoppingPlace::move Geometry(const Position& offset) {
-    // only move if at leats start or end positions is defined
-    if (myParametersSet > 0) {
-        // Calculate new position using old position
-        Position newPosition = myMove.originalViewPosition;
-        newPosition.add(offset);
-        // filtern position using snap to active grid
-        newPosition = myNet->getViewNet()->snapToActiveGrid(newPosition);
-        double offsetLane = getParentLanes().front()->getLaneShape().nearest_offset_to_point2D(newPosition, false) - getParentLanes().front()->getLaneShape().nearest_offset_to_point2D(myMove.originalViewPosition, false);
-        // check if both position has to be moved
-        if ((myParametersSet & STOPPINGPLACE_STARTPOS_SET) && (myParametersSet & STOPPINGPLACE_ENDPOS_SET)) {
-            // calculate stoppingPlace length and lane length (After apply geometry factor)
-            double stoppingPlaceLength = fabs(parse<double>(myMove.secondOriginalPosition) - parse<double>(myMove.firstOriginalLanePosition));
-            double laneLengt = getParentLanes().front()->getParentEdge()->getNBEdge()->getFinalLength() * getParentLanes().front()->getLengthGeometryFactor();
-            // avoid changing stopping place's length
-            if ((parse<double>(myMove.firstOriginalLanePosition) + offsetLane) < 0) {
-                myStartPosition = 0;
-                myEndPosition = stoppingPlaceLength;
-            } else if ((parse<double>(myMove.secondOriginalPosition) + offsetLane) > laneLengt) {
-                myStartPosition = laneLengt - stoppingPlaceLength;
-                myEndPosition = laneLengt;
-            } else {
-                myStartPosition = parse<double>(myMove.firstOriginalLanePosition) + offsetLane;
-                myEndPosition = parse<double>(myMove.secondOriginalPosition) + offsetLane;
-            }
-        } else {
-            // check if start position must be moved
-            if (myParametersSet & STOPPINGPLACE_STARTPOS_SET) {
-                myStartPosition = parse<double>(myMove.firstOriginalLanePosition) + offsetLane;
-            }
-            // check if start position must be moved
-            if (myParametersSet & STOPPINGPLACE_ENDPOS_SET) {
-                myEndPosition = parse<double>(myMove.secondOriginalPosition) + offsetLane;
-            }
-        }
-        // Update geometry
-        updateGeometry();
-    }
-}
-*/
-/*
-void
-GNEStoppingPlace::commitGeometryMoving(GNEUndoList* undoList) {
-    // only commit geometry moving if at leats start or end positions is defined
-    if (myParametersSet > 0) {
-        undoList->p_begin("position of " + getTagStr());
-        if (myParametersSet & STOPPINGPLACE_STARTPOS_SET) {
-            undoList->p_add(new GNEChange_Attribute(this, SUMO_ATTR_STARTPOS, toString(myStartPosition), myMove.firstOriginalLanePosition));
-        }
-        if (myParametersSet & STOPPINGPLACE_ENDPOS_SET) {
-            undoList->p_add(new GNEChange_Attribute(this, SUMO_ATTR_ENDPOS, toString(myEndPosition), myMove.secondOriginalPosition));
-        }
-        undoList->p_end();
-    }
-}
-*/
-
-double
-GNEStoppingPlace::getStartPosition() const {
-    if (myParametersSet & STOPPINGPLACE_STARTPOS_SET) {
-        return myStartPosition;
-    } else {
-        return 0;
-    }
-}
-
-
-double
-GNEStoppingPlace::getEndPosition() const {
-    if (myParametersSet & STOPPINGPLACE_ENDPOS_SET) {
-        return myEndPosition;
-    } else {
-        return getParentLanes().front()->getLaneShapeLength();
     }
 }
 
@@ -325,37 +242,7 @@ GNEStoppingPlace::setStoppingPlaceGeometry(double movingToSide) {
     laneShape.move2side(movingToSide * offsetSign);
 
     // Cut shape using as delimitators fixed start position and fixed end position
-    myAdditionalGeometry.updateGeometry(laneShape, getStartGeometryPositionOverLane(), getEndGeometryPositionOverLane());
-}
-
-
-double
-GNEStoppingPlace::getStartGeometryPositionOverLane() const {
-    if (myParametersSet & STOPPINGPLACE_STARTPOS_SET) {
-        double fixedPos = myStartPosition;
-        const double len = getParentLanes().front()->getParentEdge()->getNBEdge()->getFinalLength();
-        if (fixedPos < 0) {
-            fixedPos += len;
-        }
-        return fixedPos * getParentLanes().front()->getLengthGeometryFactor();
-    } else {
-        return 0;
-    }
-}
-
-
-double
-GNEStoppingPlace::getEndGeometryPositionOverLane() const {
-    if (myParametersSet & STOPPINGPLACE_ENDPOS_SET) {
-        double fixedPos = myEndPosition;
-        const double len = getParentLanes().front()->getParentEdge()->getNBEdge()->getFinalLength();
-        if (fixedPos < 0) {
-            fixedPos += len;
-        }
-        return fixedPos * getParentLanes().front()->getLengthGeometryFactor();
-    } else {
-        return getParentLanes().front()->getParentEdge()->getNBEdge()->getFinalLength();
-    }
+    myAdditionalGeometry.updateGeometry(laneShape, getStartGeometryPositionOverLane(), getEndGeometryPositionOverLane(), myMoveElementLateralOffset);
 }
 
 
@@ -363,27 +250,28 @@ double
 GNEStoppingPlace::getAttributeDouble(SumoXMLAttr key) const {
     switch (key) {
         case SUMO_ATTR_STARTPOS:
-            if (myParametersSet & STOPPINGPLACE_STARTPOS_SET) {
+            if (myStartPosition != INVALID_DOUBLE) {
                 return myStartPosition;
             } else {
-                return -1;
+                return 0;
             }
         case SUMO_ATTR_ENDPOS:
-            if (myParametersSet & STOPPINGPLACE_ENDPOS_SET) {
+            if (myEndPosition != INVALID_DOUBLE) {
                 return myEndPosition;
             } else {
-                return -1;
+                return getParentLanes().front()->getParentEdge()->getNBEdge()->getFinalLength();
             }
+        case SUMO_ATTR_CENTER:
+            return ((getAttributeDouble(SUMO_ATTR_ENDPOS) - getAttributeDouble(SUMO_ATTR_STARTPOS)) * 0.5) + getAttributeDouble(SUMO_ATTR_STARTPOS);
         default:
             throw InvalidArgument(getTagStr() + " doesn't have a double attribute of type '" + toString(key) + "'");
     }
 }
 
 
-bool
-GNEStoppingPlace::isAttributeEnabled(SumoXMLAttr /*key*/) const {
-    // all stopping place attributes are always enabled
-    return true;
+const Parameterised::Map&
+GNEStoppingPlace::getACParametersMap() const {
+    return getParametersMap();
 }
 
 
@@ -409,11 +297,11 @@ GNEStoppingPlace::drawLines(const GUIVisualizationSettings& s, const std::vector
         // Iterate over every line
         for (int i = 0; i < (int)lines.size(); ++i) {
             // push a new matrix for every line
-            glPushMatrix();
+            GLHelper::pushMatrix();
             // translate
             glTranslated(mySignPos.x(), mySignPos.y(), 0);
             // rotate over lane
-            GNEGeometry::rotateOverLane(rot);
+            GUIGeometry::rotateOverLane(rot);
             // draw line with a color depending of the selection status
             if (drawUsingSelectColor()) {
                 GLHelper::drawText(lines[i].c_str(), Position(1.2, (double)i), .1, 1.f, color, 0, FONS_ALIGN_LEFT);
@@ -421,7 +309,7 @@ GNEStoppingPlace::drawLines(const GUIVisualizationSettings& s, const std::vector
                 GLHelper::drawText(lines[i].c_str(), Position(1.2, (double)i), .1, 1.f, color, 0, FONS_ALIGN_LEFT);
             }
             // pop matrix for every line
-            glPopMatrix();
+            GLHelper::popMatrix();
         }
     }
 }
@@ -438,11 +326,11 @@ GNEStoppingPlace::drawSign(const GUIVisualizationSettings& s, const double exagg
         // only draw circle depending of distance between sign and mouse cursor
         if (myNet->getViewNet()->getPositionInformation().distanceSquaredTo2D(mySignPos) <= (myCircleWidthSquared + 2)) {
             // push matrix
-            glPushMatrix();
+            GLHelper::pushMatrix();
             // Start drawing sign traslating matrix to signal position
             glTranslated(mySignPos.x(), mySignPos.y(), 0);
             // rotate over lane
-            GNEGeometry::rotateOverLane(rot);
+            GUIGeometry::rotateOverLane(rot);
             // scale matrix depending of the exaggeration
             glScaled(exaggeration, exaggeration, 1);
             // set color
@@ -450,15 +338,15 @@ GNEStoppingPlace::drawSign(const GUIVisualizationSettings& s, const double exagg
             // Draw circle
             GLHelper::drawFilledCircle(myCircleWidth, s.getCircleResolution());
             // pop draw matrix
-            glPopMatrix();
+            GLHelper::popMatrix();
         }
     } else {
         // push matrix
-        glPushMatrix();
+        GLHelper::pushMatrix();
         // Start drawing sign traslating matrix to signal position
         glTranslated(mySignPos.x(), mySignPos.y(), 0);
         // rotate over lane
-        GNEGeometry::rotateOverLane(rot);
+        GUIGeometry::rotateOverLane(rot);
         // scale matrix depending of the exaggeration
         glScaled(exaggeration, exaggeration, 1);
         // set color
@@ -477,16 +365,86 @@ GNEStoppingPlace::drawSign(const GUIVisualizationSettings& s, const double exagg
             GLHelper::drawText(word, Position(), .1, myCircleInText, baseColor);
         }
         // pop draw matrix
-        glPopMatrix();
+        GLHelper::popMatrix();
+    }
+}
+
+
+double
+GNEStoppingPlace::getStartGeometryPositionOverLane() const {
+    if (myStartPosition != INVALID_DOUBLE) {
+        // get lane final and shape length
+        const double laneLength = getParentLanes().front()->getParentEdge()->getNBEdge()->getFinalLength();
+        // get startPosition
+        double fixedPos = myStartPosition;
+        // adjust fixedPos
+        if (fixedPos < 0) {
+            fixedPos += laneLength;
+        }
+        fixedPos *= getParentLanes().front()->getLengthGeometryFactor();
+        // return depending of fixedPos
+        if (fixedPos < 0) {
+            return 0;
+        } else if (fixedPos > (getParentLanes().front()->getLaneShapeLength() - POSITION_EPS)) {
+            return (getParentLanes().front()->getLaneShapeLength() - POSITION_EPS);
+        } else {
+            return fixedPos;
+        }
+    } else {
+        return 0;
+    }
+}
+
+
+double
+GNEStoppingPlace::getEndGeometryPositionOverLane() const {
+    if (myEndPosition != INVALID_DOUBLE) {
+        // get lane final and shape length
+        const double laneLength = getParentLanes().front()->getParentEdge()->getNBEdge()->getFinalLength();
+        // get endPosition
+        double fixedPos = myEndPosition;
+        // adjust fixedPos
+        if (fixedPos < 0) {
+            fixedPos += laneLength;
+        }
+        fixedPos *= getParentLanes().front()->getLengthGeometryFactor();
+        // return depending of fixedPos
+        if (fixedPos < POSITION_EPS) {
+            return POSITION_EPS;
+        } else if (fixedPos > getParentLanes().front()->getLaneShapeLength()) {
+            return getParentLanes().front()->getLaneShapeLength();
+        } else {
+            return fixedPos;
+        }
+    } else {
+        return getParentLanes().front()->getLaneShapeLength();
     }
 }
 
 
 void
 GNEStoppingPlace::setMoveShape(const GNEMoveResult& moveResult) {
-    // change both position
-    myStartPosition = moveResult.shapeToUpdate.front().x();
-    myEndPosition = moveResult.shapeToUpdate.back().x();
+    if (moveResult.operationType == GNEMoveOperation::OperationType::ONE_LANE_MOVEFIRST) {
+        // change only start position
+        myStartPosition = moveResult.newFirstPos;
+        // adjust startPos
+        if (myStartPosition > (getAttributeDouble(SUMO_ATTR_ENDPOS) - POSITION_EPS)) {
+            myStartPosition = (getAttributeDouble(SUMO_ATTR_ENDPOS) - POSITION_EPS);
+        }
+    } else if (moveResult.operationType == GNEMoveOperation::OperationType::ONE_LANE_MOVESECOND) {
+        // change only end position
+        myEndPosition = moveResult.newFirstPos;
+        // adjust endPos
+        if (myEndPosition < (getAttributeDouble(SUMO_ATTR_STARTPOS) + POSITION_EPS)) {
+            myEndPosition = (getAttributeDouble(SUMO_ATTR_STARTPOS) + POSITION_EPS);
+        }
+    } else {
+        // change both position
+        myStartPosition = moveResult.newFirstPos;
+        myEndPosition = moveResult.newSecondPos;
+        // set lateral offset
+        myMoveElementLateralOffset = moveResult.firstLaneOffset;
+    }
     // update geometry
     updateGeometry();
 }
@@ -494,17 +452,27 @@ GNEStoppingPlace::setMoveShape(const GNEMoveResult& moveResult) {
 
 void
 GNEStoppingPlace::commitMoveShape(const GNEMoveResult& moveResult, GNEUndoList* undoList) {
-    // only commit geometry moving if at leats start or end positions is defined
-    if (myParametersSet > 0) {
-        undoList->p_begin("position of " + getTagStr());
-        if (myParametersSet & STOPPINGPLACE_STARTPOS_SET) {
-            undoList->p_add(new GNEChange_Attribute(this, SUMO_ATTR_STARTPOS, toString(moveResult.shapeToUpdate.front().x())));
+    // begin change attribute
+    undoList->begin(myTagProperty.getGUIIcon(), "position of " + getTagStr());
+    // set attributes depending of operation type
+    if (moveResult.operationType == GNEMoveOperation::OperationType::ONE_LANE_MOVEFIRST) {
+        // set only start position
+        setAttribute(SUMO_ATTR_STARTPOS, toString(moveResult.newFirstPos), undoList);
+    } else if (moveResult.operationType == GNEMoveOperation::OperationType::ONE_LANE_MOVESECOND) {
+        // set only end position
+        setAttribute(SUMO_ATTR_ENDPOS, toString(moveResult.newFirstPos), undoList);
+    } else {
+        // set both
+        setAttribute(SUMO_ATTR_STARTPOS, toString(moveResult.newFirstPos), undoList);
+        setAttribute(SUMO_ATTR_ENDPOS, toString(moveResult.newSecondPos), undoList);
+        // check if lane has to be changed
+        if (moveResult.newFirstLane) {
+            // set new lane
+            setAttribute(SUMO_ATTR_LANE, moveResult.newFirstLane->getID(), undoList);
         }
-        if (myParametersSet & STOPPINGPLACE_ENDPOS_SET) {
-            undoList->p_add(new GNEChange_Attribute(this, SUMO_ATTR_ENDPOS, toString(moveResult.shapeToUpdate.back().x())));
-        }
-        undoList->p_end();
     }
+    // end change attribute
+    undoList->end();
 }
 
 /****************************************************************************/

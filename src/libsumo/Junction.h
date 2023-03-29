@@ -1,6 +1,6 @@
 /****************************************************************************/
 // Eclipse SUMO, Simulation of Urban MObility; see https://eclipse.org/sumo
-// Copyright (C) 2012-2020 German Aerospace Center (DLR) and others.
+// Copyright (C) 2012-2023 German Aerospace Center (DLR) and others.
 // This program and the accompanying materials are made available under the
 // terms of the Eclipse Public License 2.0 which is available at
 // https://www.eclipse.org/legal/epl-2.0/
@@ -20,8 +20,6 @@
 // C++ TraCI client API implementation
 /****************************************************************************/
 #pragma once
-#include <config.h>
-
 #include <vector>
 #include <libsumo/TraCIDefs.h>
 #include <libsumo/TraCIConstants.h>
@@ -34,9 +32,6 @@
 class NamedRTree;
 class MSJunction;
 class PositionVector;
-namespace LIBSUMO_NAMESPACE {
-class VariableWrapper;
-}
 #endif
 
 // ===========================================================================
@@ -56,6 +51,7 @@ public:
     LIBSUMO_SUBSCRIPTION_API
 
 #ifndef LIBTRACI
+#ifndef SWIG
     /** @brief Saves the shape of the requested object in the given container
     *  @param id The id of the poi to retrieve
     *  @param shape The container to fill
@@ -70,7 +66,7 @@ public:
 
     static std::shared_ptr<VariableWrapper> makeWrapper();
 
-    static bool handleVariable(const std::string& objID, const int variable, VariableWrapper* wrapper);
+    static bool handleVariable(const std::string& objID, const int variable, VariableWrapper* wrapper, tcpip::Storage* paramData);
 
 private:
     static MSJunction* getJunction(const std::string& id);
@@ -79,6 +75,7 @@ private:
     static SubscriptionResults mySubscriptionResults;
     static ContextSubscriptionResults myContextSubscriptionResults;
     static NamedRTree* myTree;
+#endif
 #endif
 private:
     /// @brief invalidated standard constructor

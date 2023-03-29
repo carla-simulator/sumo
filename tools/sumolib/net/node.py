@@ -1,5 +1,5 @@
 # Eclipse SUMO, Simulation of Urban MObility; see https://eclipse.org/sumo
-# Copyright (C) 2011-2020 German Aerospace Center (DLR) and others.
+# Copyright (C) 2011-2023 German Aerospace Center (DLR) and others.
 # This program and the accompanying materials are made available under the
 # terms of the Eclipse Public License 2.0 which is available at
 # https://www.eclipse.org/legal/epl-2.0/
@@ -35,6 +35,7 @@ class Node:
         self._intLanes = intLanes
         self._shape3D = None
         self._shape = None
+        self._fringe = None
         self._params = {}
 
     def getID(self):
@@ -89,6 +90,15 @@ class Node:
         return self._incoming
 
     def getInternal(self):
+        """Returns the internal lanes starting at the border of the node.
+
+        This function returns the junction internal lanes as defined in the
+        "intLanes" attribute in net.xml. Note that this may not contain
+        all internal lanes because there may be internal junctions where
+        further internal lanes start.
+
+        The returned list contains string ids and no lane objects.
+        """
         return self._intLanes
 
     def setFoes(self, index, foes, prohibits):
@@ -133,6 +143,9 @@ class Node:
     def getType(self):
         return self._type
 
+    def getFringe(self):
+        return self._fringe
+
     def getConnections(self, source=None, target=None):
         if source:
             incoming = [source]
@@ -140,13 +153,13 @@ class Node:
             incoming = list(self._incoming)
         conns = []
         for e in incoming:
-            if (hasattr(e, "getLanes")):
+            if hasattr(e, "getLanes"):
                 lanes = e.getLanes()
             else:
                 # assuming source is a lane
                 lanes = [e]
-            for l in lanes:
-                all_outgoing = l.getOutgoing()
+            for _lane in lanes:
+                all_outgoing = _lane.getOutgoing()
                 outgoing = []
                 if target:
                     if hasattr(target, "getLanes"):
@@ -182,6 +195,9 @@ class Node:
         if outgoingNodes:
             edges = self._outgoing
             for e in edges:
-                if not (e.getToNode() in neighboring)and not(e.getToNode().getID() == self.getID()):
+                if not (e.getToNode() in neighboring) and not(e.getToNode().getID() == self.getID()):
                     neighboring.append(e.getToNode())
         return neighboring
+
+    def __repr__(self):
+        return '<junction id="%s"/>' % self._id

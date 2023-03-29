@@ -1,6 +1,6 @@
 /****************************************************************************/
 // Eclipse SUMO, Simulation of Urban MObility; see https://eclipse.org/sumo
-// Copyright (C) 2001-2020 German Aerospace Center (DLR) and others.
+// Copyright (C) 2001-2023 German Aerospace Center (DLR) and others.
 // This program and the accompanying materials are made available under the
 // terms of the Eclipse Public License 2.0 which is available at
 // https://www.eclipse.org/legal/epl-2.0/
@@ -127,7 +127,7 @@ private:
          * @param[in] lanesFromCapacity Whether the lane number shall be computed from the capacity
          * @param[in] capacity2Lanes The converter from flow to lanes
          */
-        EdgesHandler(const NBNodeCont& nc, NBEdgeCont& toFill,
+        EdgesHandler(NBNodeCont& nc, NBEdgeCont& toFill,
                      bool keepEdgeLengths, bool lanesFromCapacity,
                      NBCapacity2Lanes capacity2Lanes);
 
@@ -150,10 +150,12 @@ private:
         void myStartElement(int element, const SUMOSAXAttributes& attrs);
         //@}
 
+    private:
+        void insertEdge(const std::string& id, NBNode* fromNode, NBNode* toNode, double freeSpeed, int numLanes, double capacity, double length);
 
     private:
         /// @brief The previously parsed nodes
-        const NBNodeCont& myNodeCont;
+        NBNodeCont& myNodeCont;
 
         /// @brief The edge container to fill
         NBEdgeCont& myEdgeCont;

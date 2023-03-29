@@ -1,6 +1,6 @@
 /****************************************************************************/
 // Eclipse SUMO, Simulation of Urban MObility; see https://eclipse.org/sumo
-// Copyright (C) 2001-2020 German Aerospace Center (DLR) and others.
+// Copyright (C) 2001-2023 German Aerospace Center (DLR) and others.
 // This program and the accompanying materials are made available under the
 // terms of the Eclipse Public License 2.0 which is available at
 // https://www.eclipse.org/legal/epl-2.0/
@@ -18,39 +18,48 @@
 // class for TAZ relation data
 /****************************************************************************/
 #pragma once
+#include <config.h>
 
 
 // ===========================================================================
 // included modules
 // ===========================================================================
-
 #include "GNEGenericData.h"
+
 
 // ===========================================================================
 // class definitions
 // ===========================================================================
-
 /**
  * @class GNETAZRelData
- * @brief An Element which don't belongs to GNENet but has influency in the simulation
+ * @brief An Element which don't belong to GNENet but has influence in the simulation
  */
 class GNETAZRelData : public GNEGenericData {
 
 public:
-    /**@brief Constructor
+    /**@brief Constructor for two TAZs
      * @param[in] dataIntervalParent pointer to data interval parent
      * @param[in] fromTAZ pointer to from TAZ
      * @param[in] toTAZ pointer to to TAZ
      * @param[in] parameters parameters map
      */
-    GNETAZRelData(GNEDataInterval* dataIntervalParent, GNETAZElement* fromTAZ, GNETAZElement* toTAZ,
-                  const std::map<std::string, std::string>& parameters);
+    GNETAZRelData(GNEDataInterval* dataIntervalParent, GNEAdditional* fromTAZ, GNEAdditional* toTAZ,
+                  const Parameterised::Map& parameters);
+
+    /**@brief Constructor for one TAZ
+     * @param[in] dataIntervalParent pointer to data interval parent
+     * @param[in] TAZ pointer to TAZ
+     * @param[in] parameters parameters map
+     */
+    GNETAZRelData(GNEDataInterval* dataIntervalParent, GNEAdditional* TAZ,
+                  const Parameterised::Map& parameters);
 
     /// @brief Destructor
     ~GNETAZRelData();
 
     /// @brief get TAZ rel data color
-    const RGBColor& getColor() const;
+    RGBColor setColor(const GUIVisualizationSettings& s) const;
+    double getColorValue(const GUIVisualizationSettings& s, int activeScheme) const;
 
     /// @brief check if current TAZ rel data is visible
     bool isGenericDataVisible() const;
@@ -63,7 +72,7 @@ public:
 
     /// @name members and functions relative to write data sets into XML
     /// @{
-    /**@brief writte data set element into a xml file
+    /**@brief write data set element into a xml file
      * @param[in] device device in which write parameters of data set element
      */
     void writeGenericData(OutputDevice& device) const;
@@ -82,29 +91,44 @@ public:
     /// @{
 
     /**@brief Draws the object
-    * @param[in] s The settings for the current view (may influence drawing)
-    * @see GUIGlObject::drawGL
-    */
+     * @param[in] s The settings for the current view (may influence drawing)
+     * @see GUIGlObject::drawGL
+     */
     void drawGL(const GUIVisualizationSettings& s) const;
-
-    /**@brief Draws partial object (lane)
-    * @param[in] s The settings for the current view (may influence drawing)
-    * @param[in] lane GNELane in which draw partial
-    * @param[in] offsetFront offset for drawing element front (needed for selected elements)
-    */
-    void drawPartialGL(const GUIVisualizationSettings& s, const GNELane* lane, const double offsetFront) const;
-
-    /**@brief Draws partial object (junction)
-    * @param[in] s The settings for the current view (may influence drawing)
-    * @param[in] fromLane from GNELane
-    * @param[in] toLane to GNELane
-    * @param[in] offsetFront offset for drawing element front (needed for selected elements)
-    */
-    void drawPartialGL(const GUIVisualizationSettings& s, const GNELane* fromLane, const GNELane* toLane, const double offsetFront) const;
 
     //// @brief Returns the boundary to which the view shall be centered in order to show the object
     Boundary getCenteringBoundary() const;
 
+    /// @}
+
+    /// @name inherited from GNEPathManager::PathElement
+    /// @{
+
+    /// @brief compute pathElement
+    void computePathElement();
+
+    /**@brief Draws partial object (lane)
+     * @param[in] s The settings for the current view (may influence drawing)
+     * @param[in] lane GNELane in which draw partial
+     * @param[in] segment PathManager segment (used for segment options)
+     * @param[in] offsetFront extra front offset (used for drawing partial gl above other elements)
+     */
+    void drawPartialGL(const GUIVisualizationSettings& s, const GNELane* lane, const GNEPathManager::Segment* segment, const double offsetFront) const;
+
+    /**@brief Draws partial object (junction)
+     * @param[in] s The settings for the current view (may influence drawing)
+     * @param[in] fromLane from GNELane
+     * @param[in] toLane to GNELane
+     * @param[in] segment PathManager segment (used for segment options)
+     * @param[in] offsetFront extra front offset (used for drawing partial gl above other elements)
+     */
+    void drawPartialGL(const GUIVisualizationSettings& s, const GNELane* fromLane, const GNELane* toLane, const GNEPathManager::Segment* segment, const double offsetFront) const;
+
+    /// @brief get first path lane
+    GNELane* getFirstPathLane() const;
+
+    /// @brief get last path lane
+    GNELane* getLastPathLane() const;
     /// @}
 
     /// @name inherited from GNEAttributeCarrier
@@ -130,24 +154,10 @@ public:
 
     /**@brief method for checking if the key and their conrrespond attribute are valids
      * @param[in] key The attribute key
-     * @param[in] value The value asociated to key key
+     * @param[in] value The value associated to key key
      * @return true if the value is valid, false in other case
      */
     bool isValid(SumoXMLAttr key, const std::string& value);
-
-    /* @brief method for enable attribute
-     * @param[in] key The attribute key
-     * @param[in] undoList The undoList on which to register changes
-     * @note certain attributes can be only enabled, and can produce the disabling of other attributes
-     */
-    void enableAttribute(SumoXMLAttr key, GNEUndoList* undoList);
-
-    /* @brief method for disable attribute
-     * @param[in] key The attribute key
-     * @param[in] undoList The undoList on which to register changes
-     * @note certain attributes can be only enabled, and can produce the disabling of other attributes
-     */
-    void disableAttribute(SumoXMLAttr key, GNEUndoList* undoList);
 
     /* @brief method for check if the value for certain attribute is set
      * @param[in] key The attribute key
@@ -161,12 +171,25 @@ public:
     std::string getHierarchyName() const;
     /// @}
 
+protected:
+    /// @brief Geometry for TAZRel data
+    GUIGeometry myTAZRelGeometry;
+
+    /// @brief Geometry for TAZRel data (center)
+    GUIGeometry myTAZRelGeometryCenter;
+
+    /// @brief TAZRel data width
+    mutable double myLastWidth;
+
 private:
+    /// @brief check draw conditions
+    bool drawTAZRel() const;
+
     /// @brief method for setting the attribute and nothing else (used in GNEChange_Attribute)
     void setAttribute(SumoXMLAttr key, const std::string& value);
 
-    /// @brief method for enabling the attribute and nothing else (used in GNEChange_EnableAttribute)
-    void setEnabledAttribute(const int enabledAttributes);
+    /// @brief sets the color according to the current scheme index and some tazRel function
+    bool setFunctionalColor(int activeScheme, RGBColor& col) const;
 
     /// @brief Invalidated copy constructor.
     GNETAZRelData(const GNETAZRelData&) = delete;

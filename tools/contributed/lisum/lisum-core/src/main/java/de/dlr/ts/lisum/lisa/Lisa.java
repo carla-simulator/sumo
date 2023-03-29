@@ -1,6 +1,6 @@
 /****************************************************************************/
 // Eclipse SUMO, Simulation of Urban MObility; see https://eclipse.org/sumo
-// Copyright (C) 2016-2020 German Aerospace Center (DLR) and others.
+// Copyright (C) 2016-2023 German Aerospace Center (DLR) and others.
 // This program and the accompanying materials are made available under the
 // terms of the Eclipse Public License 2.0 which is available at
 // https://www.eclipse.org/legal/epl-2.0/
@@ -27,6 +27,7 @@ import de.dlr.ts.lisum.simulation.LisumSimulation;
 import java.io.File;
 import java.util.logging.Level;
 import java.util.logging.Logger;
+import org.apache.maven.artifact.versioning.ComparableVersion;
 
 /**
  *
@@ -38,6 +39,7 @@ public class Lisa implements CityInterface
     private final LisaCommands lisaCommands;
     private final LisaControlUnits lisaControlUnits = new LisaControlUnits();
     private File lisaDirectory;
+    private static ComparableVersion lisaVersion = new ComparableVersion("7.2");
 
     /**
      *
@@ -132,4 +134,19 @@ public class Lisa implements CityInterface
         return this.lisaControlUnits.getControlUnit(name);
     }
 
+     /**
+     *
+     * @param lisaVersionString
+     */
+    public static void setVersion(String lisaVersionString) {
+        lisaVersion = new ComparableVersion(lisaVersionString);
+    }
+
+     /**
+     *
+     * @param version
+     */
+    public static boolean minVersion(ComparableVersion version) {
+        return lisaVersion.compareTo(version) >= 0;
+    }
 }

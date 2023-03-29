@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 # Eclipse SUMO, Simulation of Urban MObility; see https://eclipse.org/sumo
-# Copyright (C) 2014-2020 German Aerospace Center (DLR) and others.
+# Copyright (C) 2014-2023 German Aerospace Center (DLR) and others.
 # This program and the accompanying materials are made available under the
 # terms of the Eclipse Public License 2.0 which is available at
 # https://www.eclipse.org/legal/epl-2.0/
@@ -18,6 +18,7 @@
 """
 Check order of arriving and leaving vehicles at stopping places.
 Report if vehicles change their order at a stop (a vehicle arrives later but leaves earlier)
+Also Reports if vehicle stop times are inconsistent with itself (times jump backwards)
 """
 
 from __future__ import absolute_import
@@ -67,8 +68,11 @@ def main(options):
         for vehicle in sumolib.xml.parse(routefile, ['vehicle', 'trip'], heterogeneous=True):
             if vehicle.stop is None:
                 continue
-            for stop in vehicle.stop:
-                if stop.parking in ["true", "True", "1"] and options.ignoreParking:
+            lastUntil = None
+            stops = list(vehicle.stop)
+            for i, stop in enumerate(stops):
+                isParking = stop.parking in ["true", "True", "1"]
+                if isParking and options.ignoreParking:
                     continue
                 if options.untilFromDuration:
                     if stop.arrival:
@@ -79,13 +83,40 @@ def main(options):
                 else:
                     until = parseTime(stop.until)
                 arrival = parseTime(stop.arrival) if stop.arrival else until - parseTime(stop.duration)
-                stopTimes[stop.busStop].append((arrival, until, vehicle.id, stop.getAttributeSecure("tripId", "")))
+                if until < arrival:
+                    print("Vehicle %s has 'until' before 'arrival' (%s, %s) at stop %s" % (
+                        vehicle.id, tf(arrival), tf(until), stop.busStop), file=sys.stderr)
+                # comparing lastUntil with arrival makes sense logically but
+                # produces unnecessary warnings when using until times to encode small delays
+                #
+                # if lastUntil is not None and arrival < lastUntil:
+                #     print("Vehicle %s has 'arrival' (%s) before previous 'until' (%s) at stop %s" % (
+                #         vehicle.id, tf(arrival), tf(lastUntil), stop.busStop), file=sys.stderr)
+                if lastUntil is not None and until < lastUntil:
+                    print("Vehicle %s has 'until' (%s) before previous 'until' (%s) at stop %s" % (
+                        vehicle.id, tf(until), tf(lastUntil), stop.busStop), file=sys.stderr)
+                lastUntil = until
+                flags = ''
+                if isParking:
+                    flags += "p"
+                if i == 0:
+                    flags += "F"
+                if i == len(stops) - 1:
+                    flags += "L"
+                stopTimes[stop.busStop].append([arrival, until, vehicle.id,
+                                                stop.getAttributeSecure("tripId", ""),
+                                                stop.getAttributeSecure("started", ""),
+                                                stop.getAttributeSecure("ended", ""),
+                                                flags
+                                                ])
 
     for stop, times in stopTimes.items():
         times.sort()
-        for i, (a, u, v, t) in enumerate(times):
-            for a2, u2, v2, t2 in times[i + 1:]:
+        for i, (a, u, v, t, s, e, f) in enumerate(times):
+            for i2, (a2, u2, v2, t2, s2, e2, f2) in enumerate(times[i + 1:]):
                 if u2 <= u:
+                    times[i][-1] += "o"
+                    times[i + 1 + i2][-1] += "O"
                     print("Vehicle %s (%s, %s) overtakes %s (%s, %s) at stop %s" % (
                         v2, tf(a2), tf(u2), v, tf(a), tf(u), stop), file=sys.stderr)
 
@@ -93,9 +124,9 @@ def main(options):
         if options.stopTable in stopTimes:
             times = stopTimes[options.stopTable]
             print("# busStop: %s" % options.stopTable)
-            print("arrival\tuntil\tveh\ttripId")
-            for a, u, v, t in sorted(times):
-                print("%s\t%s\t%s\t%s" % (tf(a), tf(u), v, t))
+            print("arrival\tuntil\tveh\ttripId\tstarted\tended\tflags")
+            for a, u, v, t, s, e, f in sorted(times):
+                print("%s\t%s\t%s\t%s\t%s\t%s\t%s" % (tf(a), tf(u), v, t, s, e, f))
         else:
             print("No vehicle stops at busStop '%s' found" % options.stopTable, file=sys.stderr)
 

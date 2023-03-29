@@ -1,0 +1,3 @@
+Error: Attribute 'period' in definition of routeProbe 'routeProbe_1' is not a valid time value.
+Error: Could not build routeProbe with ID 'routeProbe_2' in netedit; attribute period cannot be negative.
+Error: Loading of /home/palcraft/.texttest/tmp/netedit.gui.09Feb092829.15607/netedit.gui/additionalelements/routeprobe/load/period/additionals.add.xml failed.

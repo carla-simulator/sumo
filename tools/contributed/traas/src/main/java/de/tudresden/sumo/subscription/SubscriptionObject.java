@@ -1,6 +1,6 @@
 /****************************************************************************/
 // Eclipse SUMO, Simulation of Urban MObility; see https://eclipse.org/sumo
-// Copyright (C) 2017-2020 German Aerospace Center (DLR) and others.
+// Copyright (C) 2017-2023 German Aerospace Center (DLR) and others.
 // TraaS module
 // Copyright (C) 2016-2017 Dresden University of Technology
 // This program and the accompanying materials are made available under the
@@ -22,7 +22,7 @@
 /****************************************************************************/
 package de.tudresden.sumo.subscription;
 
-import de.tudresden.ws.container.SumoObject;
+import de.tudresden.sumo.objects.SumoObject;
 
 public class SubscriptionObject {
 

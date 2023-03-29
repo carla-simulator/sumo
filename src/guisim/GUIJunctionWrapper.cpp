@@ -1,6 +1,6 @@
 /****************************************************************************/
 // Eclipse SUMO, Simulation of Urban MObility; see https://eclipse.org/sumo
-// Copyright (C) 2001-2020 German Aerospace Center (DLR) and others.
+// Copyright (C) 2001-2023 German Aerospace Center (DLR) and others.
 // This program and the accompanying materials are made available under the
 // terms of the Eclipse Public License 2.0 which is available at
 // https://www.eclipse.org/legal/epl-2.0/
@@ -25,16 +25,6 @@
 
 #include <string>
 #include <utility>
-#ifdef HAVE_OSG
-#ifdef _MSC_VER
-#pragma warning(push)
-#pragma warning(disable: 4275) // do not warn about the DLL interface for OSG
-#endif
-#include <osg/Geometry>
-#ifdef _MSC_VER
-#pragma warning(pop)
-#endif
-#endif
 #include <microsim/MSLane.h>
 #include <microsim/MSEdge.h>
 #include <microsim/MSJunction.h>
@@ -55,14 +45,16 @@
 #include <utils/gui/div/GLHelper.h>
 #include <utils/gui/globjects/GLIncludes.h>
 
-//#define GUIJunctionWrapper_DEBUG_DRAW_NODE_SHAPE_VERTICES
+#include <osgview/GUIOSGHeader.h>
 
 // ===========================================================================
 // method definitions
 // ===========================================================================
 GUIJunctionWrapper::GUIJunctionWrapper(MSJunction& junction, const std::string& tllID):
-    GUIGlObject(GLO_JUNCTION, junction.getID()),
+    GUIGlObject(GLO_JUNCTION, junction.getID(), GUIIconSubSys::getIcon(GUIIcon::JUNCTION)),
     myJunction(junction),
+    myTesselation(junction.getID(), "", RGBColor::MAGENTA, junction.getShape(), false, true, 0),
+    myExaggeration(1),
     myTLLID(tllID) {
     if (myJunction.getShape().size() == 0) {
         Position pos = myJunction.getPosition();
@@ -94,6 +86,7 @@ GUIJunctionWrapper::GUIJunctionWrapper(MSJunction& junction, const std::string& 
             }
         }
     }
+    myTesselation.getShapeRef().closePolygon();
 }
 
 
@@ -109,7 +102,7 @@ GUIJunctionWrapper::getPopUpMenu(GUIMainWindow& app,
     buildNameCopyPopupEntry(ret);
     buildSelectionPopupEntry(ret);
     buildShowParamsPopupEntry(ret);
-    buildPositionCopyEntry(ret, false);
+    buildPositionCopyEntry(ret, app);
     return ret;
 }
 
@@ -123,6 +116,12 @@ GUIJunctionWrapper::getParameterWindow(GUIMainWindow& app, GUISUMOAbstractView&)
     // close building
     ret->closeBuilding(&myJunction);
     return ret;
+}
+
+
+double
+GUIJunctionWrapper::getExaggeration(const GUIVisualizationSettings& s) const {
+    return s.junctionSize.getExaggeration(s, this, 4);
 }
 
 
@@ -140,62 +139,65 @@ GUIJunctionWrapper::getOptionalName() const {
 
 void
 GUIJunctionWrapper::drawGL(const GUIVisualizationSettings& s) const {
-    if (!myIsInternal && s.drawJunctionShape) {
+    const bool s2 = s.secondaryShape;
+    if (!myIsInternal && s.drawJunctionShape && !s2) {
         // check whether it is not too small
-        const double exaggeration = s.junctionSize.getExaggeration(s, this, 4);
+        const double exaggeration = getExaggeration(s);
         if (s.scale * exaggeration >= s.junctionSize.minSize) {
-            glPushMatrix();
-            glPushName(getGlID());
+            GLHelper::pushMatrix();
+            GLHelper::pushName(getGlID());
             const double colorValue = getColorValue(s, s.junctionColorer.getActive());
             const RGBColor color = s.junctionColorer.getScheme().getColor(colorValue);
             GLHelper::setColor(color);
 
             // recognize full transparency and simply don't draw
             if (color.alpha() != 0) {
-                PositionVector shape = myJunction.getShape();
-                shape.closePolygon();
-                if (exaggeration > 1) {
-                    shape.scaleRelative(exaggeration);
+                if ((exaggeration > 1 || myExaggeration > 1) && exaggeration != myExaggeration) {
+                    myExaggeration = exaggeration;
+                    myTesselation.setShape(myJunction.getShape());
+                    myTesselation.getShapeRef().closePolygon();
+                    myTesselation.getShapeRef().scaleRelative(exaggeration);
+                    myTesselation.myTesselation.clear();
                 }
                 glTranslated(0, 0, getType());
                 if (s.scale * myMaxSize < 40.) {
-                    GLHelper::drawFilledPoly(shape, true);
+                    GLHelper::drawFilledPoly(myTesselation.getShape(), true);
                 } else {
-                    GLHelper::drawFilledPolyTesselated(shape, true);
+                    myTesselation.drawTesselation(myTesselation.getShape());
                 }
-#ifdef GUIJunctionWrapper_DEBUG_DRAW_NODE_SHAPE_VERTICES
-                GLHelper::debugVertices(shape, 80 / s.scale);
-#endif
                 // make small junctions more visible when coloring by type
                 if (myJunction.getType() == SumoXMLNodeType::RAIL_SIGNAL && s.junctionColorer.getActive() == 2) {
-                    glTranslated(myJunction.getPosition().x(), myJunction.getPosition().y(), getType() + 0.05);
+                    glTranslated(myJunction.getPosition(s2).x(), myJunction.getPosition(s2).y(), getType() + 0.05);
                     GLHelper::drawFilledCircle(2 * exaggeration, 12);
                 }
             }
-            glPopName();
-            glPopMatrix();
+            GLHelper::popName();
+            GLHelper::popMatrix();
+            if (s.geometryIndices.show(this)) {
+                GLHelper::debugVertices(myJunction.getShape(), s.geometryIndices, s.scale);
+            }
         }
     }
     if (myIsInternal) {
-        drawName(myJunction.getPosition(), s.scale, s.internalJunctionName, s.angle);
+        drawName(myJunction.getPosition(s2), s.scale, s.internalJunctionName, s.angle);
     } else {
-        drawName(myJunction.getPosition(), s.scale, s.junctionID, s.angle);
-        if (s.junctionName.show && myJunction.getName() != "") {
-            GLHelper::drawTextSettings(s.junctionName, myJunction.getName(), myJunction.getPosition(), s.scale, s.angle);
+        drawName(myJunction.getPosition(s2), s.scale, s.junctionID, s.angle);
+        if (s.junctionName.show(this) && myJunction.getName() != "") {
+            GLHelper::drawTextSettings(s.junctionName, myJunction.getName(), myJunction.getPosition(s2), s.scale, s.angle);
         }
-        if ((s.tlsPhaseIndex.show || s.tlsPhaseName.show) && myTLLID != "") {
+        if ((s.tlsPhaseIndex.show(this) || s.tlsPhaseName.show(this)) && myTLLID != "") {
             const MSTrafficLightLogic* active = MSNet::getInstance()->getTLSControl().getActive(myTLLID);
-            if (s.tlsPhaseIndex.show) {
+            if (s.tlsPhaseIndex.show(this)) {
                 const int index = active->getCurrentPhaseIndex();
-                GLHelper::drawTextSettings(s.tlsPhaseIndex, toString(index), myJunction.getPosition(), s.scale, s.angle);
+                GLHelper::drawTextSettings(s.tlsPhaseIndex, toString(index), myJunction.getPosition(s2), s.scale, s.angle);
             }
-            if (s.tlsPhaseName.show) {
+            if (s.tlsPhaseName.show(this)) {
                 const std::string& name = active->getCurrentPhaseDef().getName();
                 if (name != "") {
-                    const Position offset = (s.tlsPhaseIndex.show ?
+                    const Position offset = (s.tlsPhaseIndex.show(this) ?
                                              Position(0, 0.8 * s.tlsPhaseIndex.scaledSize(s.scale)).rotateAround2D(DEG2RAD(-s.angle), Position(0, 0))
                                              : Position(0, 0));
-                    GLHelper::drawTextSettings(s.tlsPhaseName, name, myJunction.getPosition() - offset, s.scale, s.angle);
+                    GLHelper::drawTextSettings(s.tlsPhaseName, name, myJunction.getPosition(s2) - offset, s.scale, s.angle);
                 }
             }
         }
@@ -249,6 +251,8 @@ GUIJunctionWrapper::getColorValue(const GUIVisualizationSettings& /* s */, int a
                     return 11;
                 case SumoXMLNodeType::RAIL_CROSSING:
                     return 12;
+                case SumoXMLNodeType::LEFT_BEFORE_RIGHT:
+                    return 13;
                 default:
                     assert(false);
                     return 0;

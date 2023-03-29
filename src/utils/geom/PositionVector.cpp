@@ -1,6 +1,6 @@
 /****************************************************************************/
 // Eclipse SUMO, Simulation of Urban MObility; see https://eclipse.org/sumo
-// Copyright (C) 2001-2020 German Aerospace Center (DLR) and others.
+// Copyright (C) 2001-2023 German Aerospace Center (DLR) and others.
 // This program and the accompanying materials are made available under the
 // terms of the Eclipse Public License 2.0 which is available at
 // https://www.eclipse.org/legal/epl-2.0/
@@ -37,6 +37,8 @@
 #include "PositionVector.h"
 #include "GeomHelper.h"
 #include "Boundary.h"
+
+//#define DEBUG_MOVE2SIDE
 
 // ===========================================================================
 // static members
@@ -210,16 +212,16 @@ PositionVector::operator[](int index) const {
     /* bracket operators works as in Python. Examples:
         - A = {'a', 'b', 'c', 'd'} (size 4)
         - A [2] returns 'c' because 0 < 2 < 4
-        - A [100] thrown an exception because 100 > 4
+        - A [100] throws an exception because 100 > 4
         - A [-1] returns 'd' because 4 - 1 = 3
-        - A [-100] thrown an exception because (4-100) < 0
+        - A [-100] throws an exception because (4-100) < 0
     */
     if (index >= 0 && index < (int)size()) {
         return at(index);
     } else if (index < 0 && -index <= (int)size()) {
         return at((int)size() + index);
     } else {
-        throw ProcessError("Index out of range in bracket operator of PositionVector");
+        throw OutOfBoundsException("Index out of range in bracket operator of PositionVector");
     }
 }
 
@@ -229,16 +231,16 @@ PositionVector::operator[](int index) {
     /* bracket operators works as in Python. Examples:
         - A = {'a', 'b', 'c', 'd'} (size 4)
         - A [2] returns 'c' because 0 < 2 < 4
-        - A [100] thrown an exception because 100 > 4
+        - A [100] throws an exception because 100 > 4
         - A [-1] returns 'd' because 4 - 1 = 3
-        - A [-100] thrown an exception because (4-100) < 0
+        - A [-100] throws an exception because (4-100) < 0
     */
     if (index >= 0 && index < (int)size()) {
         return at(index);
     } else if (index < 0 && -index <= (int)size()) {
         return at((int)size() + index);
     } else {
-        throw ProcessError("Index out of range in bracket operator of PositionVector");
+        throw OutOfBoundsException("Index out of range in bracket operator of PositionVector");
     }
 }
 
@@ -265,6 +267,27 @@ PositionVector::positionAtOffset(double pos, double lateralOffset) const {
     } else {
         return positionAtOffset(*(end() - 2), *(end() - 1), (*(end() - 2)).distanceTo(*(end() - 1)), lateralOffset);
     }
+}
+
+
+Position
+PositionVector::sidePositionAtAngle(double pos, double lateralOffset, double angle) const {
+    if (size() == 0) {
+        return Position::INVALID;
+    }
+    if (size() == 1) {
+        return front();
+    }
+    const_iterator i = begin();
+    double seenLength = 0;
+    do {
+        const double nextLength = (*i).distanceTo(*(i + 1));
+        if (seenLength + nextLength > pos) {
+            return sidePositionAtAngle(*i, *(i + 1), pos - seenLength, lateralOffset, angle);
+        }
+        seenLength += nextLength;
+    } while (++i != end() - 1);
+    return sidePositionAtAngle(*(end() - 2), *(end() - 1), (*(end() - 2)).distanceTo(*(end() - 1)), lateralOffset, angle);
 }
 
 
@@ -332,13 +355,13 @@ PositionVector::slopeDegreeAtOffset(double pos) const {
         const Position& p2 = *(i + 1);
         const double nextLength = p1.distanceTo(p2);
         if (seenLength + nextLength > pos) {
-            return RAD2DEG(atan2(p2.z() - p1.z(), p1.distanceTo2D(p2)));
+            return RAD2DEG(p1.slopeTo2D(p2));
         }
         seenLength += nextLength;
     } while (++i != end() - 1);
     const Position& p1 = (*this)[-2];
     const Position& p2 = back();
-    return RAD2DEG(atan2(p2.z() - p1.z(), p1.distanceTo2D(p2)));
+    return RAD2DEG(p1.slopeTo2D(p2));
 }
 
 
@@ -362,6 +385,18 @@ PositionVector::positionAtOffset(const Position& p1, const Position& p2, double 
         return p1;
     }
     return p1 + (p2 - p1) * (pos / dist);
+}
+
+
+Position
+PositionVector::sidePositionAtAngle(const Position& p1, const Position& p2, double pos, double lateralOffset, double angle) {
+    const double dist = p1.distanceTo(p2);
+    if (pos < 0. || dist < pos || dist == 0) {
+        return Position::INVALID;
+    }
+    angle -= DEG2RAD(90);
+    const Position offset(cos(angle) * lateralOffset, sin(angle) * lateralOffset);
+    return p1 + (p2 - p1) * (pos / dist) + offset;
 }
 
 
@@ -397,6 +432,9 @@ PositionVector::getBoxBoundary() const {
 
 Position
 PositionVector::getPolygonCenter() const {
+    if (size() == 0) {
+        return Position::INVALID;
+    }
     double x = 0;
     double y = 0;
     double z = 0;
@@ -566,7 +604,7 @@ PositionVector::splitAt(double where, bool use2D) const {
         throw InvalidArgument("Invalid split position " + toString(where) + " for vector of length " + toString(len));
     }
     if (where <= POSITION_EPS || where >= len - POSITION_EPS) {
-        WRITE_WARNING("Splitting vector close to end (pos: " + toString(where) + ", length: " + toString(len) + ")");
+        WRITE_WARNINGF(TL("Splitting vector close to end (pos: %, length: %)"), toString(where), toString(len));
     }
     PositionVector first, second;
     first.push_back((*this)[0]);
@@ -631,15 +669,7 @@ PositionVector::add(double xoff, double yoff, double zoff) {
 
 void
 PositionVector::sub(const Position& offset) {
-    sub(offset.x(), offset.y(), offset.z());
-}
-
-
-void
-PositionVector::sub(double xoff, double yoff, double zoff) {
-    for (int i = 0; i < (int)size(); i++) {
-        (*this)[i].add(-xoff, -yoff, -zoff);
-    }
+    add(-offset.x(), -offset.y(), -offset.z());
 }
 
 
@@ -706,6 +736,16 @@ PositionVector::append(const PositionVector& v, double sameThreshold) {
         copy(v.begin() + 1, v.end(), back_inserter(*this));
     } else {
         copy(v.begin(), v.end(), back_inserter(*this));
+    }
+}
+
+
+void
+PositionVector::prepend(const PositionVector& v, double sameThreshold) {
+    if ((size() > 0) && (v.size() > 0) && (front().distanceTo(v.back()) < sameThreshold)) {
+        insert(begin(), v.begin(), v.end() - 1);
+    } else {
+        insert(begin(), v.begin(), v.end());
     }
 }
 
@@ -945,7 +985,7 @@ PositionVector::transformToVectorCoordinates(const Position& p, bool extend) con
 
 
 int
-PositionVector::indexOfClosest(const Position& p) const {
+PositionVector::indexOfClosest(const Position& p, bool twoD) const {
     if (size() == 0) {
         return -1;
     }
@@ -953,7 +993,8 @@ PositionVector::indexOfClosest(const Position& p) const {
     double dist;
     int closest = 0;
     for (int i = 0; i < (int)size(); i++) {
-        dist = p.distanceTo((*this)[i]);
+        const Position& p2 = (*this)[i];
+        dist = twoD ? p.distanceTo2D(p2) : p.distanceTo(p2);
         if (dist < minDist) {
             closest = i;
             minDist = dist;
@@ -1113,22 +1154,33 @@ PositionVector::move2side(double amount, double maxExtension) {
         return;
     }
     removeDoublePoints(POSITION_EPS, true);
-    if (length2D() == 0) {
+    if (length2D() == 0 || amount == 0) {
         return;
     }
     PositionVector shape;
+    std::vector<int>  recheck;
     for (int i = 0; i < static_cast<int>(size()); i++) {
         if (i == 0) {
             const Position& from = (*this)[i];
             const Position& to = (*this)[i + 1];
             if (from != to) {
                 shape.push_back(from - sideOffset(from, to, amount));
+#ifdef DEBUG_MOVE2SIDE
+                if (gDebugFlag1) {
+                    std::cout << " " << i << "a=" << shape.back() << "\n";
+                }
+#endif
             }
         } else if (i == static_cast<int>(size()) - 1) {
             const Position& from = (*this)[i - 1];
             const Position& to = (*this)[i];
             if (from != to) {
                 shape.push_back(to - sideOffset(from, to, amount));
+#ifdef DEBUG_MOVE2SIDE
+                if (gDebugFlag1) {
+                    std::cout << " " << i << "b=" << shape.back() << "\n";
+                }
+#endif
             }
         } else {
             const Position& from = (*this)[i - 1];
@@ -1140,11 +1192,21 @@ PositionVector::move2side(double amount, double maxExtension) {
             if (fabs(extrapolateDev) < POSITION_EPS) {
                 // parallel case, just shift the middle point
                 shape.push_back(me - sideOffset(from, to, amount));
+#ifdef DEBUG_MOVE2SIDE
+                if (gDebugFlag1) {
+                    std::cout << " " << i << "c=" << shape.back() << "\n";
+                }
+#endif
             } else if (fabs(extrapolateDev - 2 * me.distanceTo2D(to)) < POSITION_EPS) {
                 // counterparallel case, just shift the middle point
-                PositionVector fromMe(from, me);
-                fromMe.extrapolate2D(amount);
-                shape.push_back(fromMe[1]);
+                PositionVector fromMe2(from, me);
+                fromMe2.extrapolate2D(amount);
+                shape.push_back(fromMe2[1]);
+#ifdef DEBUG_MOVE2SIDE
+                if (gDebugFlag1) {
+                    std::cout << " " << i << "d=" << shape.back() << " " << i << "_from=" << from << " " << i << "_me=" << me << " " << i << "_to=" << to << "\n";
+                }
+#endif
             } else {
                 Position offsets = sideOffset(from, me, amount);
                 Position offsets2 = sideOffset(me, to, amount);
@@ -1152,21 +1214,48 @@ PositionVector::move2side(double amount, double maxExtension) {
                 PositionVector l2(me - offsets2, to - offsets2);
                 Position meNew  = l1.intersectionPosition2D(l2[0], l2[1], maxExtension);
                 if (meNew == Position::INVALID) {
-                    throw InvalidArgument("no line intersection");
+                    recheck.push_back(i);
+                    continue;
                 }
                 meNew = meNew + Position(0, 0, me.z());
                 shape.push_back(meNew);
+#ifdef DEBUG_MOVE2SIDE
+                if (gDebugFlag1) {
+                    std::cout << " " << i << "e=" << shape.back() << "\n";
+                }
+#endif
             }
             // copy original z value
             shape.back().set(shape.back().x(), shape.back().y(), me.z());
+            const double angle = localAngle(from, me, to);
+            if (fabs(angle) > NUMERICAL_EPS) {
+                const double length = from.distanceTo2D(me) + me.distanceTo2D(to);
+                const double radius = length / angle;
+#ifdef DEBUG_MOVE2SIDE
+                if (gDebugFlag1) {
+                    std::cout << " i=" << i << " a=" << RAD2DEG(angle) << " l=" << length << " r=" << radius << " t=" << amount * 1.8 << "\n";
+                }
+#endif
+                if ((radius < 0 && -radius < amount * 1.8) || fabs(RAD2DEG(angle)) > 170)  {
+                    recheck.push_back(i);
+                }
+            }
         }
+    }
+    if (!recheck.empty()) {
+        // try to adjust positions to avoid clipping
+        shape = *this;
+        for (int i = (int)recheck.size() - 1; i >= 0; i--) {
+            shape.erase(shape.begin() + recheck[i]);
+        }
+        shape.move2side(amount, maxExtension);
     }
     *this = shape;
 }
 
 
 void
-PositionVector::move2side(std::vector<double> amount, double maxExtension) {
+PositionVector::move2sideCustom(std::vector<double> amount, double maxExtension) {
     if (size() < 2) {
         return;
     }
@@ -1203,9 +1292,9 @@ PositionVector::move2side(std::vector<double> amount, double maxExtension) {
                 shape.push_back(me - sideOffset(from, to, amount[i]));
             } else if (fabs(extrapolateDev - 2 * me.distanceTo2D(to)) < POSITION_EPS) {
                 // counterparallel case, just shift the middle point
-                PositionVector fromMe(from, me);
-                fromMe.extrapolate2D(amount[i]);
-                shape.push_back(fromMe[1]);
+                PositionVector fromMe2(from, me);
+                fromMe2.extrapolate2D(amount[i]);
+                shape.push_back(fromMe2[1]);
             } else {
                 Position offsets = sideOffset(from, me, amount[i]);
                 Position offsets2 = sideOffset(me, to, amount[i]);
@@ -1213,7 +1302,7 @@ PositionVector::move2side(std::vector<double> amount, double maxExtension) {
                 PositionVector l2(me - offsets2, to - offsets2);
                 Position meNew  = l1.intersectionPosition2D(l2[0], l2[1], maxExtension);
                 if (meNew == Position::INVALID) {
-                    throw InvalidArgument("no line intersection");
+                    continue;
                 }
                 meNew = meNew + Position(0, 0, me.z());
                 shape.push_back(meNew);
@@ -1223,6 +1312,11 @@ PositionVector::move2side(std::vector<double> amount, double maxExtension) {
         }
     }
     *this = shape;
+}
+
+double
+PositionVector::localAngle(const Position& from, const Position& pos, const Position& to) {
+    return GeomHelper::angleDiff(from.angleTo2D(pos), pos.angleTo2D(to));
 }
 
 double
@@ -1349,18 +1443,40 @@ PositionVector::isNAN() const {
 
 
 void
-PositionVector::removeDoublePoints(double minDist, bool assertLength) {
-    if (size() > 1) {
-        iterator last = begin();
-        for (iterator i = begin() + 1; i != end() && (!assertLength || size() > 2);) {
+PositionVector::removeDoublePoints(double minDist, bool assertLength, int beginOffset, int endOffset, bool resample) {
+    int curSize = (int)size() - beginOffset - endOffset;
+    if (curSize > 1) {
+        iterator last = begin() + beginOffset;
+        for (iterator i = last + 1; i != (end() - endOffset) && (!assertLength || curSize > 2);) {
             if (last->almostSame(*i, minDist)) {
-                if (i + 1 == end()) {
+                if (i + 1 == end() - endOffset) {
                     // special case: keep the last point and remove the next-to-last
-                    erase(last);
-                    i = end();
+                    if (resample && last > begin() && (last - 1)->distanceTo(*i) >= 2 * minDist) {
+                        // resample rather than remove point after a long segment
+                        const double shiftBack = minDist - last->distanceTo(*i);
+                        //if (gDebugFlag1) std::cout << " resample endOffset beforeLast=" << *(last - 1) << " last=" << *last << " i=" << *i;
+                        (*last) = positionAtOffset(*(last - 1), *last, (last - 1)->distanceTo(*last) - shiftBack);
+                        //if (gDebugFlag1) std::cout << " lastNew=" << *last;
+                        last = i;
+                        ++i;
+                    } else {
+                        erase(last);
+                        i = end() - endOffset;
+                    }
                 } else {
-                    i = erase(i);
+                    if (resample && i + 1 != end() && last->distanceTo(*(i + 1)) >= 2 * minDist) {
+                        // resample rather than remove points before a long segment
+                        const double shiftForward = minDist - last->distanceTo(*i);
+                        //if (gDebugFlag1) std::cout << " resample last=" << *last << " i=" << *i << " next=" << *(i + 1);
+                        (*i) = positionAtOffset(*i, *(i + 1), shiftForward);
+                        //if (gDebugFlag1) std::cout << " iNew=" << *i << "\n";
+                        last = i;
+                        ++i;
+                    } else {
+                        i = erase(i);
+                    }
                 }
+                curSize--;
             } else {
                 last = i;
                 ++i;
@@ -1384,7 +1500,7 @@ PositionVector::operator!=(const PositionVector& v2) const {
 PositionVector
 PositionVector::operator-(const PositionVector& v2) const {
     if (length() != v2.length()) {
-        WRITE_ERROR("Trying to substract PositionVectors of different lengths.");
+        WRITE_ERROR(TL("Trying to subtract PositionVectors of different lengths."));
     }
     PositionVector pv;
     auto i1 = begin();
@@ -1398,7 +1514,7 @@ PositionVector::operator-(const PositionVector& v2) const {
 PositionVector
 PositionVector::operator+(const PositionVector& v2) const {
     if (length() != v2.length()) {
-        WRITE_ERROR("Trying to substract PositionVectors of different lengths.");
+        WRITE_ERROR(TL("Trying to subtract PositionVectors of different lengths."));
     }
     PositionVector pv;
     auto i1 = begin();
@@ -1407,6 +1523,21 @@ PositionVector::operator+(const PositionVector& v2) const {
         pv.add(*i1 + *i2);
     }
     return pv;
+}
+
+bool
+PositionVector::almostSame(const PositionVector& v2, double maxDiv) const {
+    if (length() != v2.length()) {
+        return false;
+    }
+    auto i2 = v2.begin();
+    for (auto i1 = begin(); i1 != end(); i1++) {
+        if (!i1->almostSame(*i2, maxDiv)) {
+            return false;
+        }
+        i2++;
+    }
+    return true;
 }
 
 bool

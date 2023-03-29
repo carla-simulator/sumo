@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 # Eclipse SUMO, Simulation of Urban MObility; see https://eclipse.org/sumo
-# Copyright (C) 2008-2020 German Aerospace Center (DLR) and others.
+# Copyright (C) 2008-2023 German Aerospace Center (DLR) and others.
 # This program and the accompanying materials are made available under the
 # terms of the Eclipse Public License 2.0 which is available at
 # https://www.eclipse.org/legal/epl-2.0/
@@ -15,6 +15,7 @@
 # @file    runner.py
 # @author  Michael Behrisch
 # @author  Daniel Krajzewicz
+# @author  Mirko Barthauer
 # @date    2011-03-04
 
 from __future__ import print_function
@@ -22,8 +23,8 @@ from __future__ import absolute_import
 import os
 import sys
 
-SUMO_HOME = os.path.join(os.path.dirname(__file__), "..", "..", "..", "..", "..")
-sys.path.append(os.path.join(os.environ.get("SUMO_HOME", SUMO_HOME), "tools"))
+if "SUMO_HOME" in os.environ:
+    sys.path.append(os.path.join(os.environ["SUMO_HOME"], "tools"))
 import traci  # noqa
 import sumolib  # noqa
 
@@ -41,8 +42,8 @@ print("width", traci.lane.getWidth(laneID))
 print("allowed", traci.lane.getAllowed(laneID))
 print("disallowed", traci.lane.getDisallowed(laneID))
 print("linkNum", traci.lane.getLinkNumber(laneID))
-if traci.isLibsumo():
-    print("links", [l[:4] for l in traci.lane.getLinks(laneID)])
+if traci.isLibsumo() or traci.isLibtraci():
+    print("links", [link[:4] for link in traci.lane.getLinks(laneID)])
     print("linksExtended", traci.lane.getLinks(laneID))
 else:
     print("links", traci.lane.getLinks(laneID, extended=False))
@@ -66,6 +67,16 @@ print("haltVeh", traci.lane.getLastStepHaltingNumber(laneID))
 print("vehIds", traci.lane.getLastStepVehicleIDs(laneID))
 print("waiting time", traci.lane.getWaitingTime(laneID))
 
+centerLaneID = "2si_1"
+print("allowed to change to the left", traci.lane.getChangePermissions(centerLaneID, traci.constants.LANECHANGE_LEFT))
+print("allowed to change to the right", traci.lane.getChangePermissions(centerLaneID, traci.constants.LANECHANGE_RIGHT))
+traci.lane.setChangePermissions(centerLaneID, ['ignoring'], traci.constants.LANECHANGE_LEFT)
+print("allowed to change to the left after setChangePermissions",
+      traci.lane.getChangePermissions(centerLaneID, traci.constants.LANECHANGE_LEFT))
+traci.lane.setChangePermissions(centerLaneID, ['passenger'], traci.constants.LANECHANGE_RIGHT)
+print("allowed to change to the right after setChangePermissions",
+      traci.lane.getChangePermissions(centerLaneID, traci.constants.LANECHANGE_RIGHT))
+
 traci.lane.setAllowed(laneID, ["taxi"])
 print("after setAllowed", traci.lane.getAllowed(
     laneID), traci.lane.getDisallowed(laneID))
@@ -83,6 +94,7 @@ traci.lane.subscribe(laneID)
 print(traci.lane.getSubscriptionResults(laneID))
 for step in range(3, 6):
     print("step", step)
+    print("pending 2fi_0:", traci.lane.getPendingVehicles("2fi_0"))
     traci.simulationStep()
     print(traci.lane.getSubscriptionResults(laneID))
 traci.close()

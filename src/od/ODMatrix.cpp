@@ -1,6 +1,6 @@
 /****************************************************************************/
 // Eclipse SUMO, Simulation of Urban MObility; see https://eclipse.org/sumo
-// Copyright (C) 2006-2020 German Aerospace Center (DLR) and others.
+// Copyright (C) 2006-2023 German Aerospace Center (DLR) and others.
 // This program and the accompanying materials are made available under the
 // terms of the Eclipse Public License 2.0 which is available at
 // https://www.eclipse.org/legal/epl-2.0/
@@ -48,8 +48,15 @@
 // ===========================================================================
 // method definitions
 // ===========================================================================
-ODMatrix::ODMatrix(const ODDistrictCont& dc)
-    : myDistricts(dc), myNumLoaded(0), myNumWritten(0), myNumDiscarded(0), myBegin(-1), myEnd(-1) {}
+ODMatrix::ODMatrix(const ODDistrictCont& dc, double scale) :
+    myDistricts(dc),
+    myNumLoaded(0),
+    myNumWritten(0),
+    myNumDiscarded(0),
+    myBegin(-1),
+    myEnd(-1),
+    myScale(scale)
+{}
 
 
 ODMatrix::~ODMatrix() {
@@ -64,46 +71,53 @@ ODMatrix::~ODMatrix() {
 
 
 bool
-ODMatrix::add(double vehicleNumber, SUMOTime begin,
-              SUMOTime end, const std::string& origin, const std::string& destination,
-              const std::string& vehicleType, const bool originIsEdge, const bool destinationIsEdge) {
+ODMatrix::add(double vehicleNumber, const std::pair<SUMOTime, SUMOTime>& beginEnd,
+              const std::string& origin, const std::string& destination,
+              const std::string& vehicleType, const bool originIsEdge, const bool destinationIsEdge,
+              bool noScaling) {
     myNumLoaded += vehicleNumber;
     if (!originIsEdge && !destinationIsEdge && myDistricts.get(origin) == nullptr && myDistricts.get(destination) == nullptr) {
-        WRITE_WARNING("Missing origin '" + origin + "' and destination '" + destination + "' (" + toString(vehicleNumber) + " vehicles).");
+        WRITE_WARNINGF(TL("Missing origin '%' and destination '%' (% vehicles)."), origin, destination, toString(vehicleNumber));
         myNumDiscarded += vehicleNumber;
         myMissingDistricts.insert(origin);
         myMissingDistricts.insert(destination);
         return false;
     } else if (!originIsEdge && myDistricts.get(origin) == 0 && vehicleNumber > 0) {
-        WRITE_ERROR("Missing origin '" + origin + "' (" + toString(vehicleNumber) + " vehicles).");
+        WRITE_ERRORF(TL("Missing origin '%' (% vehicles)."), origin, toString(vehicleNumber));
         myNumDiscarded += vehicleNumber;
         myMissingDistricts.insert(origin);
         return false;
     } else if (!destinationIsEdge && myDistricts.get(destination) == 0 && vehicleNumber > 0) {
-        WRITE_ERROR("Missing destination '" + destination + "' (" + toString(vehicleNumber) + " vehicles).");
+        WRITE_ERRORF(TL("Missing destination '%' (% vehicles)."), destination, toString(vehicleNumber));
         myNumDiscarded += vehicleNumber;
         myMissingDistricts.insert(destination);
         return false;
     }
     if (!originIsEdge && myDistricts.get(origin)->sourceNumber() == 0) {
-        WRITE_ERROR("District '" + origin + "' has no source.");
+        WRITE_ERRORF(TL("District '%' has no source."), origin);
         myNumDiscarded += vehicleNumber;
         return false;
     } else if (!destinationIsEdge && myDistricts.get(destination)->sinkNumber() == 0) {
-        WRITE_ERROR("District '" + destination + "' has no sink.");
+        WRITE_ERRORF(TL("District '%' has no sink."), destination);
         myNumDiscarded += vehicleNumber;
         return false;
     }
     ODCell* cell = new ODCell();
-    cell->begin = begin;
-    cell->end = end;
+    cell->begin = beginEnd.first;
+    cell->end = beginEnd.second;
     cell->origin = origin;
     cell->destination = destination;
     cell->vehicleType = vehicleType;
-    cell->vehicleNumber = vehicleNumber;
+    cell->vehicleNumber = vehicleNumber * (noScaling ? 1 : myScale);
     cell->originIsEdge = originIsEdge;
     cell->destinationIsEdge = destinationIsEdge;
     myContainer.push_back(cell);
+    if (myBegin == -1 || cell->begin < myBegin) {
+        myBegin = cell->begin;
+    }
+    if (cell->end > myEnd) {
+        myEnd = cell->end;
+    }
     return true;
 }
 
@@ -129,7 +143,9 @@ ODMatrix::add(const std::string& id, const SUMOTime depart,
     if (cell == nullptr) {
         const SUMOTime interval = string2time(OptionsCont::getOptions().getString("aggregation-interval"));
         const int intervalIdx = (int)(depart / interval);
-        if (add(1., intervalIdx * interval, (intervalIdx + 1) * interval, fromTaz, toTaz, vehicleType, originIsEdge, destinationIsEdge)) {
+        // single vehicles are already scaled
+        if (add(1., std::make_pair(intervalIdx * interval, (intervalIdx + 1) * interval),
+                fromTaz, toTaz, vehicleType, originIsEdge, destinationIsEdge, true)) {
             cell = myContainer.back();
             odList.push_back(cell);
         } else {
@@ -164,7 +180,7 @@ ODMatrix::computeDeparts(ODCell* cell,
         veh.id = prefix + toString(vehName++);
 
         if (uniform) {
-            veh.depart = (SUMOTime)(offset + cell->begin + ((double)(cell->end - cell->begin) * (double) i / (double) vehicles2insert));
+            veh.depart = cell->begin + (SUMOTime)(offset + ((double)(cell->end - cell->begin) * (double) i / (double) vehicles2insert));
         } else {
             veh.depart = (SUMOTime)RandHelper::rand(cell->begin, cell->end);
         }
@@ -174,7 +190,7 @@ ODMatrix::computeDeparts(ODCell* cell,
             veh.to = myDistricts.getRandomSinkFromDistrict(cell->destination);
         } while (canDiffer && differSourceSink && (veh.to == veh.from));
         if (!canDiffer && differSourceSink && (veh.to == veh.from)) {
-            WRITE_WARNING("Cannot find different source and sink edge for origin '" + cell->origin + "' and destination '" + cell->destination + "'.");
+            WRITE_WARNINGF(TL("Cannot find different source and sink edge for origin '%' and destination '%'."), cell->origin, cell->destination);
         }
         veh.cell = cell;
         into.push_back(veh);
@@ -230,6 +246,13 @@ ODMatrix::write(SUMOTime begin, const SUMOTime end,
     std::vector<ODCell*>::iterator next = myContainer.begin();
     std::vector<ODVehicle> vehicles;
     SUMOTime lastOut = -DELTA_T;
+
+    const OptionsCont& oc = OptionsCont::getOptions();
+    std::string personDepartPos = oc.isSet("departpos") ? oc.getString("departpos") : "random";
+    std::string personArrivalPos = oc.isSet("arrivalpos") ? oc.getString("arrivalpos") : "random";
+    SumoXMLAttr fromAttr = oc.getBool("junctions") ? SUMO_ATTR_FROMJUNCTION : SUMO_ATTR_FROM;
+    SumoXMLAttr toAttr = oc.getBool("junctions") ? SUMO_ATTR_TOJUNCTION : SUMO_ATTR_TO;
+
     // go through the time steps
     for (SUMOTime t = begin; t < end;) {
         if (stepLog && t - lastOut >= DELTA_T) {
@@ -260,9 +283,6 @@ ODMatrix::write(SUMOTime begin, const SUMOTime end,
             sort(vehicles.begin(), vehicles.end(), descending_departure_comperator());
         }
 
-        const OptionsCont& oc = OptionsCont::getOptions();
-        std::string personDepartPos = oc.isSet("departpos") ? oc.getString("departpos") : "random";
-        std::string personArrivalPos = oc.isSet("arrivalpos") ? oc.getString("arrivalpos") : "random";
         for (std::vector<ODVehicle>::reverse_iterator i = vehicles.rbegin(); i != vehicles.rend() && (*i).depart == t; ++i) {
             if (t >= begin) {
                 myNumWritten++;
@@ -270,7 +290,8 @@ ODMatrix::write(SUMOTime begin, const SUMOTime end,
                     dev.openTag(SUMO_TAG_PERSON).writeAttr(SUMO_ATTR_ID, (*i).id).writeAttr(SUMO_ATTR_DEPART, time2string(t));
                     dev.writeAttr(SUMO_ATTR_DEPARTPOS, personDepartPos);
                     dev.openTag(SUMO_TAG_WALK);
-                    dev.writeAttr(SUMO_ATTR_FROM, (*i).from).writeAttr(SUMO_ATTR_TO, (*i).to);
+                    dev.writeAttr(fromAttr, (*i).from);
+                    dev.writeAttr(toAttr, (*i).to);
                     dev.writeAttr(SUMO_ATTR_FROM_TAZ, (*i).cell->origin).writeAttr(SUMO_ATTR_TO_TAZ, (*i).cell->destination);
                     dev.writeAttr(SUMO_ATTR_ARRIVALPOS, personArrivalPos);
                     dev.closeTag();
@@ -279,7 +300,8 @@ ODMatrix::write(SUMOTime begin, const SUMOTime end,
                     dev.openTag(SUMO_TAG_PERSON).writeAttr(SUMO_ATTR_ID, (*i).id).writeAttr(SUMO_ATTR_DEPART, time2string(t));
                     dev.writeAttr(SUMO_ATTR_DEPARTPOS, personDepartPos);
                     dev.openTag(SUMO_TAG_PERSONTRIP);
-                    dev.writeAttr(SUMO_ATTR_FROM, (*i).from).writeAttr(SUMO_ATTR_TO, (*i).to);
+                    dev.writeAttr(fromAttr, (*i).from);
+                    dev.writeAttr(toAttr, (*i).to);
                     dev.writeAttr(SUMO_ATTR_FROM_TAZ, (*i).cell->origin).writeAttr(SUMO_ATTR_TO_TAZ, (*i).cell->destination);
                     dev.writeAttr(SUMO_ATTR_ARRIVALPOS, personArrivalPos);
                     if (modes != "") {
@@ -289,7 +311,8 @@ ODMatrix::write(SUMOTime begin, const SUMOTime end,
                     dev.closeTag();
                 } else {
                     dev.openTag(SUMO_TAG_TRIP).writeAttr(SUMO_ATTR_ID, (*i).id).writeAttr(SUMO_ATTR_DEPART, time2string(t));
-                    dev.writeAttr(SUMO_ATTR_FROM, (*i).from).writeAttr(SUMO_ATTR_TO, (*i).to);
+                    dev.writeAttr(fromAttr, (*i).from);
+                    dev.writeAttr(toAttr, (*i).to);
                     writeDefaultAttrs(dev, noVtype, i->cell);
                     dev.closeTag();
                 }
@@ -333,12 +356,12 @@ ODMatrix::writeFlows(const SUMOTime begin, const SUMOTime end,
             //Person flows
             if (pedestrians) {
                 dev.openTag(SUMO_TAG_PERSONFLOW).writeAttr(SUMO_ATTR_ID, prefix + toString(flowName++));
-                dev.writeAttr(SUMO_ATTR_BEGIN, c->begin).writeAttr(SUMO_ATTR_END, c->end);
+                dev.writeAttr(SUMO_ATTR_BEGIN, time2string(c->begin)).writeAttr(SUMO_ATTR_END, time2string(c->end));
                 if (!asProbability) {
                     dev.writeAttr(SUMO_ATTR_NUMBER, int(c->vehicleNumber));
                 } else {
                     if (probability > 1) {
-                        WRITE_WARNING("Flow density of " + toString(probability) + " vehicles per second, cannot be represented with a simple probability. Falling back to even spacing.");
+                        WRITE_WARNINGF(TL("Flow density of % vehicles per second, cannot be represented with a simple probability. Falling back to even spacing."), toString(probability));
                         dev.writeAttr(SUMO_ATTR_NUMBER, int(c->vehicleNumber));
                     } else {
                         dev.setPrecision(6);
@@ -347,18 +370,18 @@ ODMatrix::writeFlows(const SUMOTime begin, const SUMOTime end,
                     }
                 }
                 dev.openTag(SUMO_TAG_WALK);
-                dev.writeAttr(SUMO_ATTR_FROM, c->origin).writeAttr(SUMO_ATTR_TO, c->destination);
+                dev.writeAttr(SUMO_ATTR_FROM_TAZ, c->origin).writeAttr(SUMO_ATTR_TO_TAZ, c->destination);
                 dev.writeAttr(SUMO_ATTR_ARRIVALPOS, "random");
                 dev.closeTag();
                 dev.closeTag();
             } else if (persontrips) {
                 dev.openTag(SUMO_TAG_PERSONFLOW).writeAttr(SUMO_ATTR_ID, prefix + toString(flowName++));
-                dev.writeAttr(SUMO_ATTR_BEGIN, c->begin).writeAttr(SUMO_ATTR_END, c->end);
+                dev.writeAttr(SUMO_ATTR_BEGIN, time2string(c->begin)).writeAttr(SUMO_ATTR_END, time2string(c->end));
                 if (!asProbability) {
                     dev.writeAttr(SUMO_ATTR_NUMBER, int(c->vehicleNumber));
                 } else {
                     if (probability > 1) {
-                        WRITE_WARNING("Flow density of " + toString(probability) + " vehicles per second, cannot be represented with a simple probability. Falling back to even spacing.");
+                        WRITE_WARNINGF(TL("Flow density of % vehicles per second, cannot be represented with a simple probability. Falling back to even spacing."), toString(probability));
                         dev.writeAttr(SUMO_ATTR_NUMBER, int(c->vehicleNumber));
                     } else {
                         dev.setPrecision(6);
@@ -367,7 +390,7 @@ ODMatrix::writeFlows(const SUMOTime begin, const SUMOTime end,
                     }
                 }
                 dev.openTag(SUMO_TAG_PERSONTRIP);
-                dev.writeAttr(SUMO_ATTR_FROM, c->origin).writeAttr(SUMO_ATTR_TO, c->destination);
+                dev.writeAttr(SUMO_ATTR_FROM_TAZ, c->origin).writeAttr(SUMO_ATTR_TO_TAZ, c->destination);
                 dev.writeAttr(SUMO_ATTR_ARRIVALPOS, "random");
                 if (modes != "") {
                     dev.writeAttr(SUMO_ATTR_MODES, modes);
@@ -384,7 +407,7 @@ ODMatrix::writeFlows(const SUMOTime begin, const SUMOTime end,
                     dev.writeAttr(SUMO_ATTR_NUMBER, int(c->vehicleNumber));
                 } else {
                     if (probability > 1) {
-                        WRITE_WARNING("Flow density of " + toString(probability) + " vehicles per second, cannot be represented with a simple probability. Falling back to even spacing.");
+                        WRITE_WARNINGF(TL("Flow density of % vehicles per second, cannot be represented with a simple probability. Falling back to even spacing."), toString(probability));
                         dev.writeAttr(SUMO_ATTR_NUMBER, int(c->vehicleNumber));
                     } else {
                         dev.setPrecision(6);
@@ -408,17 +431,17 @@ ODMatrix::getNextNonCommentLine(LineReader& lr) {
             return StringUtils::prune(line);
         }
     }
-    throw ProcessError("End of file while reading " + lr.getFileName() + ".");
+    throw ProcessError(TLF("End of file while reading %.", lr.getFileName()));
 }
 
 
 SUMOTime
 ODMatrix::parseSingleTime(const std::string& time) {
     if (time.find('.') == std::string::npos) {
-        throw OutOfBoundsException();
+        throw NumberFormatException("no separator");
     }
-    std::string hours = time.substr(0, time.find('.'));
-    std::string minutes = time.substr(time.find('.') + 1);
+    const std::string hours = time.substr(0, time.find('.'));
+    const std::string minutes = time.substr(time.find('.') + 1);
     return TIME2STEPS(StringUtils::toInt(hours) * 3600 + StringUtils::toInt(minutes) * 60);
 }
 
@@ -428,16 +451,16 @@ ODMatrix::readTime(LineReader& lr) {
     std::string line = getNextNonCommentLine(lr);
     try {
         StringTokenizer st(line, StringTokenizer::WHITECHARS);
-        myBegin = parseSingleTime(st.next());
-        myEnd = parseSingleTime(st.next());
-        if (myBegin >= myEnd) {
-            throw ProcessError("Matrix begin time " + time2string(myBegin) + " is larger than end time " + time2string(myEnd) + ".");
+        const SUMOTime begin = parseSingleTime(st.next());
+        const SUMOTime end = parseSingleTime(st.next());
+        if (begin >= end) {
+            throw ProcessError("Matrix begin time " + time2string(begin) + " is larger than end time " + time2string(end) + ".");
         }
-        return std::make_pair(myBegin, myEnd);
+        return std::make_pair(begin, end);
     } catch (OutOfBoundsException&) {
-        throw ProcessError("Broken period definition '" + line + "'.");
-    } catch (NumberFormatException&) {
-        throw ProcessError("Broken period definition '" + line + "'.");
+        throw ProcessError(TLF("Broken period definition '%'.", line));
+    } catch (NumberFormatException& e) {
+        throw ProcessError("Broken period definition '" + line + "' (" + e.what() + ").");
     }
 }
 
@@ -449,7 +472,7 @@ ODMatrix::readFactor(LineReader& lr, double scale) {
     try {
         factor = StringUtils::toDouble(line) * scale;
     } catch (NumberFormatException&) {
-        throw ProcessError("Broken factor: '" + line + "'.");
+        throw ProcessError(TLF("Broken factor: '%'.", line));
     }
     return factor;
 }
@@ -467,13 +490,8 @@ ODMatrix::readV(LineReader& lr, double scale,
         }
     }
 
-    // parse time
-    std::pair<SUMOTime, SUMOTime> times = readTime(lr);
-    SUMOTime begin = times.first;
-    SUMOTime end = times.second;
-
-    // factor
-    double factor = readFactor(lr, scale);
+    const std::pair<SUMOTime, SUMOTime> beginEnd = readTime(lr);
+    const double factor = readFactor(lr, scale);
 
     // districts
     line = getNextNonCommentLine(lr);
@@ -488,7 +506,7 @@ ODMatrix::readV(LineReader& lr, double scale,
         }
     }
     if (!lr.hasMore()) {
-        throw ProcessError("Missing line with " + toString(numDistricts) + " district names.");
+        throw ProcessError(TLF("Missing line with % district names.", toString(numDistricts)));
     }
 
     // parse the cells
@@ -498,7 +516,7 @@ ODMatrix::readV(LineReader& lr, double scale,
             try {
                 line = getNextNonCommentLine(lr);
             } catch (ProcessError&) {
-                throw ProcessError("Missing line for district " + (*si) + ".");
+                throw ProcessError(TLF("Missing line for district %.", (*si)));
             }
             if (line.length() == 0) {
                 continue;
@@ -509,15 +527,15 @@ ODMatrix::readV(LineReader& lr, double scale,
                     assert(di != names.end());
                     double vehNumber = StringUtils::toDouble(st2.next()) * factor;
                     if (vehNumber != 0) {
-                        add(vehNumber, begin, end, *si, *di, vehType);
+                        add(vehNumber, beginEnd, *si, *di, vehType);
                     }
                     if (di == names.end()) {
-                        throw ProcessError("More entries than districts found.");
+                        throw ProcessError(TL("More entries than districts found."));
                     }
                     ++di;
                 }
             } catch (NumberFormatException&) {
-                throw ProcessError("Not numeric vehicle number in line '" + line + "'.");
+                throw ProcessError(TLF("Not numeric vehicle number in line '%'.", line));
             }
             if (!lr.hasMore()) {
                 break;
@@ -542,13 +560,8 @@ ODMatrix::readO(LineReader& lr, double scale,
         }
     }
 
-    // parse time
-    std::pair<SUMOTime, SUMOTime> times = readTime(lr);
-    SUMOTime begin = times.first;
-    SUMOTime end = times.second;
-
-    // factor
-    double factor = readFactor(lr, scale);
+    const std::pair<SUMOTime, SUMOTime> beginEnd = readTime(lr);
+    const double factor = readFactor(lr, scale);
 
     // parse the cells
     while (lr.hasMore()) {
@@ -565,12 +578,12 @@ ODMatrix::readO(LineReader& lr, double scale,
             std::string destD = st2.next();
             double vehNumber = StringUtils::toDouble(st2.next()) * factor;
             if (vehNumber != 0) {
-                add(vehNumber, begin, end, sourceD, destD, vehType);
+                add(vehNumber, beginEnd, sourceD, destD, vehType);
             }
         } catch (OutOfBoundsException&) {
-            throw ProcessError("Missing at least one information in line '" + line + "'.");
+            throw ProcessError(TLF("Missing at least one information in line '%'.", line));
         } catch (NumberFormatException&) {
-            throw ProcessError("Not numeric vehicle number in line '" + line + "'.");
+            throw ProcessError(TLF("Not numeric vehicle number in line '%'.", line));
         }
     }
     PROGRESS_DONE_MESSAGE();
@@ -631,7 +644,7 @@ ODMatrix::loadMatrix(OptionsCont& oc) {
     for (std::vector<std::string>::iterator i = files.begin(); i != files.end(); ++i) {
         LineReader lr(*i);
         if (!lr.good()) {
-            throw ProcessError("Could not open '" + (*i) + "'.");
+            throw ProcessError(TLF("Could not open '%'.", (*i)));
         }
         std::string type = lr.readLine();
         // get the type only
@@ -642,15 +655,15 @@ ODMatrix::loadMatrix(OptionsCont& oc) {
         if (type.length() > 1 && type[1] == 'V') {
             // process ptv's 'V'-matrices
             if (type.find('N') != std::string::npos) {
-                throw ProcessError("'" + *i + "' does not contain the needed information about the time described.");
+                throw ProcessError(TLF("'%' does not contain the needed information about the time described.", *i));
             }
-            readV(lr, oc.getFloat("scale"), oc.getString("vtype"), type.find('M') != std::string::npos);
+            readV(lr, 1, oc.getString("vtype"), type.find('M') != std::string::npos);
         } else if (type.length() > 1 && type[1] == 'O') {
             // process ptv's 'O'-matrices
             if (type.find('N') != std::string::npos) {
-                throw ProcessError("'" + *i + "' does not contain the needed information about the time described.");
+                throw ProcessError(TLF("'%' does not contain the needed information about the time described.", *i));
             }
-            readO(lr, oc.getFloat("scale"), oc.getString("vtype"), type.find('M') != std::string::npos);
+            readO(lr, 1, oc.getString("vtype"), type.find('M') != std::string::npos);
         } else {
             throw ProcessError("'" + *i + "' uses an unknown matrix type '" + type + "'.");
         }
@@ -658,7 +671,7 @@ ODMatrix::loadMatrix(OptionsCont& oc) {
     std::vector<std::string> amitranFiles = oc.getStringVector("od-amitran-files");
     for (std::vector<std::string>::iterator i = amitranFiles.begin(); i != amitranFiles.end(); ++i) {
         if (!FileHelpers::isReadable(*i)) {
-            throw ProcessError("Could not access matrix file '" + *i + "' to load.");
+            throw ProcessError(TLF("Could not access matrix file '%' to load.", *i));
         }
         PROGRESS_BEGIN_MESSAGE("Loading matrix in Amitran format from '" + *i + "'");
         ODAmitranHandler handler(*this, *i);
@@ -668,6 +681,28 @@ ODMatrix::loadMatrix(OptionsCont& oc) {
             PROGRESS_DONE_MESSAGE();
         }
     }
+    myVType = oc.getString("vtype");
+    for (std::string file : oc.getStringVector("tazrelation-files")) {
+        if (!FileHelpers::isReadable(file)) {
+            throw ProcessError(TLF("Could not access matrix file '%' to load.", file));
+        }
+        PROGRESS_BEGIN_MESSAGE("Loading matrix in tazRelation format from '" + file + "'");
+
+        std::vector<SAXWeightsHandler::ToRetrieveDefinition*> retrieverDefs;
+        retrieverDefs.push_back(new SAXWeightsHandler::ToRetrieveDefinition(oc.getString("tazrelation-attribute"), true, *this));
+        SAXWeightsHandler handler(retrieverDefs, "");
+        if (!XMLSubSys::runParser(handler, file)) {
+            PROGRESS_FAILED_MESSAGE();
+        } else {
+            PROGRESS_DONE_MESSAGE();
+        }
+    }
+}
+
+void
+ODMatrix::addTazRelWeight(const std::string intervalID, const std::string& from, const std::string& to,
+                          double val, double beg, double end) {
+    add(val, std::make_pair(TIME2STEPS(beg), TIME2STEPS(end)), from, to, myVType == "" ? intervalID : myVType);
 }
 
 
@@ -676,7 +711,7 @@ ODMatrix::loadRoutes(OptionsCont& oc, SUMOSAXHandler& handler) {
     std::vector<std::string> routeFiles = oc.getStringVector("route-files");
     for (std::vector<std::string>::iterator i = routeFiles.begin(); i != routeFiles.end(); ++i) {
         if (!FileHelpers::isReadable(*i)) {
-            throw ProcessError("Could not access route file '" + *i + "' to load.");
+            throw ProcessError(TLF("Could not access route file '%' to load.", *i));
         }
         PROGRESS_BEGIN_MESSAGE("Loading routes and trips from '" + *i + "'");
         if (!XMLSubSys::runParser(handler, *i)) {
@@ -693,7 +728,7 @@ ODMatrix::parseTimeLine(const std::vector<std::string>& def, bool timelineDayInH
     Distribution_Points result("N/A");
     if (timelineDayInHours) {
         if (def.size() != 24) {
-            throw ProcessError("Assuming 24 entries for a day timeline, but got " + toString(def.size()) + ".");
+            throw ProcessError(TLF("Assuming 24 entries for a day timeline, but got %.", toString(def.size())));
         }
         for (int chour = 0; chour < 24; ++chour) {
             result.add(chour * 3600., StringUtils::toDouble(def[chour]));
@@ -703,7 +738,7 @@ ODMatrix::parseTimeLine(const std::vector<std::string>& def, bool timelineDayInH
         for (int i = 0; i < (int)def.size(); i++) {
             StringTokenizer st2(def[i], ":");
             if (st2.size() != 2) {
-                throw ProcessError("Broken time line definition: missing a value in '" + def[i] + "'.");
+                throw ProcessError(TLF("Broken time line definition: missing a value in '%'.", def[i]));
             }
             const double time = StringUtils::toDouble(st2.next());
             result.add(time, StringUtils::toDouble(st2.next()));

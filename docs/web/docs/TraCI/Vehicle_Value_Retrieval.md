@@ -1,6 +1,5 @@
 ---
-title: TraCI/Vehicle Value Retrieval
-permalink: /TraCI/Vehicle_Value_Retrieval/
+title: Vehicle Value Retrieval
 ---
 
 ## Command 0xa4: Get Vehicle Variable
@@ -198,7 +197,7 @@ value is also shown in the table.
 <td><p>fuel consumption<br />
 (id 0x65)</p></td>
 <td><p>double</p></td>
-<td><p>Vehicle's fuel consumption in ml/s during this time step, to get the value for one step multiply with the step length; error value: -2^30</p></td>
+<td><p>Vehicle's fuel consumption in mg/s during this time step, to get the value for one step multiply with the step length; error value: -2^30</p></td>
 <td><p><a href="https://sumo.dlr.de/pydoc/traci._vehicle.html#VehicleDomain-getFuelConsumption">getFuelConsumption</a></p></td>
 </tr>
 <tr class="odd">
@@ -432,7 +431,7 @@ value is also shown in the table.
 <tr class="odd">
 <td><p>parameter (0x7e)</p></td>
 <td><p>string</p></td>
-<td><p><a href="#Device_and_LaneChangeModel_Parameter_Retrieval_0x7e" title="wikilink">Returns the value for the given string parameter</a></p></td>
+<td><p><a href="#device_and_lanechangemodel_parameter_retrieval_0x7e" title="wikilink">Returns the value for the given string parameter</a></p></td>
 <td><p><a href="https://sumo.dlr.de/pydoc/traci._vehicle.html#VehicleDomain-getParameter">getParameter</a></p></td>
 </tr>
 <tr class="even">
@@ -448,10 +447,34 @@ value is also shown in the table.
 <td><p><a href="https://sumo.dlr.de/pydoc/traci._vehicle.html#VehicleDomain-getLastActionTime">getLastActionTime</a></p></td>
 </tr>
 <tr class="even">
-<td></td>
-<td></td>
-<td></td>
-<td></td>
+<td><p>stops (0x74)</p></td>
+<td><p>complex</p></td>
+<td><p>Returns the list of the next or last n stops as StopData objects.</p></td>
+<td><p><a href="https://sumo.dlr.de/pydoc/traci._vehicle.html#VehicleDomain-getStops">getStops</a></p></td>
+</tr>
+<tr class="odd">
+<td><p>timeLoss (0x8c)</p></td>
+<td><p>double</p></td>
+<td><p>Returns the accumulated timeLoss of the vehicle in s </p></td>
+<td><p><a href="https://sumo.dlr.de/pydoc/traci._vehicle.html#VehicleDomain-getTimeLoss">getTimeLoss</a></p></td>
+</tr>
+<tr class="even">
+<td><p>loaded list (0x24)</p></td>
+<td><p>stringList</p></td>
+<td><p>Returns a list of all loaded vehicle ids that have not yet arrived. This includes vehicles that are meant to depart in the future.</p></td>
+<td><p><a href="https://sumo.dlr.de/pydoc/traci._vehicle.html#VehicleDomain-getLoadedIDList">getLoadedIDList</a></p></td>
+</tr>
+<tr class="odd">
+<td><p>teleporting list (0x25)</p></td>
+<td><p>stringList</p></td>
+<td><p>Returns a list of all vehicles that are currently [teleporting/jumping](Simulation/Why_Vehicles_are_teleporting.md)</p></td>
+<td><p><a href="https://sumo.dlr.de/pydoc/traci._vehicle.html#VehicleDomain-getTeleportingIDList">getTeleportingIDList</a></p></td>
+</tr>
+<tr class="even">
+  <td><p>next links (0x33)</p></td>
+  <td><p>complex</p></td>
+  <td><p>Returns the list of upcoming links with each compound containing info about (lane, via, priority, opened, foe, state, direction, length)</p></td>
+  <td><p><a href="https://sumo.dlr.de/pydoc/traci._vehicle.html#VehicleDomain-getNextLinks">getNextLinks</a></p></td>
 </tr>
 </tbody>
 </table>
@@ -544,9 +567,9 @@ Return the lane change state for the vehicle.</p></td>
 <td><p><a href="https://sumo.dlr.de/pydoc/traci._vehicle.html#VehicleDomain-getLaneChangeState">getLaneChangeState</a> <a href="https://sumo.dlr.de/pydoc/traci._vehicle.html#VehicleDomain-couldChangeLane">couldChangeLane</a> <a href="https://sumo.dlr.de/pydoc/traci._vehicle.html#VehicleDomain-wantsAndCouldChangeLane">wantsAndCouldChangeLane</a></p></td>
 </tr>
 <tr class="even">
-<td><p>neighboring vehicles (0x13)</p></td>
-<td><p>byte , <a href="#change_lane_information_0x13" title="wikilink">see below</a></p></td>
-<td><p>stringList <a href="#change_lane_information_0x13" title="wikilink">see below</a></p></td>
+<td><p>neighboring vehicles (0xbf)</p></td>
+<td><p>byte , <a href="#neighboring_vehicles_0xbf" title="wikilink">see below</a></p></td>
+<td><p>stringList <a href="#neighboring_vehicles_0xbf" title="wikilink">see below</a></p></td>
 <td><p>Returns a list of IDs for neighboring vehicle relevant to lane changing (&gt;1 elements only possible for <a href="../Simulation/SublaneModel.html" title="wikilink">sublane model</a>)</p></td>
 <td><p><a href="https://sumo.dlr.de/daily/pydoc/traci._vehicle.html#VehicleDomain-getNeighbors">getNeighbors</a>, <a href="https://sumo.dlr.de/daily/pydoc/traci._vehicle.html#VehicleDomain-getLeftFollowers">getLeftFollowers</a>, <a href="https://sumo.dlr.de/daily/pydoc/traci._vehicle.html#VehicleDomain-getLeftLeaders">getLeftLeaders</a>, <a href="https://sumo.dlr.de/daily/pydoc/traci._vehicle.html#VehicleDomain-getRightFollowers">getRightFollowers</a>, <a href="https://sumo.dlr.de/daily/pydoc/traci._vehicle.html#VehicleDomain-getRightLeaders">getRightLeaders</a></p></td>
 </tr>
@@ -689,6 +712,8 @@ call](../TraCI/GenericParameters.md#get_parameter).
 - device.battery.maximumBatteryCapacity
 - device.battery.chargingStationId
 - device.battery.vehicleMass
+- device.battery.totalEnergyConsumed
+- device.battery.totalEnergyRegenerated
 - device.person.IDList
 - device.container.IDList
 - device.rerouting.period (returns individual rerouting period in
@@ -714,6 +739,10 @@ call](../TraCI/GenericParameters.md#get_parameter).
 - device.taxi.customers
 - device.taxi.occupiedTime
 - device.taxi.occupiedDistance
+- device.taxi.currentCustomers
+- device.tripinfo.waitingTime (total waiting time)
+- device.tripinfo.waitingCount 
+- device.tripinfo.stopTime (total stopping time)
 - device.example.customValue1 (return the value of option **--device.example.parameter**)
 - device.example.customValue2 (return the value of vehicle parameter
   *example*)
@@ -730,3 +759,20 @@ call](../TraCI/GenericParameters.md#get_parameter).
   [parameters supported by the
   laneChangeModel](../Definition_of_Vehicles,_Vehicle_Types,_and_Routes.md#lane-changing_models)
   of the vehicle. i.e. *lcStrategic*)
+
+### Supported carFollowModel Parameters
+
+Some carFollowModels permit access to further vehicle-specific parameters.
+
+- carFollowModel.caccCommunicationsOverride (only CACC)
+
+### Supported further Parameters
+
+- parking.rerouteCount: number of times vehicle rerouted to another parkingArea during the current search
+- parking.memory.IDList:  all parkingAreas considered so far
+- parking.memory.score:  latest scores for the list of considered parkingAreas (smaller is better)
+- parking.memory.blockedAtTime: times for the list of considered parkingAreas indicating the last time the area was found to be blocked (possibly via remote information)
+- parking.memory.blockedAtTimeLocal: times for the list of considered parkingAreas indicating the last time the area was found to be blocked (upon physically visiting that area)
+
+
+

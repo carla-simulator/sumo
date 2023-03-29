@@ -1,6 +1,6 @@
 /****************************************************************************/
 // Eclipse SUMO, Simulation of Urban MObility; see https://eclipse.org/sumo
-// Copyright (C) 2001-2020 German Aerospace Center (DLR) and others.
+// Copyright (C) 2001-2023 German Aerospace Center (DLR) and others.
 // This program and the accompanying materials are made available under the
 // terms of the Eclipse Public License 2.0 which is available at
 // https://www.eclipse.org/legal/epl-2.0/
@@ -26,7 +26,7 @@
 #include <utility>
 
 #include "AbstractPoly.h"
-#include "Position.h"
+#include "PositionVector.h"
 
 
 // ===========================================================================
@@ -121,6 +121,11 @@ public:
      */
     Boundary& grow(double by);
 
+    /**@brief scale the boundary by the given amount
+     * @return a reference to the instance for further use
+     */
+    Boundary& scale(double by);
+
     /// @brief Increases the width of the boundary (x-axis)
     void growWidth(double by);
 
@@ -133,8 +138,14 @@ public:
     /// @brief Sets the boundary to the given values
     void set(double xmin, double ymin, double xmax, double ymax);
 
+    /// @brief Sets the boundary to the given values, ignoring min < max constraints
+    void setOffsets(double xmin, double ymin, double xmax, double ymax);
+
     /// @brief Moves the boundary by the given amount
     void moveby(double x, double y, double z = 0);
+
+    /// @brief get position vector (shape) based on this boundary
+    PositionVector getShape(const bool closeShape) const;
 
     /// @brief Output operator
     friend std::ostream& operator<<(std::ostream& os, const Boundary& b);

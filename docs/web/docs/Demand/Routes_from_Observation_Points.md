@@ -1,7 +1,7 @@
 ---
-title: Demand/Routes from Observation Points
-permalink: /Demand/Routes_from_Observation_Points/
+title: Routes from Observation Points
 ---
+
 # Introduction
 Traffic counts are a common form of traffic data. This data may be available from automated counting devices such as induction loops or radar detectors or it may be obtained from manual counts. The counts apply to a specific time range and the data may cover multiple time slices. It is also possible to distinguish counts for different types of vehicles.
 
@@ -18,11 +18,14 @@ The generated traffic should obviously match the counting data but this requirem
 ## Chosing the right tool
 The algorithms listed above where developed to solve different problems and may work badly when used on the wrong kind of problem.
 
-- dfrouter requires that all edges which are used as sources and sinks of traffic are provided with traffic count data. In contrast, flowrouter can infer traffic on those edges from measurements at intermediate locations.
-- dfrouter and jtcrouter have no capability for calibrating generated routes among the set of all routes that fit the measurement data. They can provide good results on motorway networks but produce implausible routes in highly meshed networks (i.e. cities).
-- flowrouter can use a blacklist to avoid implausible routes. The tool [implausibleRoutes.py](../Tools/Routes.md#implausibleroutespy) can be used to generate restrictions for routes that are implausible according to a configurable heuristic. When the set of implausible routes is very large (which is often the case due to a combinatorial explosion of possible routes), creating such a blacklist may be infeasible.
-- routeSampler uses a whitelist to restrict the set of routes that can be used to construct a solution. Generating a sufficient set of plausible routes is easier than listing all implausible routes.
-- routeSampler is the only tool that can use edge-count data together with turn-count data
+- [dfrouter](../dfrouter.md) requires that all edges which are used as sources and sinks of traffic are provided with traffic count data. In contrast, flowrouter can infer traffic on those edges from measurements at intermediate locations.
+- [dfrouter](../dfrouter.md) and - [jtcrouter](../Tools/Turns.md#jtcrouterpy) have no capability for calibrating generated routes among the set of all routes that fit the measurement data. They can provide good results on motorway networks but produce implausible routes in highly meshed networks (i.e. cities).
+- [flowrouter](../Tools/Detector.md#flowrouterpy) can use a blacklist to avoid implausible routes. The tool [implausibleRoutes.py](../Tools/Routes.md#implausibleroutespy) can be used to generate restrictions for routes that are implausible according to a configurable heuristic. When the set of implausible routes is very large (which is often the case due to a combinatorial explosion of possible routes), creating such a blacklist may be infeasible.
+- [routeSampler](../Tools/Turns.md#routesamplerpy) features
+  - uses a whitelist to restrict the set of routes that can be used to construct a solution. Generating a sufficient set of plausible routes is often easier than listing all implausible routes.
+  - can use edge-count data together with turn-count data
+  - can distinguish between passing counts, departure counts and arrival counts on edges
+  - supports building pedestrian scenarios from counts 
 
 # dfrouter
 Since version 0.9.5, the SUMO-package contains a routing module named
@@ -241,22 +244,22 @@ vehicles in its emitters-output. Assuming that
 [dfrouter](../dfrouter.md) was called with the options
 
 ```
-dfrouter --net-file net.net.xml --routes-output routes.rou.xml --emitters-output vehicles.xml ...
+dfrouter --net-file net.net.xml --routes-output routes.rou.xml --emitters-output vehicles.rou.xml --measure-files flows.txt
 ```
 
-SUMO must be called in the following way:
+sumo must be called in the following way:
 
 ```
-sumo --net-file net.net.xml --additional-files routes.rou.xml,emitters.rou.xml
+sumo --net-file net.net.xml --additional-files routes.rou.xml,vehicles.rou.xml
 ```
 
 If you run the tool
 [Tools/Routes\#sort_routes.py](../Tools/Routes.md#sort_routespy)
-to sort the emitters, either of the following will work:
+to sort the vehicles, either of the following will work:
 
 ```
-sumo --net-file net.net.xml --route-files routes.rou.xml,sorted_emitters.rou.xml
-sumo --net-file net.net.xml --route-files sorted_emitters.rou.xml --additional-files routes.rou.xml
+sumo --net-file net.net.xml --route-files routes.rou.xml,sorted_vehicles.rou.xml
+sumo --net-file net.net.xml --route-files sorted_vehicles.rou.xml --additional-files routes.rou.xml
 ```
 
 # flowrouter.py

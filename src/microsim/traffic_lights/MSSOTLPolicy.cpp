@@ -1,6 +1,6 @@
 /****************************************************************************/
 // Eclipse SUMO, Simulation of Urban MObility; see https://eclipse.org/sumo
-// Copyright (C) 2013-2020 German Aerospace Center (DLR) and others.
+// Copyright (C) 2013-2023 German Aerospace Center (DLR) and others.
 // This program and the accompanying materials are made available under the
 // terms of the Eclipse Public License 2.0 which is available at
 // https://www.eclipse.org/legal/epl-2.0/
@@ -20,11 +20,16 @@
 // The class for low-level policy
 /****************************************************************************/
 
-#include "MSSOTLPolicy.h"
 #include <cmath>
 #include <typeinfo>
 #include "utils/common/RandHelper.h"
+#include "MSSOTLPolicy.h"
+//#define SWARM_DEBUG
 
+
+// ===========================================================================
+// method definitions
+// ===========================================================================
 void PushButtonLogic::init(std::string prefix, const Parameterised* parameterised) {
     m_prefix = prefix;
     m_pushButtonScaleFactor = StringUtils::toDouble(parameterised->getParameter("PUSH_BUTTON_SCALE_FACTOR", "1"));
@@ -33,13 +38,13 @@ void PushButtonLogic::init(std::string prefix, const Parameterised* parameterise
 
 bool PushButtonLogic::pushButtonLogic(SUMOTime elapsed, bool pushButtonPressed, const MSPhaseDefinition* stage) {
     //pushbutton logic
-    if (pushButtonPressed && elapsed >= (stage->duration * m_pushButtonScaleFactor)) {
+    if (pushButtonPressed && (double)elapsed >= (double)stage->duration * m_pushButtonScaleFactor) {
         //If the stage duration has been passed
-//    DBG(
+#ifdef SWARM_DEBUG
         std::ostringstream oss;
         oss << m_prefix << "::pushButtonLogic pushButtonPressed elapsed " << elapsed << " stage duration " << (stage->duration * m_pushButtonScaleFactor);
         WRITE_MESSAGE(oss.str());
-//    );
+#endif
         return true;
     }
     return false;
@@ -64,7 +69,7 @@ void SigmoidLogic::init(std::string prefix, const Parameterised* parameterised) 
 bool SigmoidLogic::sigmoidLogic(SUMOTime elapsed, const MSPhaseDefinition* stage, int vehicleCount) {
     //use the sigmoid logic
     if (m_useSigmoid && vehicleCount == 0) {
-        double sigmoidValue = 1.0 / (1.0 + exp(-m_k * (elapsed / 1000 - stage->duration / 1000)));
+        double sigmoidValue = 1.0 / (1.0 + exp(-m_k * STEPS2TIME(elapsed - stage->duration)));
         double rnd = RandHelper::rand();
 //    DBG(
         std::ostringstream oss;
@@ -80,7 +85,7 @@ bool SigmoidLogic::sigmoidLogic(SUMOTime elapsed, const MSPhaseDefinition* stage
 
 
 MSSOTLPolicy::MSSOTLPolicy(std::string name,
-                           const std::map<std::string, std::string>& parameters) :
+                           const Parameterised::Map& parameters) :
     Parameterised(parameters), myName(name) {
     theta_sensitivity = 0;
 }
@@ -94,7 +99,7 @@ MSSOTLPolicy::MSSOTLPolicy(std::string name,
 
 MSSOTLPolicy::MSSOTLPolicy(std::string name,
                            MSSOTLPolicyDesirability* desirabilityAlgorithm,
-                           const std::map<std::string, std::string>& parameters) :
+                           const Parameterised::Map& parameters) :
     Parameterised(parameters), myName(name), myDesirabilityAlgorithm(
         desirabilityAlgorithm) {
     theta_sensitivity = StringUtils::toDouble(getParameter("THETA_INIT", "0.5"));
@@ -104,21 +109,21 @@ MSSOTLPolicy::~MSSOTLPolicy(void) {
 }
 
 double MSSOTLPolicy::computeDesirability(double vehInMeasure, double vehOutMeasure, double vehInDispersionMeasure,	double vehOutDispersionMeasure) {
-
-    DBG(
-        std::ostringstream str; str << "\nMSSOTLPolicy::computeStimulus\n" << getName(); WRITE_MESSAGE(str.str());)
-
+#ifdef SWARM_DEBUG
+    std::ostringstream str;
+    str << "\nMSSOTLPolicy::computeStimulus\n" << getName();
+    WRITE_MESSAGE(str.str());
+#endif
     return myDesirabilityAlgorithm->computeDesirability(vehInMeasure, vehOutMeasure, vehInDispersionMeasure, vehOutDispersionMeasure);
-
 }
 
 double MSSOTLPolicy::computeDesirability(double vehInMeasure, double vehOutMeasure) {
-
-    DBG(
-        std::ostringstream str; str << "\nMSSOTLPolicy::computeStimulus\n" << getName(); WRITE_MESSAGE(str.str());)
-
+#ifdef SWARM_DEBUG
+    std::ostringstream str;
+    str << "\nMSSOTLPolicy::computeStimulus\n" << getName();
+    WRITE_MESSAGE(str.str());
+#endif
     return myDesirabilityAlgorithm->computeDesirability(vehInMeasure, vehOutMeasure, 0, 0);
-
 }
 
 int MSSOTLPolicy::decideNextPhase(SUMOTime elapsed,
@@ -139,11 +144,11 @@ int MSSOTLPolicy::decideNextPhase(SUMOTime elapsed,
     }
 
     if (stage->isDecisional()) {
-        DBG(
-            std::ostringstream phero_str;
-            phero_str << "getCurrentPhaseElapsed()=" << time2string(elapsed) << " isThresholdPassed()=" << thresholdPassed << " countVehicles()=" << vehicleCount;
-            WRITE_MESSAGE("MSSOTLPolicy::decideNextPhase: " + phero_str.str());
-        )
+#ifdef SWARM_DEBUG
+        std::ostringstream phero_str;
+        phero_str << "getCurrentPhaseElapsed()=" << time2string(elapsed) << " isThresholdPassed()=" << thresholdPassed << " countVehicles()=" << vehicleCount;
+        WRITE_MESSAGE("MSSOTLPolicy::decideNextPhase: " + phero_str.str());
+#endif
         if (canRelease(elapsed, thresholdPassed, pushButtonPressed, stage, vehicleCount)) {
             return currentPhaseIndex + 1;
         }

@@ -1,6 +1,6 @@
 /****************************************************************************/
 // Eclipse SUMO, Simulation of Urban MObility; see https://eclipse.org/sumo
-// Copyright (C) 2001-2020 German Aerospace Center (DLR) and others.
+// Copyright (C) 2001-2023 German Aerospace Center (DLR) and others.
 // This program and the accompanying materials are made available under the
 // terms of the Eclipse Public License 2.0 which is available at
 // https://www.eclipse.org/legal/epl-2.0/
@@ -18,6 +18,7 @@
 // The Widget for remove network-elements
 /****************************************************************************/
 #pragma once
+#include <config.h>
 
 #include <netedit/frames/GNEFrame.h>
 
@@ -36,7 +37,9 @@ public:
     // class DeleteOptions
     // ===========================================================================
 
-    class DeleteOptions : protected FXGroupBox {
+    class DeleteOptions : public MFXGroupBoxModule {
+        /// @brief FOX-declaration
+        FXDECLARE(GNEDeleteFrame::DeleteOptions)
 
     public:
         /// @brief constructor
@@ -48,14 +51,43 @@ public:
         /// @brief check if only delete geometry points checkbox is enabled
         bool deleteOnlyGeometryPoints() const;
 
+        /// @name FOX-callbacks
+        /// @{
+        /// @brief Called when user change an option
+        long onCmdSetOption(FXObject*, FXSelector, void*);
+
+        /// @}
+
+    protected:
+        /// @brief FOX need this
+        FOX_CONSTRUCTOR(DeleteOptions)
+
+    private:
+        /// @brief delete frame parent
+        GNEDeleteFrame* myDeleteFrameParent;
+
+        /// @brief checkbox for enable/disable delete only geometry points
+        FXCheckButton* myDeleteOnlyGeometryPoints;
+    };
+
+    // ===========================================================================
+    // class ProtectElements
+    // ===========================================================================
+
+    class ProtectElements : public MFXGroupBoxModule {
+
+    public:
+        /// @brief constructor
+        ProtectElements(GNEDeleteFrame* deleteFrameParent);
+
+        /// @brief destructor
+        ~ProtectElements();
+
         /// @brief check if protect additional elements checkbox is enabled
         bool protectAdditionals() const;
 
         /// @brief check if protect TAZ elements checkbox is enabled
         bool protectTAZs() const;
-
-        /// @brief check if protect shapes elements checkbox is enabled
-        bool protectShapes() const;
 
         /// @brief check if protect demand elements checkbox is enabled
         bool protectDemandElements() const;
@@ -64,17 +96,11 @@ public:
         bool protectGenericDatas() const;
 
     private:
-        /// @brief checkbox for enable/disable delete only geometry points
-        FXCheckButton* myDeleteOnlyGeometryPoints;
-
         /// @brief checkbox for enable/disable protect additionals
         FXCheckButton* myProtectAdditionals;
 
         /// @brief checkbox for enable/disable protect TAZs
         FXCheckButton* myProtectTAZs;
-
-        /// @brief checkbox for enable/disable protect shapes
-        FXCheckButton* myProtectShapes;
 
         /// @brief checkbox for enable/disable protect demand elements
         FXCheckButton* myProtectDemandElements;
@@ -82,40 +108,6 @@ public:
         /// @brief checkbox for enable/disable protect generic datas
         FXCheckButton* myProtectGenericDatas;
     };
-
-    /**@brief Constructor
-     * @brief parent FXHorizontalFrame in which this GNEFrame is placed
-     * @brief viewNet viewNet that uses this GNEFrame
-     */
-    GNEDeleteFrame(FXHorizontalFrame* horizontalFrameParent, GNEViewNet* viewNet);
-
-    /// @brief Destructor
-    ~GNEDeleteFrame();
-
-    /// @brief show delete frame
-    void show();
-
-    /// @brief hide delete frame
-    void hide();
-
-    /// @brief remove selected attribute carriers (element)
-    void removeSelectedAttributeCarriers();
-
-    /**@brief remove attribute carrier (element)
-     * @param objectsUnderCursor objects under cursors
-     * @param ignoreOptions ignore delete options and ALWAYS remove AC
-     */
-    void removeAttributeCarrier(const GNEViewNetHelper::ObjectsUnderCursor& objectsUnderCursor, bool ignoreOptions = false);
-
-    /**@brief remove geometry point
-    * @param objectsUnderCursor objects under cursors
-    */
-    void removeGeometryPoint(const GNEViewNetHelper::ObjectsUnderCursor& objectsUnderCursor);
-
-    /// @brief get delete options
-    DeleteOptions* getDeleteOptions() const;
-
-protected:
 
     /// @brief struct for saving subordinated elements (Junction->Edge->Lane->(Additional | DemandElement)
     class SubordinatedElements {
@@ -133,9 +125,6 @@ protected:
         /// @brief constructor (for additionals)
         SubordinatedElements(const GNEAdditional* additional);
 
-        /// @brief constructor (for shapes)
-        SubordinatedElements(const GNEShape* shape);
-
         /// @brief constructor (for demandElements)
         SubordinatedElements(const GNEDemandElement* demandElement);
 
@@ -146,7 +135,7 @@ protected:
         ~SubordinatedElements();
 
         /// @brief if element can be removed
-        bool checkElements(const DeleteOptions* deleteOptions);
+        bool checkElements(const ProtectElements* protectElements);
 
     protected:
         /// @brief parent of SubordinatedElements
@@ -160,18 +149,6 @@ protected:
 
         /// @brief child additional (except TAZs)
         size_t myAdditionalChilds;
-
-        /// @brief parent TAZs
-        size_t myTAZParents;
-
-        /// @brief child TAZ
-        size_t myTAZChilds;
-
-        /// @brief parent shapes
-        size_t myShapeParents;
-
-        /// @brief child shape
-        size_t myShapeChilds;
 
         /// @brief parent demand elements
         size_t myDemandElementParents;
@@ -205,10 +182,48 @@ protected:
         SubordinatedElements& operator=(const SubordinatedElements&) = delete;
     };
 
+    /**@brief Constructor
+     * @brief viewParent GNEViewParent in which this GNEFrame is placed
+     * @brief viewNet viewNet that uses this GNEFrame
+     */
+    GNEDeleteFrame(GNEViewParent* viewParent, GNEViewNet* viewNet);
+
+    /// @brief Destructor
+    ~GNEDeleteFrame();
+
+    /// @brief show delete frame
+    void show();
+
+    /// @brief hide delete frame
+    void hide();
+
+    /// @brief remove selected attribute carriers (element)
+    void removeSelectedAttributeCarriers();
+
+    /**@brief remove attribute carrier (element)
+     * @param objectsUnderCursor objects under cursors
+     */
+    void removeAttributeCarrier(const GNEViewNetHelper::ObjectsUnderCursor& objectsUnderCursor);
+
+    /**@brief remove geometry point
+    * @param objectsUnderCursor objects under cursors
+    */
+    void removeGeometryPoint(const GNEViewNetHelper::ObjectsUnderCursor& objectsUnderCursor);
+
+    /// @brief get delete options modul
+    DeleteOptions* getDeleteOptions() const;
+
+    /// @brief get protect elements modul
+    ProtectElements* getProtectElements() const;
+
+protected:
     /// @brief check if there is selected ACs to delete
     bool selectedACsToDelete() const;
 
 private:
     /// @brief modul for delete options
-    DeleteOptions* myDeleteOptions;
+    DeleteOptions* myDeleteOptions = nullptr;
+
+    /// @brief modul for protect elements
+    ProtectElements* myProtectElements = nullptr;
 };

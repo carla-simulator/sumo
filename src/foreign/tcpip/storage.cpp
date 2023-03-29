@@ -82,9 +82,14 @@ namespace tcpip
 
 
 	// ----------------------------------------------------------------------
-	void Storage::reset()
-	{
+	void Storage::reset() {
 		store.clear();
+		iter_ = store.begin();
+	}
+
+
+	// ----------------------------------------------------------------------
+	void Storage::resetPos() {
 		iter_ = store.begin();
 	}
 
@@ -404,7 +409,7 @@ namespace tcpip
 	// ----------------------------------------------------------------------
 	unsigned char Storage::readCharUnsafe()
 	{
-		char hb = *iter_;
+		const unsigned char hb = *iter_;
 		++iter_;
 		return hb;
 	}
@@ -442,20 +447,13 @@ namespace tcpip
 	// ----------------------------------------------------------------------
 	std::string Storage::hexDump() const
 	{
-		static const int width = 2;
-
 		std::ostringstream dump;
-		// adapt stream attributes
-		// 'showbase' inserts "0x", 'internal' makes leading '0' appear between "0x" and hex digits
-		dump.setf(std::ostream::hex | std::ostream::showbase | std::ostream::internal);
-		dump.fill('0');
-
 		for(StorageType::const_iterator it = store.begin(); it != store.end(); ++it)
 		{
 			// insert spaces between values
 			if (it != store.begin())
-				dump << "  ";
-			dump << std::setw(width) << static_cast<int>(*it);
+				dump << " ";
+			dump << std::setfill('0') << std::setw(2) << std::hex << static_cast<int>(*it);
 		}
 
 		return dump.str();

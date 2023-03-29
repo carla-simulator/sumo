@@ -1,11 +1,12 @@
 ---
-title: Simulation/SaveAndLoad
-permalink: /Simulation/SaveAndLoad/
+title: SaveAndLoad
 ---
 
 SUMO allows loading and saving simulation state since version 0.18.0.
 
 # Saving
+
+## Saving at fixed times
 
 To save the state at specified times during the simulation add the
 option **--save-state.times**
@@ -14,9 +15,10 @@ option **--save-state.times**
 sumo --save-state.times TIME1,TIME2,TIME3
 ```
 
-Alternatively, the option **--save-state.period** {{DT_TIME}} can be used to save states periodically.
+By default the state will be written to files named *<PREFIX\>_<TIME\><SUFFIX\>* where *<PREFIX\>* can be set via option **--save-state.prefix** (default *state*), *<TIME\>* is the simulation time and *<SUFFIX\>* is either one of *.xml.gz* or *.xml* as controlled by the option **--save-state.suffix** (default *.xml.gz*).
 
-By default the state will be written to files named *<PREFIX\>_<TIME\><SUFFIX\>* where *<PREFIX\>* can be set via option **--save-state.prefix** (default *state*), *<TIME\>* is the simulation time and *<SUFFIX\>* is either one of *.sbx* or *.xml* as controlled by the option **--save-state.suffix** (default *.sbx*). 
+!!! note
+    The file extension '.xml.gz' indicates gzip-compressed xml which can be used directly by all Sumo applications and can also be unzipped with standard file compression tools
 
 When using the option **--save-state.times**, output files can also be specified by using the
 option **--save-state.files**
@@ -26,8 +28,30 @@ sumo --save-state.files FILE1,FILE2,FILE3
 ```
 
 to set the file names explicitly. In particular if a plain text xml-file
-is desired as output (instead of the binary format .sbx) the file names
+is desired as output (instead of the compressed format .xml.gz) the file names
 should be given (with suffix .xml).
+
+## Saving periodically
+
+Alternatively, the option **--save-state.period** {{DT_TIME}} can be used to save states periodically.
+The options **-save-state.prefix** and **--save-state.suffix** apply as described above.
+
+The option **--save-state.period.keep N** can be used to remove all but the last **N** state files.
+
+## Saving manually
+
+[sumo-gui](../sumo-gui.md) allows to save state files using the menu option *Simulation* -> *Save*
+
+## Saving via TraCI
+
+The function `traci.simulation.saveState(FILENAME`) can be used to trigger saving from a script.
+
+## Further options
+
+- **--save-state.rng**: Save random number generator states
+- **--save-state.transportables**: Save person and container states
+- **--save-state.constraints**: Save rail signal constraints
+- **--save-state.precision**: Set decimal precision when saving states
 
 # Loading
 
@@ -37,7 +61,7 @@ files that were used when saving the state file and set option **--begin** to th
 time when the state was saved. Additional files (i.e. more vehicles) can
 be added without problems.
 
-When the option **--load-state.offset** is set all, times loaded from the simulation state will
+When the option **--load-state.offset** is set, all times loaded from the simulation state will
 be shifted by the given amount. This can be used to reset the simulation
 second to 0 after midnight and still have the loaded vehicles function
 properly.
@@ -45,6 +69,15 @@ properly.
 The option **--load-state.remove-vehicles ID1,ID2,...** allows removing vehicles from a loaded state. This opens up
 the possibility for re-positioning selected vehicles by inserting them
 again with a *.rou.xml* file.
+
+## Loading via TraCI
+
+There are two ways for loading state via TraCI:
+
+- `traci.load(['-n', 'net.net.xml', '--load-state', FILENAME])`: releads the whole simulation (which includes reloading the network)
+- `traci.simulation.loadState(FILENAME)` : clears out all vehicles and persons from the network and then loads the state. (reloading the network is avoided) 
+
+The second function faster (or much faster) than the first, depending on the size of the network.
 
 # Details
 
@@ -61,10 +94,9 @@ When setting option **--save-state.rng**, the state of all random number generat
 
 # Know Issues
 
+- flows cannot be loaded from a state file alone (the original route file must be loaded as well)
 - The internal state of the laneChangeModel is not saved
 - the internal state of the carFollowModel is not saved (not all models have this).
-- Persons are not saved
-- Traffic light states with dynamic / modified timings may not be restored correctly.
 
 # Older Versions of SUMO
 

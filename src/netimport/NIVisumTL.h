@@ -1,6 +1,6 @@
 /****************************************************************************/
 // Eclipse SUMO, Simulation of Urban MObility; see https://eclipse.org/sumo
-// Copyright (C) 2001-2020 German Aerospace Center (DLR) and others.
+// Copyright (C) 2001-2023 German Aerospace Center (DLR) and others.
 // This program and the accompanying materials are made available under the
 // terms of the Eclipse Public License 2.0 which is available at
 // https://www.eclipse.org/legal/epl-2.0/
@@ -179,7 +179,7 @@ private:
     /// @brief The all-red time (unused here)
     SUMOTime myIntermediateTime;
 
-    /// @brief Toogles the usage either of phases or of time periods in signal groups
+    /// @brief Toggles the usage either of phases or of time periods in signal groups
     bool myPhaseDefined;
 
     /// @brief Vector of nodes belonging to this traffic light

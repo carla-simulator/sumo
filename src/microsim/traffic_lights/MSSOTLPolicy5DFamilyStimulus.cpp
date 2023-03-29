@@ -1,6 +1,6 @@
 /****************************************************************************/
 // Eclipse SUMO, Simulation of Urban MObility; see https://eclipse.org/sumo
-// Copyright (C) 2014-2020 German Aerospace Center (DLR) and others.
+// Copyright (C) 2014-2023 German Aerospace Center (DLR) and others.
 // This program and the accompanying materials are made available under the
 // terms of the Eclipse Public License 2.0 which is available at
 // https://www.eclipse.org/legal/epl-2.0/
@@ -22,13 +22,14 @@
 
 #include <utils/common/StringTokenizer.h>
 #include "MSSOTLPolicy5DFamilyStimulus.h"
+//#define SWARM_DEBUG
 
 
 // ===========================================================================
 // method definitions
 // ===========================================================================
 MSSOTLPolicy5DFamilyStimulus::MSSOTLPolicy5DFamilyStimulus(std::string keyPrefix,
-        const std::map<std::string, std::string>& parameters) :
+        const Parameterised::Map& parameters) :
     MSSOTLPolicyDesirability(keyPrefix, parameters) {
 
     default_values["_STIM_COX"] = "1";
@@ -61,17 +62,16 @@ MSSOTLPolicy5DFamilyStimulus::MSSOTLPolicy5DFamilyStimulus(std::string keyPrefix
 
 
     int size_family = int(getDouble(keyPrefix + "_SIZE_FAMILY", 1));
-    DBG(
-
-        std::ostringstream str;
-        str << keyPrefix << "\n" << "size fam" << size_family;
-        WRITE_MESSAGE(str.str());
-    )
+#ifdef SWARM_DEBUG
+    std::ostringstream str;
+    str << keyPrefix << "\n" << "size fam" << size_family;
+    WRITE_MESSAGE(str.str());
+#endif
 
     std::vector< std::map <std::string, std::string > > sliced_maps;
 
     for (int i = 0; i < size_family; i++) {
-        sliced_maps.push_back(std::map<std::string, std::string>());
+        sliced_maps.push_back(Parameterised::Map());
     }
 
     //For each param list, slice values
@@ -87,17 +87,17 @@ MSSOTLPolicy5DFamilyStimulus::MSSOTLPolicy5DFamilyStimulus(std::string keyPrefix
                 WRITE_ERROR(errorMessage.str());
                 assert(-1);
             }
-            DBG(
-                std::ostringstream str;
-                str << "found token " << tokens[token_counter] << " position " << token_counter;
-                WRITE_MESSAGE(str.str());
-            )
+#ifdef SWARM_DEBUG
+            std::ostringstream str;
+            str << "found token " << tokens[token_counter] << " position " << token_counter;
+            WRITE_MESSAGE(str.str());
+#endif
             sliced_maps[token_counter][key] = tokens[token_counter];
         }
     }
 
     for (int i = 0; i < size_family; i++) {
-        std::map<std::string, std::string>& ref_map = sliced_maps[i];
+        Parameterised::Map& ref_map = sliced_maps[i];
         family.push_back(new MSSOTLPolicy5DStimulus(keyPrefix, ref_map));
     }
 
@@ -116,21 +116,21 @@ double MSSOTLPolicy5DFamilyStimulus::computeDesirability(double vehInMeasure, do
     double best_stimulus = -1;
     for (std::vector<MSSOTLPolicy5DStimulus*>::const_iterator it  = family.begin(); it != family.end(); it++) {
         double temp_stimulus = (*it)->computeDesirability(vehInMeasure, vehOutMeasure, vehInDispersionMeasure, vehOutDispersionMeasure);
-        DBG(
-            std::ostringstream str;
-            str << "STIMULUS: " << temp_stimulus;
-            WRITE_MESSAGE(str.str());
-        )
+#ifdef SWARM_DEBUG
+        std::ostringstream str;
+        str << "STIMULUS: " << temp_stimulus;
+        WRITE_MESSAGE(str.str());
+#endif
         if (temp_stimulus > best_stimulus) {
             best_stimulus = temp_stimulus;
         }
     }
 
-    DBG(
-        std::ostringstream str;
-        str << "BEST STIMULUS: " << best_stimulus;
-        WRITE_MESSAGE(str.str());
-    )
+#ifdef SWARM_DEBUG
+    std::ostringstream str;
+    str << "BEST STIMULUS: " << best_stimulus;
+    WRITE_MESSAGE(str.str());
+#endif
     return best_stimulus;
 }
 

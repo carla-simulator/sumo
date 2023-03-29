@@ -1,6 +1,6 @@
 /****************************************************************************/
 // Eclipse SUMO, Simulation of Urban MObility; see https://eclipse.org/sumo
-// Copyright (C) 2001-2020 German Aerospace Center (DLR) and others.
+// Copyright (C) 2001-2023 German Aerospace Center (DLR) and others.
 // This program and the accompanying materials are made available under the
 // terms of the Eclipse Public License 2.0 which is available at
 // https://www.eclipse.org/legal/epl-2.0/
@@ -34,7 +34,7 @@ FXIMPLEMENT_ABSTRACT(GNEChange_Attribute, GNEChange, nullptr, 0)
 // ===========================================================================
 
 GNEChange_Attribute::GNEChange_Attribute(GNEAttributeCarrier* ac, SumoXMLAttr key, const std::string& value) :
-    GNEChange(true, false),
+    GNEChange(ac->getTagProperty().getSupermode(), true, false),
     myAC(ac),
     myKey(key),
     myForceChange(false),
@@ -45,7 +45,7 @@ GNEChange_Attribute::GNEChange_Attribute(GNEAttributeCarrier* ac, SumoXMLAttr ke
 
 
 GNEChange_Attribute::GNEChange_Attribute(GNEAttributeCarrier* ac, SumoXMLAttr key, const std::string& value, const std::string& origValue) :
-    GNEChange(true, false),
+    GNEChange(ac->getTagProperty().getSupermode(), true, false),
     myAC(ac),
     myKey(key),
     myForceChange(false),
@@ -61,7 +61,7 @@ GNEChange_Attribute::~GNEChange_Attribute() {
     // remove if is unreferenced
     if (myAC->unreferenced()) {
         // show extra information for tests
-        WRITE_DEBUG("Deleting unreferenced " + myAC->getTagStr() + " '" + myAC->getID() + "' in GNEChange_Attribute");
+        WRITE_DEBUG("Deleting unreferenced " + myAC->getTagStr() + " in GNEChange_Attribute");
         // delete AC
         delete myAC;
     }
@@ -71,7 +71,7 @@ GNEChange_Attribute::~GNEChange_Attribute() {
 void
 GNEChange_Attribute::undo() {
     // show extra information for tests
-    WRITE_DEBUG("Setting previous attribute " + toString(myKey) + " '" + myOrigValue + "' into " + myAC->getTagStr() + " '" + myAC->getID() + "'");
+    WRITE_DEBUG("Restoring previous attribute"/* + toString(myKey)*/);
     // set original value
     myAC->setAttribute(myKey, myOrigValue);
     // certain attributes needs extra operations
@@ -81,22 +81,22 @@ GNEChange_Attribute::undo() {
             myAC->updateGeometry();
         }
         // if is a dataelement, update attribute colors
-        if (myAC->getTagProperty().isDataElement()) {
-            if (myAC->getTagProperty().isGenericData()) {
-                myAC->getNet()->retrieveDataSet(myAC->getAttribute(GNE_ATTR_DATASET))->updateAttributeColors();
-            } else {
-                myAC->getNet()->retrieveDataSet(myAC->getAttribute(SUMO_ATTR_ID))->updateAttributeColors();
-            }
+        if (myAC->getTagProperty().isGenericData()) {
+            myAC->getNet()->getAttributeCarriers()->retrieveDataSet(myAC->getAttribute(GNE_ATTR_DATASET))->updateAttributeColors();
+        } else if (myAC->getTagProperty().getTag() == SUMO_TAG_DATASET) {
+            myAC->getNet()->getAttributeCarriers()->retrieveDataSet(myAC->getAttribute(SUMO_ATTR_ID))->updateAttributeColors();
         }
         // check if networkElements, additional or shapes has to be saved (only if key isn't GNE_ATTR_SELECTED)
         if (myAC->getTagProperty().isNetworkElement()) {
-            myAC->getNet()->requireSaveNet(true);
-        } else if (myAC->getTagProperty().isAdditionalElement() || myAC->getTagProperty().isShape() || myAC->getTagProperty().isTAZElement()) {
-            myAC->getNet()->requireSaveAdditionals(true);
+            myAC->getNet()->getSavingStatus()->requireSaveNetwork();
+        } else if (myAC->getTagProperty().isAdditionalElement()) {
+            myAC->getNet()->getSavingStatus()->requireSaveAdditionals();
         } else if (myAC->getTagProperty().isDemandElement()) {
-            myAC->getNet()->requireSaveDemandElements(true);
-        } else if (myAC->getTagProperty().isDemandElement()) {
-            myAC->getNet()->requireSaveDataElements(true);
+            myAC->getNet()->getSavingStatus()->requireSaveDemandElements();
+        } else if (myAC->getTagProperty().isDataElement()) {
+            myAC->getNet()->getSavingStatus()->requireSaveDataElements();
+        } else if (myAC->getTagProperty().isMeanData()) {
+            myAC->getNet()->getSavingStatus()->requireSaveMeanDatas();
         }
     }
 }
@@ -105,7 +105,7 @@ GNEChange_Attribute::undo() {
 void
 GNEChange_Attribute::redo() {
     // show extra information for tests
-    WRITE_DEBUG("Setting new attribute " + toString(myKey) + " '" + myNewValue + "' into " + myAC->getTagStr() + " '" + myAC->getID() + "'");
+    WRITE_DEBUG("Setting new attribute"/* + toString(myKey)*/);
     // set new value
     myAC->setAttribute(myKey, myNewValue);
     // certain attributes needs extra operations
@@ -115,22 +115,22 @@ GNEChange_Attribute::redo() {
             myAC->updateGeometry();
         }
         // if is a dataelement, update attribute colors
-        if (myAC->getTagProperty().isDataElement()) {
-            if (myAC->getTagProperty().isGenericData()) {
-                myAC->getNet()->retrieveDataSet(myAC->getAttribute(GNE_ATTR_DATASET))->updateAttributeColors();
-            } else {
-                myAC->getNet()->retrieveDataSet(myAC->getAttribute(SUMO_ATTR_ID))->updateAttributeColors();
-            }
+        if (myAC->getTagProperty().isGenericData()) {
+            myAC->getNet()->getAttributeCarriers()->retrieveDataSet(myAC->getAttribute(GNE_ATTR_DATASET))->updateAttributeColors();
+        } else if (myAC->getTagProperty().getTag() == SUMO_TAG_DATASET) {
+            myAC->getNet()->getAttributeCarriers()->retrieveDataSet(myAC->getAttribute(SUMO_ATTR_ID))->updateAttributeColors();
         }
         // check if networkElements, additional or shapes has to be saved (only if key isn't GNE_ATTR_SELECTED)
         if (myAC->getTagProperty().isNetworkElement()) {
-            myAC->getNet()->requireSaveNet(true);
-        } else if (myAC->getTagProperty().isAdditionalElement() || myAC->getTagProperty().isShape() || myAC->getTagProperty().isTAZElement()) {
-            myAC->getNet()->requireSaveAdditionals(true);
+            myAC->getNet()->getSavingStatus()->requireSaveNetwork();
+        } else if (myAC->getTagProperty().isAdditionalElement()) {
+            myAC->getNet()->getSavingStatus()->requireSaveAdditionals();
         } else if (myAC->getTagProperty().isDemandElement()) {
-            myAC->getNet()->requireSaveDemandElements(true);
-        } else if (myAC->getTagProperty().isDemandElement()) {
-            myAC->getNet()->requireSaveDataElements(true);
+            myAC->getNet()->getSavingStatus()->requireSaveDemandElements();
+        } else if (myAC->getTagProperty().isDataElement()) {
+            myAC->getNet()->getSavingStatus()->requireSaveDataElements();
+        } else if (myAC->getTagProperty().isMeanData()) {
+            myAC->getNet()->getSavingStatus()->requireSaveMeanDatas();
         }
     }
 }
@@ -153,15 +153,15 @@ GNEChange_Attribute::trueChange() {
 }
 
 
-FXString
+std::string
 GNEChange_Attribute::undoName() const {
-    return ("Undo change " + myAC->getTagStr() + " attribute").c_str();
+    return (TL("Undo change ") + myAC->getTagStr() + " attribute");
 }
 
 
-FXString
+std::string
 GNEChange_Attribute::redoName() const {
-    return ("Redo change " + myAC->getTagStr() + " attribute").c_str();
+    return (TL("Redo change ") + myAC->getTagStr() + " attribute");
 }
 
 /****************************************************************************/

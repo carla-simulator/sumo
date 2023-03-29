@@ -1,6 +1,5 @@
 ---
-title: Developer/GUI Testing
-permalink: /Developer/GUI_Testing/
+title: GUI Testing
 ---
 
 SUMO's netedit tests use
@@ -29,7 +28,7 @@ layer of test functions in tests/netedit/neteditTestFunctions.py. All of
 them reside in the relevant test directory in a test.py script that
 starts always with the same header:
 
-```
+```py
 import os
 import sys
 

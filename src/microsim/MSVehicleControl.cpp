@@ -1,6 +1,6 @@
 /****************************************************************************/
 // Eclipse SUMO, Simulation of Urban MObility; see https://eclipse.org/sumo
-// Copyright (C) 2001-2020 German Aerospace Center (DLR) and others.
+// Copyright (C) 2001-2023 German Aerospace Center (DLR) and others.
 // This program and the accompanying materials are made available under the
 // terms of the Eclipse Public License 2.0 which is available at
 // https://www.eclipse.org/legal/epl-2.0/
@@ -36,9 +36,6 @@
 #include <utils/iodevices/OutputDevice.h>
 #include <utils/options/OptionsCont.h>
 #include <utils/router/IntermodalRouter.h>
-#ifdef HAVE_FOX
-#include <utils/foxtools/FXConditionalLock.h>
-#endif
 
 
 // ===========================================================================
@@ -50,6 +47,7 @@ MSVehicleControl::MSVehicleControl() :
     myEndedVehNo(0),
     myDiscarded(0),
     myCollisions(0),
+    myTeleportsCollision(0),
     myTeleportsJam(0),
     myTeleportsYield(0),
     myTeleportsWrongLane(0),
@@ -57,16 +55,24 @@ MSVehicleControl::MSVehicleControl() :
     myStoppedVehicles(0),
     myTotalDepartureDelay(0),
     myTotalTravelTime(0),
-    myDefaultVTypeMayBeDeleted(true),
-    myDefaultPedTypeMayBeDeleted(true),
-    myDefaultContainerTypeMayBeDeleted(true),
-    myDefaultBikeTypeMayBeDeleted(true),
-    myDefaultTaxiTypeMayBeDeleted(true),
-    myWaitingForPerson(0),
-    myWaitingForContainer(0),
+    myWaitingForTransportable(0),
     myMaxSpeedFactor(1),
     myMinDeceleration(SUMOVTypeParameter::getDefaultDecel(SVC_IGNORING)),
+    myMinDecelerationRail(SUMOVTypeParameter::getDefaultDecel(SVC_RAIL)),
     myPendingRemovals(MSGlobals::gNumSimThreads > 1) {
+
+    initDefaultTypes();
+    myScale = OptionsCont::getOptions().getFloat("scale");
+}
+
+
+MSVehicleControl::~MSVehicleControl() {
+    clearState(false);
+}
+
+
+void
+MSVehicleControl::initDefaultTypes() {
     SUMOVTypeParameter defType(DEFAULT_VTYPE_ID, SVC_PASSENGER);
     myVTypeDict[DEFAULT_VTYPE_ID] = MSVehicleType::build(defType);
 
@@ -90,36 +96,31 @@ MSVehicleControl::MSVehicleControl() :
     defContainerType.parametersSet |= VTYPEPARS_VEHICLECLASS_SET;
     myVTypeDict[DEFAULT_CONTAINERTYPE_ID] = MSVehicleType::build(defContainerType);
 
-    myScale = OptionsCont::getOptions().getFloat("scale");
-}
-
-
-MSVehicleControl::~MSVehicleControl() {
-    clearState();
+    myReplaceableDefaultVTypes = DEFAULT_VTYPES;
 }
 
 
 SUMOVehicle*
 MSVehicleControl::buildVehicle(SUMOVehicleParameter* defs,
-                               const MSRoute* route, MSVehicleType* type,
-                               const bool ignoreStopErrors, const bool fromRouteFile) {
+                               ConstMSRoutePtr route, MSVehicleType* type,
+                               const bool ignoreStopErrors, const bool fromRouteFile, bool addRouteStops) {
     MSVehicle* built = new MSVehicle(defs, route, type, type->computeChosenSpeedDeviation(fromRouteFile ? MSRouteHandler::getParsingRNG() : nullptr));
-    initVehicle(built, ignoreStopErrors);
+    initVehicle(built, ignoreStopErrors, addRouteStops);
     return built;
 }
 
 
 void
-MSVehicleControl::initVehicle(MSBaseVehicle* built, const bool ignoreStopErrors) {
+MSVehicleControl::initVehicle(MSBaseVehicle* built, const bool ignoreStopErrors, bool addRouteStops) {
     myLoadedVehNo++;
     try {
         built->initDevices();
-        built->addStops(ignoreStopErrors);
+        built->addStops(ignoreStopErrors, nullptr, addRouteStops);
     } catch (ProcessError&) {
         delete built;
         throw;
     }
-    MSNet::getInstance()->informVehicleStateListener(built, MSNet::VEHICLE_STATE_BUILT);
+    MSNet::getInstance()->informVehicleStateListener(built, MSNet::VehicleState::BUILT);
 }
 
 
@@ -141,6 +142,7 @@ MSVehicleControl::isPendingRemoval(SUMOVehicle* veh) {
 #endif
 }
 
+
 void
 MSVehicleControl::removePending() {
     OutputDevice* const tripinfoOut = OptionsCont::getOptions().isSet("tripinfo-output") ? &OutputDevice::getDeviceByOption("tripinfo-output") : nullptr;
@@ -153,7 +155,7 @@ MSVehicleControl::removePending() {
     for (SUMOVehicle* const veh : vehs) {
         myTotalTravelTime += STEPS2TIME(MSNet::getInstance()->getCurrentTimeStep() - veh->getDeparture());
         myRunningVehNo--;
-        MSNet::getInstance()->informVehicleStateListener(veh, MSNet::VEHICLE_STATE_ARRIVED);
+        MSNet::getInstance()->informVehicleStateListener(veh, MSNet::VehicleState::ARRIVED);
         // vehicle is equipped with tripinfo device (not all vehicles are)
         const bool hasTripinfo = veh->getDevice(typeid(MSDevice_Tripinfo)) != nullptr;
         for (MSVehicleDevice* const dev : veh->getDevices()) {
@@ -180,11 +182,13 @@ void
 MSVehicleControl::vehicleDeparted(const SUMOVehicle& v) {
     ++myRunningVehNo;
     myTotalDepartureDelay += STEPS2TIME(v.getDeparture() - STEPFLOOR(v.getParameter().depart));
-    MSNet::getInstance()->informVehicleStateListener(&v, MSNet::VEHICLE_STATE_DEPARTED);
+    MSNet::getInstance()->informVehicleStateListener(&v, MSNet::VehicleState::DEPARTED);
     myMaxSpeedFactor = MAX2(myMaxSpeedFactor, v.getChosenSpeedFactor());
     if ((v.getVClass() & (SVC_PEDESTRIAN | SVC_NON_ROAD)) == 0) {
         // only  worry about deceleration of road users
         myMinDeceleration = MIN2(myMinDeceleration, v.getVehicleType().getCarFollowModel().getMaxDecel());
+    } else if ((v.getVClass() & SVC_RAIL_CLASSES) != 0) {
+        myMinDecelerationRail = MIN2(myMinDecelerationRail, v.getVehicleType().getCarFollowModel().getMaxDecel());
     }
 }
 
@@ -208,58 +212,56 @@ MSVehicleControl::saveState(OutputDevice& out) {
     out.writeAttr(SUMO_ATTR_DEPART, myTotalDepartureDelay);
     out.writeAttr(SUMO_ATTR_TIME, myTotalTravelTime).closeTag();
     // save vehicle types
-    VTypeDictType vTypes = myVTypeDict;
-    if (myDefaultVTypeMayBeDeleted) {
-        vTypes.erase(DEFAULT_VTYPE_ID);
+    for (const auto& item : myVTypeDict) {
+        if (myReplaceableDefaultVTypes.count(item.first) == 0) {
+            item.second->getParameter().write(out);
+        }
     }
-    if (myDefaultPedTypeMayBeDeleted) {
-        vTypes.erase(DEFAULT_PEDTYPE_ID);
-    }
-    if (myDefaultContainerTypeMayBeDeleted) {
-        vTypes.erase(DEFAULT_CONTAINERTYPE_ID);
-    }
-    if (myDefaultBikeTypeMayBeDeleted) {
-        vTypes.erase(DEFAULT_BIKETYPE_ID);
-    }
-    if (myDefaultTaxiTypeMayBeDeleted) {
-        vTypes.erase(DEFAULT_TAXITYPE_ID);
-    }
-    for (const auto& item : vTypes) {
-        item.second->getParameter().write(out);
-    }
-    for (VTypeDistDictType::iterator it = myVTypeDistDict.begin(); it != myVTypeDistDict.end(); ++it) {
-        out.openTag(SUMO_TAG_VTYPE_DISTRIBUTION).writeAttr(SUMO_ATTR_ID, it->first);
-        out.writeAttr(SUMO_ATTR_VTYPES, (*it).second->getVals());
-        out.writeAttr(SUMO_ATTR_PROBS, (*it).second->getProbs());
+    for (const auto& item : myVTypeDistDict) {
+        out.openTag(SUMO_TAG_VTYPE_DISTRIBUTION).writeAttr(SUMO_ATTR_ID, item.first);
+        out.writeAttr(SUMO_ATTR_VTYPES, item.second->getVals());
+        out.writeAttr(SUMO_ATTR_PROBS, item.second->getProbs());
         out.closeTag();
     }
-    for (VehicleDictType::iterator it = myVehicleDict.begin(); it != myVehicleDict.end(); ++it) {
-        (*it).second->saveState(out);
+    for (const auto& item : myVehicleDict) {
+        item.second->saveState(out);
     }
 }
 
 
 void
-MSVehicleControl::clearState() {
-    for (VehicleDictType::iterator i = myVehicleDict.begin(); i != myVehicleDict.end(); ++i) {
-        delete (*i).second;
+MSVehicleControl::clearState(const bool reinit) {
+    for (const auto& item : myVehicleDict) {
+        delete item.second;
     }
     myVehicleDict.clear();
     // delete vehicle type distributions
-    for (VTypeDistDictType::iterator i = myVTypeDistDict.begin(); i != myVTypeDistDict.end(); ++i) {
-        delete (*i).second;
+    for (const auto& item : myVTypeDistDict) {
+        delete item.second;
     }
     myVTypeDistDict.clear();
     // delete vehicle types
-    for (VTypeDictType::iterator i = myVTypeDict.begin(); i != myVTypeDict.end(); ++i) {
-        delete (*i).second;
+    for (const auto& item : myVTypeDict) {
+        delete item.second;
     }
     myVTypeDict.clear();
-    myDefaultVTypeMayBeDeleted = true;
-    myDefaultPedTypeMayBeDeleted = true;
-    myDefaultContainerTypeMayBeDeleted = true;
-    myDefaultBikeTypeMayBeDeleted = true;
-    myDefaultTaxiTypeMayBeDeleted = true;
+    myPendingRemovals.clear(); // could be leftovers from MSVehicleTransfer::checkInsertions (teleport beyond arrival)
+    if (reinit) {
+        initDefaultTypes();
+    }
+    myLoadedVehNo = 0;
+    myRunningVehNo = 0;
+    myEndedVehNo = 0;
+    myDiscarded = 0;
+    myCollisions = 0;
+    myTeleportsCollision = 0;
+    myTeleportsJam = 0;
+    myTeleportsYield = 0;
+    myTeleportsWrongLane = 0;
+    myEmergencyStops = 0;
+    myStoppedVehicles = 0;
+    myTotalDepartureDelay = 0;
+    myTotalTravelTime = 0;
 }
 
 
@@ -270,14 +272,20 @@ MSVehicleControl::addVehicle(const std::string& id, SUMOVehicle* v) {
         // id not in myVehicleDict.
         myVehicleDict[id] = v;
         const SUMOVehicleParameter& pars = v->getParameter();
-        if (pars.departProcedure == DEPART_TRIGGERED || pars.departProcedure == DEPART_CONTAINER_TRIGGERED || pars.departProcedure == DEPART_SPLIT) {
+        if (pars.departProcedure == DepartDefinition::TRIGGERED || pars.departProcedure == DepartDefinition::CONTAINER_TRIGGERED || pars.departProcedure == DepartDefinition::SPLIT) {
             const MSEdge* const firstEdge = v->getRoute().getEdges()[0];
             if (!MSGlobals::gUseMesoSim) {
                 // position will be checked against person position later
-                static_cast<MSVehicle*>(v)->setTentativeLaneAndPosition(firstEdge->getLanes()[0], v->getParameter().departPos);
+                static_cast<MSVehicle*>(v)->setTentativeLaneAndPosition(nullptr, v->getParameter().departPos);
             }
-            firstEdge->addWaiting(v);
-            registerOneWaiting(pars.departProcedure == DEPART_TRIGGERED);
+            if (firstEdge->isTazConnector()) {
+                for (MSEdge* out : firstEdge->getSuccessors()) {
+                    out->addWaiting(v);
+                }
+            } else {
+                firstEdge->addWaiting(v);
+            }
+            registerOneWaiting();
         }
         if (v->getVClass() != SVC_TAXI && pars.line != "" && pars.repetitionNumber < 0) {
             myPTVehicles.push_back(v);
@@ -317,46 +325,9 @@ MSVehicleControl::deleteVehicle(SUMOVehicle* veh, bool discard) {
 
 bool
 MSVehicleControl::checkVType(const std::string& id) {
-    if (id == DEFAULT_VTYPE_ID) {
-        if (myDefaultVTypeMayBeDeleted) {
-            delete myVTypeDict[id];
-            myVTypeDict.erase(myVTypeDict.find(id));
-            myDefaultVTypeMayBeDeleted = false;
-        } else {
-            return false;
-        }
-    } else if (id == DEFAULT_PEDTYPE_ID) {
-        if (myDefaultPedTypeMayBeDeleted) {
-            delete myVTypeDict[id];
-            myVTypeDict.erase(myVTypeDict.find(id));
-            myDefaultPedTypeMayBeDeleted = false;
-        } else {
-            return false;
-        }
-    } else if (id == DEFAULT_CONTAINERTYPE_ID) {
-        if (myDefaultContainerTypeMayBeDeleted) {
-            delete myVTypeDict[id];
-            myVTypeDict.erase(myVTypeDict.find(id));
-            myDefaultContainerTypeMayBeDeleted = false;
-        } else {
-            return false;
-        }
-    } else if (id == DEFAULT_BIKETYPE_ID) {
-        if (myDefaultBikeTypeMayBeDeleted) {
-            delete myVTypeDict[id];
-            myVTypeDict.erase(myVTypeDict.find(id));
-            myDefaultBikeTypeMayBeDeleted = false;
-        } else {
-            return false;
-        }
-    } else if (id == DEFAULT_TAXITYPE_ID) {
-        if (myDefaultTaxiTypeMayBeDeleted) {
-            delete myVTypeDict[id];
-            myVTypeDict.erase(myVTypeDict.find(id));
-            myDefaultTaxiTypeMayBeDeleted = false;
-        } else {
-            return false;
-        }
+    if (myReplaceableDefaultVTypes.erase(id) > 0) {
+        delete myVTypeDict[id];
+        myVTypeDict.erase(myVTypeDict.find(id));
     } else {
         if (myVTypeDict.find(id) != myVTypeDict.end() || myVTypeDistDict.find(id) != myVTypeDistDict.end()) {
             return false;
@@ -364,6 +335,7 @@ MSVehicleControl::checkVType(const std::string& id) {
     }
     return true;
 }
+
 
 bool
 MSVehicleControl::addVType(MSVehicleType* vehType) {
@@ -377,7 +349,7 @@ MSVehicleControl::addVType(MSVehicleType* vehType) {
 
 void
 MSVehicleControl::removeVType(const MSVehicleType* vehType) {
-    assert(vehType != 0);
+    assert(vehType != nullptr);
     assert(myVTypeDict.find(vehType->getID()) != myVTypeDict.end());
     myVTypeDict.erase(vehType->getID());
     if (myVTypeToDist.find(vehType->getID()) != myVTypeToDist.end()) {
@@ -418,7 +390,7 @@ MSVehicleControl::hasVTypeDistribution(const std::string& id) const {
 
 
 MSVehicleType*
-MSVehicleControl::getVType(const std::string& id, std::mt19937* rng) {
+MSVehicleControl::getVType(const std::string& id, SumoRNG* rng, bool readOnly) {
     VTypeDictType::iterator it = myVTypeDict.find(id);
     if (it == myVTypeDict.end()) {
         VTypeDistDictType::iterator it2 = myVTypeDistDict.find(id);
@@ -427,10 +399,8 @@ MSVehicleControl::getVType(const std::string& id, std::mt19937* rng) {
         }
         return it2->second->get(rng);
     }
-    if (id == DEFAULT_VTYPE_ID) {
-        myDefaultVTypeMayBeDeleted = false;
-    } else if (id == DEFAULT_PEDTYPE_ID) {
-        myDefaultPedTypeMayBeDeleted = false;
+    if (!readOnly && myReplaceableDefaultVTypes.erase(id) > 0) {
+        it->second->check();
     }
     return it->second;
 }
@@ -457,6 +427,7 @@ MSVehicleControl::getVTypeDistributionMembership(const std::string& id) const {
     return it->second;
 }
 
+
 const RandomDistributor<MSVehicleType*>*
 MSVehicleControl::getVTypeDistribution(const std::string& typeDistID) const {
     auto it = myVTypeDistDict.find(typeDistID);
@@ -467,11 +438,12 @@ MSVehicleControl::getVTypeDistribution(const std::string& typeDistID) const {
     }
 }
 
+
 void
 MSVehicleControl::abortWaiting() {
     for (VehicleDictType::iterator i = myVehicleDict.begin(); i != myVehicleDict.end(); ++i) {
-        WRITE_WARNINGF("Vehicle '%' aborted waiting for a % that will never come.", i->first,
-                       i->second->getParameter().departProcedure == DEPART_SPLIT ? "split" : "person or container")
+        WRITE_WARNINGF(TL("Vehicle '%' aborted waiting for a % that will never come."), i->first,
+                       i->second->getParameter().departProcedure == DepartDefinition::SPLIT ? "split" : "person or container")
     }
 }
 
@@ -489,7 +461,6 @@ MSVehicleControl::getHaltingVehicleNo() const {
 }
 
 
-
 std::pair<double, double>
 MSVehicleControl::getVehicleMeanSpeeds() const {
     double speedSum = 0;
@@ -500,7 +471,7 @@ MSVehicleControl::getVehicleMeanSpeeds() const {
         if ((veh->isOnRoad() || veh->isRemoteControlled()) && !veh->isStopped()) {
             count++;
             speedSum += veh->getSpeed();
-            relSpeedSum += veh->getSpeed() / veh->getEdge()->getSpeedLimit();
+            relSpeedSum += veh->getEdge()->getSpeedLimit() > 0 ? veh->getSpeed() / veh->getEdge()->getSpeedLimit() : 0;
         }
     }
     if (count > 0) {
@@ -514,27 +485,18 @@ MSVehicleControl::getVehicleMeanSpeeds() const {
 int
 MSVehicleControl::getQuota(double frac, int loaded) const {
     frac = frac < 0 ? myScale : frac;
-    if (frac < 0 || frac == 1.) {
-        return 1;
-    }
     const int origLoaded = (loaded < 1
                             // the vehicle in question has already been loaded, hence  the '-1'
                             ? frac > 1. ? (int)(myLoadedVehNo / frac) : myLoadedVehNo - 1
                             // given transportable number reflects only previously loaded
                             : frac > 1. ? (int)(loaded / frac) : loaded);
-    const int base = (int)frac;
-    const int resolution = 1000;
-    const int intFrac = (int)floor((frac - base) * resolution + 0.5);
-    // apply % twice to avoid integer overflow
-    if (((origLoaded % resolution) * intFrac) % resolution < intFrac) {
-        return base + 1;
-    }
-    return base;
+    return getScalingQuota(frac, origLoaded);
 }
+
 
 int
 MSVehicleControl::getTeleportCount() const {
-    return (MSLane::teleportOnCollision() ? myCollisions : 0) + myTeleportsJam + myTeleportsYield + myTeleportsWrongLane;
+    return myTeleportsCollision + myTeleportsJam + myTeleportsYield + myTeleportsWrongLane;
 }
 
 
@@ -542,10 +504,9 @@ void
 MSVehicleControl::adaptIntermodalRouter(MSNet::MSIntermodalRouter& router) const {
     for (const SUMOVehicle* const veh : myPTVehicles) {
         // add single vehicles with line attribute which are not part of a flow
-        const MSRoute* const route = MSRoute::dictionary(veh->getParameter().routeid);
+        ConstMSRoutePtr const route = MSRoute::dictionary(veh->getParameter().routeid);
         router.getNetwork()->addSchedule(veh->getParameter(), route == nullptr ? nullptr : &route->getStops());
     }
 }
-
 
 /****************************************************************************/

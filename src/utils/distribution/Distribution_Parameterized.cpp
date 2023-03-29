@@ -1,6 +1,6 @@
 /****************************************************************************/
 // Eclipse SUMO, Simulation of Urban MObility; see https://eclipse.org/sumo
-// Copyright (C) 2001-2020 German Aerospace Center (DLR) and others.
+// Copyright (C) 2001-2023 German Aerospace Center (DLR) and others.
 // This program and the accompanying materials are made available under the
 // terms of the Eclipse Public License 2.0 which is available at
 // https://www.eclipse.org/legal/epl-2.0/
@@ -71,17 +71,34 @@ Distribution_Parameterized::parse(const std::string& description, const bool har
         // set default distribution parameterized
         myParameter = {0., 0.};
         if (hardFail) {
-            throw ProcessError("Invalid format of distribution parameterized");
+            throw ProcessError(TL("Invalid format of distribution parameterized"));
         } else {
-            WRITE_ERROR("Invalid format of distribution parameterized");
+            WRITE_ERROR(TL("Invalid format of distribution parameterized"));
         }
+    }
+}
+
+bool
+Distribution_Parameterized::isValidDescription(const std::string& description) {
+    Distribution_Parameterized dummy("", 0, 0);
+    try {
+        dummy.parse(description, true);
+        std::string error;
+        bool valid = dummy.isValid(error);
+        if (!valid) {
+            WRITE_ERROR(error);
+        }
+        return valid;
+    } catch (...) {
+        WRITE_ERROR(TL("Invalid format of distribution parameterized"));
+        return false;
     }
 }
 
 
 double
-Distribution_Parameterized::sample(std::mt19937* which) const {
-    if (myParameter[1] == 0.) {
+Distribution_Parameterized::sample(SumoRNG* which) const {
+    if (myParameter[1] <= 0.) {
         return myParameter[0];
     }
     double val = RandHelper::randNorm(myParameter[0], myParameter[1], which);
@@ -98,7 +115,7 @@ Distribution_Parameterized::sample(std::mt19937* which) const {
 
 double
 Distribution_Parameterized::getMax() const {
-    if (myParameter[1] == 0.) {
+    if (myParameter[1] <= 0.) {
         return myParameter[0];
     }
     return myParameter.size() > 3 ? myParameter[3] : std::numeric_limits<double>::infinity();

@@ -1,6 +1,6 @@
 /****************************************************************************/
 // Eclipse SUMO, Simulation of Urban MObility; see https://eclipse.org/sumo
-// Copyright (C) 2012-2020 German Aerospace Center (DLR) and others.
+// Copyright (C) 2012-2023 German Aerospace Center (DLR) and others.
 // This program and the accompanying materials are made available under the
 // terms of the Eclipse Public License 2.0 which is available at
 // https://www.eclipse.org/legal/epl-2.0/
@@ -24,7 +24,6 @@
 
 #define LIBTRACI 1
 #include <libsumo/InductionLoop.h>
-#include "Connection.h"
 #include "Domain.h"
 
 
@@ -98,35 +97,88 @@ InductionLoop::getTimeSinceDetection(const std::string& detID) {
 
 std::vector<libsumo::TraCIVehicleData>
 InductionLoop::getVehicleData(const std::string& detID) {
+    std::unique_lock<std::mutex> lock{ libtraci::Connection::getActive().getMutex() };
     std::vector<libsumo::TraCIVehicleData> result;
-    tcpip::Storage& ret = Connection::getActive().doCommand(libsumo::CMD_GET_INDUCTIONLOOP_VARIABLE, libsumo::LAST_STEP_VEHICLE_DATA, detID);
-    if (Connection::getActive().processGet(libsumo::CMD_GET_INDUCTIONLOOP_VARIABLE, libsumo::TYPE_COMPOUND)) {
-        ret.readInt();  // components
-        // number of items
+    tcpip::Storage& ret = Dom::get(libsumo::LAST_STEP_VEHICLE_DATA, detID);
+    ret.readInt();  // components
+    // number of items
+    ret.readUnsignedByte();
+    const int n = ret.readInt();
+    for (int i = 0; i < n; ++i) {
+        libsumo::TraCIVehicleData vd;
+
         ret.readUnsignedByte();
-        const int n = ret.readInt();
-        for (int i = 0; i < n; ++i) {
-            libsumo::TraCIVehicleData vd;
+        vd.id = ret.readString();
 
-            ret.readUnsignedByte();
-            vd.id = ret.readString();
+        ret.readUnsignedByte();
+        vd.length = ret.readDouble();
 
-            ret.readUnsignedByte();
-            vd.length = ret.readDouble();
+        ret.readUnsignedByte();
+        vd.entryTime = ret.readDouble();
 
-            ret.readUnsignedByte();
-            vd.entryTime = ret.readDouble();
+        ret.readUnsignedByte();
+        vd.leaveTime = ret.readDouble();
 
-            ret.readUnsignedByte();
-            vd.leaveTime = ret.readDouble();
+        ret.readUnsignedByte();
+        vd.typeID = ret.readString();
 
-            ret.readUnsignedByte();
-            vd.typeID = ret.readString();
-
-            result.push_back(vd);
-        }
+        result.push_back(vd);
     }
     return result;
+}
+
+
+double
+InductionLoop::getIntervalOccupancy(const std::string& detID) {
+    return Dom::getDouble(libsumo::VAR_INTERVAL_OCCUPANCY, detID);
+}
+
+
+double
+InductionLoop::getIntervalMeanSpeed(const std::string& detID) {
+    return Dom::getDouble(libsumo::VAR_INTERVAL_SPEED, detID);
+}
+
+
+int
+InductionLoop::getIntervalVehicleNumber(const std::string& detID) {
+    return Dom::getInt(libsumo::VAR_INTERVAL_NUMBER, detID);
+}
+
+
+std::vector<std::string>
+InductionLoop::getIntervalVehicleIDs(const std::string& detID) {
+    return Dom::getStringVector(libsumo::VAR_INTERVAL_IDS, detID);
+}
+
+
+double
+InductionLoop::getLastIntervalOccupancy(const std::string& detID) {
+    return Dom::getDouble(libsumo::VAR_LAST_INTERVAL_OCCUPANCY, detID);
+}
+
+
+double
+InductionLoop::getLastIntervalMeanSpeed(const std::string& detID) {
+    return Dom::getDouble(libsumo::VAR_LAST_INTERVAL_SPEED, detID);
+}
+
+
+int
+InductionLoop::getLastIntervalVehicleNumber(const std::string& detID) {
+    return Dom::getInt(libsumo::VAR_LAST_INTERVAL_NUMBER, detID);
+}
+
+
+std::vector<std::string>
+InductionLoop::getLastIntervalVehicleIDs(const std::string& detID) {
+    return Dom::getStringVector(libsumo::VAR_LAST_INTERVAL_IDS, detID);
+}
+
+
+void
+InductionLoop::overrideTimeSinceDetection(const std::string& detID, double time) {
+    Dom::setDouble(libsumo::VAR_VIRTUAL_DETECTION, detID, time);
 }
 
 

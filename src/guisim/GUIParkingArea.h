@@ -1,6 +1,6 @@
 /****************************************************************************/
 // Eclipse SUMO, Simulation of Urban MObility; see https://eclipse.org/sumo
-// Copyright (C) 2001-2020 German Aerospace Center (DLR) and others.
+// Copyright (C) 2001-2023 German Aerospace Center (DLR) and others.
 // This program and the accompanying materials are made available under the
 // terms of the Eclipse Public License 2.0 which is available at
 // https://www.eclipse.org/legal/epl-2.0/
@@ -74,7 +74,8 @@ public:
                    const std::vector<std::string>& lines, MSLane& lane,
                    double frompos, double topos, unsigned int capacity,
                    double width, double length, double angle, const std::string& name,
-                   bool onRoad);
+                   bool onRoad,
+                   const std::string& departPos);
 
 
     /// @brief Destructor
@@ -95,7 +96,6 @@ public:
     GUIGLObjectPopupMenu* getPopUpMenu(GUIMainWindow& app,
                                        GUISUMOAbstractView& parent);
 
-
     /** @brief Returns an own parameter window
      *
      * Container stops have no parameter windows (yet).
@@ -108,6 +108,8 @@ public:
     GUIParameterTableWindow* getParameterWindow(GUIMainWindow& app,
             GUISUMOAbstractView& parent);
 
+    /// @brief return exaggeration associated with this GLObject
+    double getExaggeration(const GUIVisualizationSettings& s) const;
 
     /** @brief Returns the boundary to which the view shall be centered in order to show the object
      *
@@ -121,7 +123,8 @@ public:
 
     /// @brief extend boundary
     void addLotEntry(double x, double y, double z,
-                     double width, double length, double angle);
+                     double width, double length,
+                     double angle, double slope);
 
     /** @brief Draws the object
      * @param[in] s The settings for the current view (may influence drawing)
@@ -130,6 +133,9 @@ public:
     void drawGL(const GUIVisualizationSettings& s) const;
     //@}
 
+    const Position& getSignPos() const {
+        return mySignPos;
+    }
 
 private:
     /// @brief The rotations of the shape parts

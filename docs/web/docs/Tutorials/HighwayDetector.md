@@ -1,11 +1,10 @@
 ---
-title: Tutorials/HighwayDetector
-permalink: /Tutorials/HighwayDetector/
+title: HighwayDetector
 ---
 
 This tutorial describes how to set up a traffic scenario using mainly
-[netedit](../netedit.md), [dfrouter](../dfrouter.md) and some
-python tools when you already have a fairly good network source for your
+[netedit](../Netedit/index.md), [dfrouter](../dfrouter.md), and some
+python tools; when you already have a fairly good network source for your
 simulation site and also a good coverage of the network with detectors
 giving you aggregated counts (and maybe speeds) of the vehicles in the
 real world. It is not limited to highways but the preconditions are met
@@ -19,14 +18,14 @@ Selected edges (blue) are of minor priority and will be discarded
 ## Network
 
 Assuming you are already familiar with network extraction from your
-favorite mapping source you can open your net with
-[netedit](../netedit.md) and reduce it to your area of interest.
+favorite mapping source, you can open your net with
+[netedit](../Netedit/index.md) and reduce it to your area of interest.
 Assume you have a navteq file you can select (and then delete) all edges
 with a priority of less than -1 to reduce it to a highway network.
 Afterwards one can use rectangle selection (hold shift) to further limit
 the area considered. You also might want to enable ramp guessing in the
 options dialog. If the network has been prepared by an older version of
-SUMO it is probably a good idea to recalculate all the connections
+SUMO, it is probably a good idea to recalculate all the connections
 afterwards. Do so by selecting all junctions in select mode and then
 resetting them in connect mode. There may still be missing ramps and
 unusual connections which could not be guessed automatically and which
@@ -66,26 +65,26 @@ positions to the network:
     sumolib.files.additional.write(<DETECTORFILE>, detectors)
 ```
 
-The frequency of data aggregation for data collection is 60 sec as
+The period of data aggregation for data collection is 60 seconds by
 default. The default output file name is set as none. Detector type
-(source, sink, between) can also be given if it is available. En example
+(source, sink, between) can also be given if it is available. An example
 of the output file is shown below.
 
 ```
 <additional xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="http://sumo.dlr.de/xsd/additional_file.xsd">
-<e1Detector id=""det0"" lane="262667814#2.7_0" pos="80.2550814486" freq="60" file="NUL" friendlyPos="True"/>
-<e1Detector id=""det1"" lane="262667814#2.7_1" pos="90.2522181762" freq="60" file="NUL" friendlyPos="True"/>
-<e1Detector id=""det2"" lane="262667814#2.7_2" pos="91.6879752087" freq="60" file="NUL" friendlyPos="True"/>
+<e1Detector id=""det0"" lane="262667814#2.7_0" pos="80.2550814486" period="60" file="NUL" friendlyPos="True"/>
+<e1Detector id=""det1"" lane="262667814#2.7_1" pos="90.2522181762" period="60" file="NUL" friendlyPos="True"/>
+<e1Detector id=""det2"" lane="262667814#2.7_2" pos="91.6879752087" period="60" file="NUL" friendlyPos="True"/>
 </additional>
 ```
 
 Be aware to have the python rtree library installed if you are working
-with large networks. It will speed up the geometry lookups tremendously.
+with large networks, it will speed up the geometry lookups tremendously.
 Depending on the quality of your network and detector location data, you
 should probably not always choose the closest lane but also consider
 whether the number of lanes / the speed limit match your expectations.
 After the initial positioning you can load the file for fine tuning as
-an additional file into [netedit](../netedit.md).
+an additional file into [netedit](../Netedit/index.md).
 
 ### Processing input data
 
@@ -124,7 +123,7 @@ This script is based on the maximal flow theory and does flow routing
 similar to the [dfrouter](../dfrouter.md). Three mandatory input
 files are needed, i.e. the SUMO network (.net.xml) and two files, which
 specify detectors and flows respectively. The type of the detectors
-(source, sink, inbetween) can be detected by the script or read from the
+(source, sink, in between) can be detected by the script or read from the
 given detector file. As an example the script can be executed as
 
 ```
@@ -153,7 +152,7 @@ a XML schema definition
 
 ### Comparison of the detected and the estimated flows
 
-According to the above mentioned methods routes can be
+According to the aforementioned methods, routes can be
 estimated/generated with given detector data, and then used in the
 simulation for estimating edge flows. Two scripts can be used to check
 to what extent the estimated flows correspond to the detected flows for
@@ -169,9 +168,9 @@ executed as following:
 tools/detector/flowFromEdgeData.py -d detectors.det.xml -e edgeData.xml -f detector_flows.xml -c flow_column`
 ```
 
-, where detectors.det.xml mainly defines the relationship between
-detectors and edges; edgeData.xml is the aggregated output from SUMO;
-detector_flows.xml defines the detected flow data; the flow_column is
+, where `detectors.det.xml` mainly defines the relationship between
+detectors and edges; `edgeData.xml` is the aggregated output from SUMO;
+`detector_flows.xml` defines the detected flow data; the flow_column is
 the column, which contains flow data in the given detectors flow file. It
 is also possible to specify the analysis interval and the consideration
 of detectors without data. In addition to edge-based relative errors per
@@ -188,12 +187,12 @@ execution call is as following:
 tools/detector/flowFromRoutes.py -d detectors.det.xml -e emitters.flows.xml -f detector_flows.txt -r routes.rou.xml`
 ```
 
-, where emitters.flows.xml defines the route flows; detector_flows.txt
-defines the detected flow data; routes.rou.xml defines the edge
+, where `emitters.flows.xml` defines the route flows; `detector_flows.txt`
+defines the detected flow data; `routes.rou.xml` defines the edge
 composition of each route. There are options to define the analysis
 interval. In addition to the above mentioned outputs in the
 flowFromEdgeData.py it is also possible to get the GEH-statistics with
-use of the respective options --geh and --geh-treshold.
+use of the respective options **--geh** and **--geh-threshold**.
 
 ## Calibrating the data
 

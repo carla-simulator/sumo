@@ -1,7 +1,8 @@
 ---
-title: Z/Changes from Version 0.11.0 to Version 0.11.1
-permalink: /Z/Changes_from_Version_0.11.0_to_Version_0.11.1/
+title: Changes from Version 0.11.0 to Version 0.11.1
 ---
+
+**Release date: 23.11.2009**
 
 - All
   - configuration xml format changed again to `<section><key value="val"/></section>` (use {{SUMO}}/tools/10to11.py to convert from old to new
@@ -61,5 +62,5 @@ permalink: /Z/Changes_from_Version_0.11.0_to_Version_0.11.1/
 
 - od2trips
   - debugged problems with O/D matrices that have no comments, was:
-    [defect 148: od2trips breaks on matrices without comments](http://apps.sourceforge.net/trac/sumo/ticket/148);
+    [defect 148: od2trips breaks on matrices without comments](https://github.com/eclipse/sumo/issues/148);
     thanks to Wilson Wong for pointing us to it

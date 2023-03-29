@@ -1,6 +1,5 @@
 ---
-title: Tutorials/Hello World
-permalink: /Tutorials/Hello_World/
+title: Hello World
 ---
 
 !!! caution
@@ -8,7 +7,7 @@ permalink: /Tutorials/Hello_World/
 
 ## Requirements
 
-- [sumo-gui](../sumo-gui.md) and [netedit](../netedit.md) version ≥ 1.4.0
+- [sumo-gui](../sumo-gui.md) and [netedit](../Netedit/index.md) version ≥ 1.4.0
 
 ## Introduction
 
@@ -22,15 +21,15 @@ In order to perform a very basic simulation in SUMO, it is required to have at l
 - SUMO configuration file
 
 In SUMO a street network consists of nodes
-(junctions) and edges (streets connecting the junctions). In this tutorial we will use [netedit](../netedit.md) to create our basic net.
+(junctions) and edges (streets connecting the junctions). In this tutorial we will use [netedit](../Netedit/index.md) to create our basic net.
 
-Routes are defined by connecting edges and assigning Vehicles that pass through them. In this tutorial we will use [netedit](../netedit.md) to create this.
+Routes are defined by connecting edges and assigning vehicles that pass through them. In this tutorial we will use [netedit](../Netedit/index.md) to create this.
 
-The SUMO Configuration file is where certain options and all files (Network, Route, etc.) are being listed, so that SUMO can find and use them.
+The SUMO Configuration file is where certain options and all files (Network, Route, etc.) are listed, so that SUMO can find and use them.
 
 ## Creating the Network in netedit
 
-Open [netedit](../netedit.md) and create a new network by selecting *File-\>New Network* or using the shortcut `Ctrl + N`
+Open [netedit](../Netedit/index.md) and create a new network by selecting *File-\>New Network* or using the shortcut `Ctrl + N`
 
 
 Make sure that **Network** is selected.
@@ -41,7 +40,7 @@ In Edge Mode, make sure that ***Chain*** is selected (in newer versions, *Chain*
 
 ![](../images/neteditChainSelected.png)
 
-Nodes are created by clicking on empty spaces (when in Edge Mode). Insert 3 nodes (aka Junctions) by clicking on three different places at the white blank space.
+Nodes are created by clicking on empty spaces (when in Edge Mode). Insert 3 nodes (a.k.a Junctions) by clicking on three different places at the white blank space.
 After inserting the last Node, press <ESC\> to unselect that last node.
 
 ![](../images/HelloWorld_1.gif)
@@ -96,7 +95,7 @@ After selecting all the edges that will compose the desired route, click on *Cre
 ### Adding a Vehicle
 
 Finally, enter **Vehicle Mode** by selecting *Edit-\>Vehicle mode*, using the shortcut `V` or by clicking on the ![](../images/Vehicle.gif) button.
-To insert a Vehicle, just click on the beginning of the route. A car will appear. On the left side bar you can change the vehicle's attributes such as id and even the color (just for fun change it to blue).
+To insert a Vehicle, just click on the beginning of the route. A car will appear. On the left side bar you can change the vehicle's attributes such as id and even the color (just for fun, change it to blue).
 
 ![](../images/HelloWorld_4.gif)
 
@@ -123,7 +122,7 @@ Now you can close netedit if you wish.
 !!! note
     SUMO Configuration files have the following file extension -> **.sumocfg** (example: *myScenario.sumocfg*)
 
-Before starting the simulation, make sure that the Delay (![](../images/Delay.png)) is set to at least 80 ms, otherwise, the simulation would happen very fast and we would not be able to see our only vehicle in our tiny network.
+Before starting the simulation, make sure that the Delay (![](../images/Delay.png)) is set to at least 80 ms, as otherwise the simulation would happen very quickly and we would not be able to see our only vehicle in our tiny network.
 
 Click on Run ![](../images/Play.gif) (Ctrl + A) to start the simulation.
 
@@ -135,6 +134,6 @@ That's it! You have your first simulation scenario in SUMO :)
 
 ## Further Reading
 
-Do you want to do this exercise again, but using a text editor instead of the netedit graphic interface? Visit [this tutorial](../Tutorials/Hello_SUMO.md).
+Do you want to do this exercise again, but using a text editor instead of the netedit graphic interface? Visit [this tutorial](Hello_SUMO.md).
 
-More [Tutorials](../Tutorials.md).
+More [Tutorials](index.md).

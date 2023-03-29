@@ -1,6 +1,5 @@
 ---
 title: SUMO at a Glance
-permalink: /SUMO_at_a_Glance/
 ---
 
 ## About
@@ -12,13 +11,11 @@ moves through a given road network. The simulation allows to address a
 large set of traffic management topics. It is purely microscopic: each
 vehicle is modelled explicitly, has an own route, and moves individually
 through the network. Simulations are deterministic by default but there
-are various options for [introducing
-randomness](Simulation/Randomness.md).
+are various options for [introducing randomness](Simulation/Randomness.md).
 
 If you download the SUMO package, you will note that it contains further
 applications besides SUMO. These applications are used to import/prepare
-road networks and demand data for being used in SUMO, see [\#Included
-Applications](#included_applications) for a more verbose
+road networks and demand data for being used in SUMO, see [Included Applications](#included_applications) for a more verbose
 list.
 
 ## Features
@@ -49,7 +46,7 @@ simulation (network and routes import, DUA, simulation)
   - Only standard C++ and portable libraries are used
   - Packages for Windows main Linux distributions exist
 - High interoperability through usage of XML-data only
-- Open source ([EPL](https://eclipse.org/legal/epl-v20.html))
+- Open source ([EPL 2.0](https://eclipse.org/legal/epl-v20.html))
 
 ## Usage Examples
 
@@ -72,7 +69,7 @@ The package includes:
 | [sumo](sumo.md)                             | The microscopic simulation with no visualization; command line application                                         |
 | [sumo-gui](sumo-gui.md)                     | The microscopic simulation with a graphical user interface                                                        |
 | [netconvert](netconvert.md)                 | Network importer and generator; reads road networks from different formats and converts them into the SUMO-format   |
-| [netedit](netedit.md)                       | A graphical network editor.                                                                                  |
+| [netedit](Netedit/index.md)                       | A graphical network editor.                                                                                  |
 | [netgenerate](netgenerate.md)               | Generates abstract networks for the SUMO-simulation                    |
 | [duarouter](duarouter.md)                   | Computes the fastest routes through the network, importing different types of demand description. Performs the DUA      |
 | [jtrrouter](jtrrouter.md)                   | Computes routes using junction turning percentages                                                               |
@@ -83,10 +80,10 @@ The package includes:
 | [activitygen](activitygen.md)               | Generates a demand based on mobility wishes of a modeled population                                |
 | [emissionsMap](Tools/Emissions.md#emissionsmap)          | Generates an emission map                                                                   |
 | [emissionsDrivingCycle](Tools/Emissions.md#emissionsdrivingcycle) | Calculates emission values based on a given driving cycle                           |
-| [Additional Tools](Tools.md)           | There are some tasks for which writing a large application is not necessary. Several solutions for different problems may be covered by these tools.            |
+| [Additional Tools](Tools/index.md)           | There are some tasks for which writing a large application is not necessary. Several solutions for different problems may be covered by these tools.            |
 
 Several parties have extended the SUMO package during their work and
-submitted their code. These contributions are usually not tested and may be outdated. Find a list of all Contributions [here](Contributed.md).
+submitted their code. These contributions are usually not tested and may be outdated. Find a list of all Contributions [here](Contributed/index.md).
 
 ## History
 
@@ -107,7 +104,7 @@ Two major design goals are approached: the software shall be fast and it
 shall be portable. Due to this, the very first versions were developed
 to be run from the command line only - no graphical interface was
 supplied at first and all parameter had to be inserted by hand. This
-should increase the execution speed by leaving off slow visualisation.
+should increase the execution speed by leaving off slow visualization.
 Also, due to these goals, the software was split into several parts.
 Each of them has a certain purpose and must be run individually. This is
 something that makes SUMO different to other simulation packages where,
@@ -145,62 +142,51 @@ integrated approach by now.
 <img src="images/Dlr_small.gif" title="dlr_small.gif" alt="" />
 </figure></td>
 <td><p>Peter Wagner</p></td>
-<td><p>Models, organisation, spiritual lead</p></td>
+<td><p>Models, organization, spiritual lead</p></td>
 </tr>
 <tr class="odd">
 <td><p>Daniel Krajzewicz</p></td>
 <td><p>Everything</p></td>
-<td></td>
 </tr>
 <tr class="even">
 <td><p>Julia Ringel</p></td>
 <td><p>Traffic Light &amp; WAUT Algorithms</p></td>
-<td></td>
 </tr>
 <tr class="odd">
 <td><p>Eric Nicolay</p></td>
 <td><p>Everything</p></td>
-<td></td>
 </tr>
 <tr class="even">
 <td><p>Michael Behrisch</p></td>
 <td><p>Everything</p></td>
-<td></td>
 </tr>
 <tr class="odd">
 <td><p>Yun-Pang Wang</p></td>
 <td><p>User Assignment</p></td>
-<td></td>
 </tr>
 <tr class="even">
 <td><p>Danilot Teta Boyom</p></td>
 <td><p>Vehicular Communication Model (removed from the source)</p></td>
-<td></td>
 </tr>
 <tr class="odd">
 <td><p>Sascha Krieg</p></td>
-<td></td>
 <td></td>
 </tr>
 <tr class="even">
 <td><p>Lena Kalleske</p></td>
 <td></td>
-<td></td>
 </tr>
 <tr class="odd">
 <td><p>Laura Bieker</p></td>
 <td><p>Tests, Python scripts</p></td>
-<td></td>
 </tr>
 <tr class="even">
 <td><p>Jakob Erdmann</p></td>
-<td><p>network import, <a href="netedit.html" title="wikilink">netedit</a></p></td>
-<td></td>
+<td><p>network import, <a href="netedit/index.html">netedit</a></p></td>
 </tr>
 <tr class="odd">
 <td></td>
 <td><p>Andreas Gaubatz</p></td>
-<td></td>
 </tr>
 <tr class="even">
 <td></td>
@@ -215,12 +201,10 @@ integrated approach by now.
 <tr class="even">
 <td><p>Thimor Bohn</p></td>
 <td><p>TraCI</p></td>
-<td></td>
 </tr>
 <tr class="odd">
 <td><p>Friedemann Wesner</p></td>
 <td><p>TraCI</p></td>
-<td></td>
 </tr>
 <tr class="even">
 <td></td>
@@ -246,17 +230,14 @@ integrated approach by now.
 <tr class="odd">
 <td><p>David Eckhoff</p></td>
 <td><p>TraCI, deterministic simulation behavior</p></td>
-<td></td>
 </tr>
 <tr class="even">
 <td><p>Falko Dressler</p></td>
 <td><p>TraCI</p></td>
-<td></td>
 </tr>
 <tr class="odd">
 <td><p>Tobias Mayer</p></td>
 <td><p>Traffic model abstraction, IDM model port</p></td>
-<td></td>
 </tr>
 <tr class="even">
 <td><p>HU Berlin</p></td>
@@ -268,16 +249,14 @@ integrated approach by now.
 <img src="images/Tum-logo.png" title="tum-logo.png" alt="" />
 </figure></td>
 <td><p>Piotr Woznica</p></td>
-<td><p><a href="activitygen.html" title="wikilink">activitygen</a></p></td>
+<td><p><a href="activitygen.html">activitygen</a></p></td>
 </tr>
 <tr class="even">
 <td><p>Walter Bamberger</p></td>
-<td><p>Development of <a href="activitygen.html" title="wikilink">activitygen</a> as a base for the evaluation of trust scenarios in VANETs. The work is part of the project <a href="http://www.ldv.ei.tum.de/fidens/">Fidens: Trust between Cooperative Systems</a> featuring trusted probabilistic knowledge processing in vehicular networks.</p></td>
-<td></td>
+<td><p>Development of <a href="activitygen.html">activitygen</a> as a base for the evaluation of trust scenarios in VANETs. The work is part of the project <a href="http://www.ldv.ei.tum.de/fidens/">Fidens: Trust between Cooperative Systems</a> featuring trusted probabilistic knowledge processing in vehicular networks.</p></td>
 </tr>
 <tr class="odd">
 <td><p>Matthew Fullerton</p></td>
-<td></td>
 <td></td>
 </tr>
 <tr class="even">
@@ -295,7 +274,7 @@ integrated approach by now.
 <tr class="even">
 <td></td>
 <td><p>Leontios Papaleontiou</p></td>
-<td><p><a href="Contributed/SUMO_Traffic_Modeler.html" title="wikilink">Contributed/SUMO Traffic Modeler</a></p></td>
+<td><p><a href="Contributed/SUMO_Traffic_Modeler.html">Contributed/SUMO Traffic Modeler</a></p></td>
 </tr>
 <tr class="odd">
 <td><figure>
@@ -306,3 +285,5 @@ integrated approach by now.
 </tr>
 </tbody>
 </table>
+
+and many [other contributors]({{Source}}AUTHORS).

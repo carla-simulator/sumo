@@ -1,6 +1,5 @@
 ---
-title: Tutorials/Autobahn
-permalink: /Tutorials/Autobahn/
+title: Autobahn
 ---
 
 This tutorial covers the very basic elements for creating heterogeneous
@@ -12,8 +11,8 @@ flows on a multi-lane highway and modifying and saving view settings.
 
 Editing geometry points
 
-Open [netedit](../netedit.md) to
-create a fictional highway. We keep this very simplistic for the start
+Open [netedit](../Netedit/index.md) to
+create a fictional highway. We keep this very simplistic to start
 and consider a segment without on- or off-ramps. Enter the edge creation
 mode by pressing `e` and create an edge that is a few kilometers long.
 <b>Hint</b>: you can start with a long straight edge and then change to
@@ -44,8 +43,8 @@ All of these should in themselves have a certain heterogeneity that can
 be achieved in a simple way by giving the corresponding `vType`-element
 an attribute `speedDev` (see [Speed
 Distributions](../Definition_of_Vehicles,_Vehicle_Types,_and_Routes.md#speed_distributions)).
-We will use this approach here but for more sophisticated realizations
-of vehicle variability we recommend the script
+We will use this approach here, but for more sophisticated realizations
+of vehicle variability, we recommend using the script
 `createVehTypeDistribution.py` in the {{SUMO}}/tools directory.
 
 Create a routes-file `autobahn.rou.xml` with the following content:
@@ -54,12 +53,12 @@ Create a routes-file `autobahn.rou.xml` with the following content:
 <routes>
     <vType id="normal_car" vClass="passenger" maxSpeed="40" speedFactor="0.9" speedDev="0.2" sigma="0.5" />
     <vType id="sporty_car" vClass="passenger" maxSpeed="60" speedFactor="1.3" speedDev="0.1" sigma="0.1" />
-    <vType id="trailer" vClass="trailer"  maxSpeed="30" speedFactor="1.1" speedDev="0.1" />
-    <vType id="coach" vClass="coach"  maxSpeed="30" speedFactor="1." speedDev="0.1" />
-    <flow id="normal" type="normal_car" begin="0" end="5000" number="5000" from="entry" to="exit" departPos="last" departLane="best" />
-    <flow id="sporty" type="sporty_car" begin="0" end="5000" number="300" from="entry" to="exit" departPos="last" departLane="best" />
-    <flow id="coach" type="coach" begin="0" end="5000" number="300" from="entry" to="exit" departPos="last" departLane="best" />
-    <flow id="trailer" type="trailer" begin="0" end="5000" number="700" from="entry" to="exit" departPos="last" departLane="best" />
+    <vType id="trailer" vClass="trailer"  maxSpeed="30" speedFactor="1" speedDev="0.05" />
+    <vType id="coach" vClass="coach"  maxSpeed="30" speedFactor="1" speedDev="0.05" />
+    <flow id="normal" type="normal_car" begin="0" end="5000" number="5000" from="entry" to="exit" departSpeed="avg" departLane="best" />
+    <flow id="sporty" type="sporty_car" begin="0" end="5000" number="300" from="entry" to="exit" departSpeed="avg" departLane="best" />
+    <flow id="coach" type="coach" begin="0" end="5000" number="300" from="entry" to="exit" departSpeed="avg" departLane="best" />
+    <flow id="trailer" type="trailer" begin="0" end="5000" number="700" from="entry" to="exit" departSpeed="avg" departLane="best" />
 </routes>
 ```
 
@@ -110,4 +109,4 @@ settings by adding a `<gui-settings-file ... />`-element:
 If you now restart SUMO with the configuration, it will automatically
 load the view settings stored in `autobahn.view.xml`.
 
-Back to [Tutorials](../Tutorials.md).
+Back to [Tutorials](index.md).

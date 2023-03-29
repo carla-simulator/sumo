@@ -1,0 +1,16 @@
+Error: Attribute 'triggered' in definition of a stop is empty.
+Error: Attribute 'triggered' in definition of a stop is empty.
+Error: Attribute 'triggered' in definition of a stop is empty.
+Error: Attribute 'triggered' in definition of a stop is empty.
+Warning: Teleporting vehicle 'flow_3.0'; waited too long (wrong lane), lane='gneE0_0', time=315.00.
+Warning: Vehicle 'flow_3.0' skips stop on lane 'gneE0_0' time=315.00.
+Warning: Vehicle 'flow_3.0' ends teleporting on edge 'gneE1', time=315.00.
+Warning: Teleporting vehicle 'flow_4.0'; waited too long (wrong lane), lane='gneE0_0', time=616.00.
+Warning: Vehicle 'flow_4.0' skips stop on lane 'gneE0_0' time=616.00.
+Warning: Vehicle 'flow_4.0' ends teleporting on edge 'gneE1', time=616.00.
+Warning: Teleporting vehicle 'flow_5.0'; waited too long (wrong lane), lane='gneE0_0', time=917.00.
+Warning: Vehicle 'flow_5.0' skips stop on lane 'gneE0_0' time=917.00.
+Warning: Vehicle 'flow_5.0' ends teleporting on edge 'gneE1', time=917.00.
+Warning: Teleporting vehicle 'flow_0.1'; waited too long (wrong lane), lane='gneE0_0', time=1218.00.
+Warning: Vehicle 'flow_0.1' skips stop on lane 'gneE0_0' time=1218.00.
+Warning: Vehicle 'flow_0.1' ends teleporting on edge 'gneE1', time=1218.00.

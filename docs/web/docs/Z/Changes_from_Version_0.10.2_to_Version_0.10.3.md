@@ -1,11 +1,12 @@
 ---
-title: Z/Changes from Version 0.10.2 to Version 0.10.3
-permalink: /Z/Changes_from_Version_0.10.2_to_Version_0.10.3/
+title: Changes from Version 0.10.2 to Version 0.10.3
 ---
+
+**Release date: 30.03.2009**
 
 - All
   - A daily build for windows is available at:
-    <http://sumo.sf.net/daily/sumo-msvc8-bin.zip>
+    <https://sumo.dlr.de/docs/Downloads.php#nightly_snapshots>
   - Made tests tolerant for floating point inprecision
   - First Unit Tests added by Matthias Heppner (thanks\!\!)
   - Xerces 3 may now be used optionally

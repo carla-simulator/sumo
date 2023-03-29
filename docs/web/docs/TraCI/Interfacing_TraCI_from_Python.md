@@ -1,6 +1,5 @@
 ---
-title: TraCI/Interfacing TraCI from Python
-permalink: /TraCI/Interfacing_TraCI_from_Python/
+title: Interfacing TraCI from Python
 ---
 
 The [TraCI](../TraCI.md#traci_commands) commands are split into the
@@ -9,7 +8,7 @@ inductionloop, junction, multientryexit, polygon, route, person and
 vehicle, which correspond to individual modules. For a detailed list of
 available functions see the [pydoc generated documentation](https://sumo.dlr.de/pydoc/traci.html). The source code
 can be found at
-[\[1\]](https://github.com/eclipse/sumo/tree/master/tools/traci)
+[\[1\]](https://github.com/eclipse/sumo/tree/main/tools/traci)
 
 ## importing **traci** in a script
 
@@ -66,8 +65,8 @@ traci.close()
 
 After connecting to the simulation, you can emit various commands and
 execute simulation steps until you want to finish by closing the
-connection. by default the close command will wait until the sumo
-process really finishes. You can disable this by calling
+connection. By default, the close command will wait until the sumo
+process really finishes. You can disable this by calling:
 
 ```
 traci.close(False)
@@ -179,6 +178,9 @@ See the [pydoc
 documentation](http://sumo.dlr.de/daily/pydoc/traci._vehicle.html#VehicleDomain-addSubscriptionFilterCFManeuver)
 for detailed specifications.
 
+!!! caution
+    The filter only takes effect in subsequent simulation steps. The vehicle values returned directly after issuing the subscription are not affected.
+
 ## Adding a StepListener
 
 Often a function needs to be called each time when
@@ -215,12 +217,16 @@ different simulation instances and labels. The function *traci.switch()*
 can then be used to switch to any of the initialized labels:
 
 ```
- traci.start(["sumo", "-c", "sim1.sumocfg"], label="sim1")
+ traci.start(["sumo", "-c", "sim1.sumocfg"], label="sim1")
  traci.start(["sumo", "-c", "sim2.sumocfg"], label="sim2")
  traci.switch("sim1")
  traci.simulationStep() # run 1 step for sim1
  traci.switch("sim2")
- traci.simulationStep() # run 1 step for sim2
+ traci.simulationStep() # run 1 step for sim2 
+ traci.switch("sim1")
+ traci.close()
+ traci.switch("sim2")
+ traci.close()
 ```
 
 If you prefer a more object oriented approach you can also use
@@ -343,6 +349,19 @@ When calling `traci.start([<commands>], traceFile=<LOG_FILE_PATH>)` all traci co
 This allows re-running the scenario without the original runner script.
 When option `traceGetters=False` is set, only functions that change the simulation state are included in the log file. Functions that retrieve simulation data are technically not needed to reproduce a scenario but it may be useful to include them if the data retrieval functions are themselves the cause of a bug.
 
+!!! caution
+    Avoid running the simulation with option **--random** since this will most likely prevent your traceFile from being repeated
+
+### Determine why the TraCI client cannot connect
+
+Possibly, the arguments given to `traci.start` generated an error when launching SUMO. This will manifest as
+
+`traci.exceptions.FatalTraCIError: Could not connect.`
+
+To diagnose the problem, add options for writing a log file `traci.start` (i.e. `traci.start(['sumo', '-c', 'example.sumocfg', '--log', 'logfile.txt'])`
+After the script fails to start, look into the written logfile and fix the error reported therein.
+
+
 ## Usage Examples
 
 ### Run a simulation until all vehicles have arrived
@@ -386,17 +405,20 @@ time of departure. For details of this mechanism see
 
 ### Retrieve the timeLoss for all vehicles currently in the network
 
-import traci import traci.constants as tc junctionID = '...'
-
-1.  subscribe around an aribtrary junction with a sufficiently large
-    radius to retrieve the speeds of all vehicles in every step
-
-traci.junction.subscribeContext(junctionID,
-tc.CMD_GET_VEHICLE_VARIABLE, 1000000, \[tc.VAR_SPEED,
-tc.VAR_ALLOWED_SPEED\]) stepLength = traci.simulation.getDeltaT()
-while traci.simulation.getMinExpectedNumber() \> 0:
-
 ```
+import traci
+import traci.constants as tc
+traci.start(["sumo", "-c", "my.sumocfg"])
+# pick an arbitrary junction
+junctionID = traci.junction.getIDList()[0]
+# subscribe around that junction with a sufficiently large
+# radius to retrieve the speeds of all vehicles in every step
+traci.junction.subscribeContext(
+    junctionID, tc.CMD_GET_VEHICLE_VARIABLE, 1000000, 
+    [tc.VAR_SPEED, tc.VAR_ALLOWED_SPEED]
+) 
+stepLength = traci.simulation.getDeltaT()
+while traci.simulation.getMinExpectedNumber() > 0:
    traci.simulationStep()
    scResults = traci.junction.getContextSubscriptionResults(junctionID)
    halting = 0
@@ -408,9 +430,20 @@ while traci.simulation.getMinExpectedNumber() \> 0:
        meanSpeedRelative = sum(relSpeeds) / running
        timeLoss = (1 - meanSpeedRelative) * running * stepLength
    print(traci.simulation.getTime(), timeLoss, halting)
+traci.close()
 ```
 
-traci.close()
+### Handling Exceptions
+
+Sometimes commands raise an (recoverable) exception to indicate an error (unknown id, route not found etc.). These exceptions
+can be handled by your code as follows:
+
+```
+try:
+    pos = traci.vehicle.getPosition(vehID)
+except traci.TraCIException:
+    pass # or do something smarter
+```    
 
 ## Further Resources
 

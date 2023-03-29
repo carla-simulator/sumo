@@ -1,6 +1,5 @@
 ---
-title: Tutorials/CityMobil
-permalink: /Tutorials/CityMobil_old/
+title: CityMobil (old)
 ---
 
 The *city_mobil* subdirectory in {{SUMO}}/docs/tutorial contains the setup for

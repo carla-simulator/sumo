@@ -1,6 +1,6 @@
 /****************************************************************************/
 // Eclipse SUMO, Simulation of Urban MObility; see https://eclipse.org/sumo
-// Copyright (C) 2001-2020 German Aerospace Center (DLR) and others.
+// Copyright (C) 2001-2023 German Aerospace Center (DLR) and others.
 // This program and the accompanying materials are made available under the
 // terms of the Eclipse Public License 2.0 which is available at
 // https://www.eclipse.org/legal/epl-2.0/
@@ -145,11 +145,14 @@ protected:
     /// @brief Ends the processing of a person
     virtual void closePerson() = 0;
 
-    /// @brief Ends the processing of a person
+    /// @brief Ends the processing of a person flow
     virtual void closePersonFlow() = 0;
 
     /// @brief Ends the processing of a container
     virtual void closeContainer() = 0;
+
+    /// @brief Ends the processing of a container flow
+    virtual void closeContainerFlow() = 0;
 
     /// @brief Ends the processing of a flow
     virtual void closeFlow() = 0;
@@ -173,11 +176,11 @@ protected:
     /// @brief Processing of a person
     virtual void addPerson(const SUMOSAXAttributes& attrs) = 0;
 
-    /// @brief Processing of a container
-    virtual void addContainer(const SUMOSAXAttributes& attrs) = 0;
-
     /// @brief Processing of a ride
     virtual void addRide(const SUMOSAXAttributes& attrs) = 0;
+
+    /// @brief Processing of a container
+    virtual void addContainer(const SUMOSAXAttributes& attrs) = 0;
 
     /// @brief Processing of a transport
     virtual void addTransport(const SUMOSAXAttributes& attrs) = 0;
@@ -188,7 +191,7 @@ protected:
     //@}
 
     /// @brief Checks whether the route file is sorted by departure time if needed
-    bool checkLastDepart();
+    virtual bool checkLastDepart();
 
     /// @brief save last depart (only to be used if vehicle is not discarded)
     void registerLastDepart();
@@ -247,6 +250,9 @@ protected:
 
     /// @brief where stop edges can be inserted into the current route (-1 means no insertion)
     int myInsertStopEdgesAt;
+
+    /// @brief hierachy of elements being parsed
+    std::vector<int> myElementStack;
 
 private:
     /// @brief Invalidated copy constructor

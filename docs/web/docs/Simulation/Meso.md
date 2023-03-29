@@ -1,6 +1,5 @@
 ---
-title: Simulation/Meso
-permalink: /Simulation/Meso/
+title: Meso
 ---
 
 # From 30.000 feet
@@ -49,6 +48,7 @@ Only a few vType parameters affect the mesoscopic simulation. They are listed be
 - speedFactor, speedDev (see [Further Congestion Effects](#further_congestion_effects))
 - [impatience](#impatience)
 - accel,decel (only for computing junction passing time when the [microscopic junction model](#junction_model) is active)
+- tau
 
 ## Longitudinal Model
 
@@ -73,17 +73,19 @@ differently for each of the four distinct possible cases. The behavior
 for each case is configured using the options
 
 - **meso-tauff**: minimum headway when traveling from free segment to
-  free segment
+  free segment (default *1.13*)
 - **meso-taufj**: minimum headway when traveling from free segment to
-  jammed segment
+  jammed segment (default *1.13*)
 - **meso-taujf**: minimum headway when traveling from jammed segment
-  to free segment
+  to free segment (default *1.73*)
 - **meso-taujj**: headway for 'spaces' to travel backwards through the
   jam. When a segment is completely occupied the actual headway is
-  VEHICLE_NUMBER \* taujj.
+  VEHICLE_NUMBER \* taujj. (default *1.4*)
 
 The headways are scaled according to the inverse of the lane number
 (with three lanes, the headways are divided by 3).
+
+Each of these values is multiplied with the 'tau' configure in the vehicle type (`vType`) of the considered vehicle (default 'tau' is *1*).
 
 !!! note
     The values tauff, taufj and taujf denote net-time gaps (vehicle front bumper to leader back-bumper). The actual gross time gap is computed from this by taking into account the vehicle length.
@@ -98,7 +100,7 @@ meso-tauff is lower than meso-taujf.
 
 For each queue (also called segment in the GUI) an occupancy threshold
 value determines whether that queue is *jammed* or *free*. The following
-numerical values are supported for option **--meso-jam-treshold** {{DT_FLOAT}}:
+numerical values are supported for option **--meso-jam-threshold** {{DT_FLOAT}}:
 
 - value = -1: Threshold is computed so that vehicles driving at the
   speed limit do not jam. This is the default behavior which is
@@ -137,7 +139,7 @@ randomized process depending on vehicle speeds and density.
 There are 3 basic options for modelling junction control
 
 1. **--meso-junction-control false** (the default): No junction control takes place. This should only be
-    used for motorway scenarios.
+    used for motorway scenarios or in combination with the penalty options below
 
 2. **--meso-junction-control true**: junctions are modeled as in the [simplified microsim model](../Simulation/Intersections.md#internal_links) (**--no-internal-links true**).
 
@@ -176,7 +178,7 @@ greenFraction = MIN2(1.0, (cycleTime - redDuration) / cycleTime) / penalty))
 headway = defaultHeadway / greenFraction
 ```
 
-Note, that the maximum flow cannot exceed the value at permenant green light regardless of penalty value.
+Note, that the maximum flow cannot exceed the value at permanent green light regardless of penalty value.
 
 ### Penalty at uncontrolled intersections
 
@@ -212,7 +214,7 @@ differ somewhat:
     will be treated like `<edgeData>`-output.
   - [netstate-dump](../Simulation/Output/RawDump.md) will
     report vehicles as child elements of `<edge>` instead of `<lane>`.
-- Induction loops write attributes that are similar to meanData output
+- Induction loops write attributes that are similar to [`<edgeData>`-output](../Simulation/Output/Lane-_or_Edge-based_Traffic_Measures.md) output
 
 The following outputs are not supported:
 
@@ -223,7 +225,7 @@ The following outputs are not supported:
 
 The following SUMO features are not supported:
 
-- TraCI (planned for the future)
+- [Actuated traffic lights](Traffic_Lights.md#actuated_traffic_lights)
 - Electric model
 - Wireless model
 - Opposite-direction driving

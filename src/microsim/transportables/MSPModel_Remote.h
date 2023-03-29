@@ -1,6 +1,6 @@
 /****************************************************************************/
 // Eclipse SUMO, Simulation of Urban MObility; see https://eclipse.org/sumo
-// Copyright (C) 2014-2020 German Aerospace Center (DLR) and others.
+// Copyright (C) 2014-2023 German Aerospace Center (DLR) and others.
 // This program and the accompanying materials are made available under the
 // terms of the Eclipse Public License 2.0 which is available at
 // https://www.eclipse.org/legal/epl-2.0/
@@ -18,6 +18,7 @@
 // The pedestrian following model for remote controlled pedestrian movement
 /****************************************************************************/
 #pragma once
+#include <config.h>
 
 #include <utils/options/OptionsCont.h>
 #include <microsim/MSNet.h>
@@ -58,6 +59,9 @@ public:
         return (int)remoteIdPStateMapping.size();
     }
 
+    /// @brief Resets pedestrians when quick-loading state
+    void clearState();
+
 private:
     /**
     * @class PState
@@ -68,6 +72,7 @@ private:
         PState(MSPerson* person, MSStageMoving* stage);
         ~PState() override;
         double getEdgePos(const MSStageMoving& stage, SUMOTime now) const override;
+        int getDirection(const MSStageMoving& stage, SUMOTime now) const override;
         Position getPosition(const MSStageMoving& stage, SUMOTime now) const override;
         double getAngle(const MSStageMoving& stage, SUMOTime now) const override;
         SUMOTime getWaitingTime(const MSStageMoving& stage, SUMOTime now) const override;

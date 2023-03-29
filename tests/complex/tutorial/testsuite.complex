@@ -1,4 +1,5 @@
 city_mobil
+traci_taxi
 hello
 quickstart
 circles
@@ -8,3 +9,6 @@ sumolympics
 manhattan
 traci_tls
 traci_pedestrian_crossing
+
+# public transport scenario using different ways to define a repeating schedule
+public_transport

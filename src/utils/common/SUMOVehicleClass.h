@@ -1,6 +1,6 @@
 /****************************************************************************/
 // Eclipse SUMO, Simulation of Urban MObility; see https://eclipse.org/sumo
-// Copyright (C) 2001-2020 German Aerospace Center (DLR) and others.
+// Copyright (C) 2001-2023 German Aerospace Center (DLR) and others.
 // This program and the accompanying materials are made available under the
 // terms of the Eclipse Public License 2.0 which is available at
 // https://www.eclipse.org/legal/epl-2.0/
@@ -22,6 +22,7 @@
 // Definitions of SUMO vehicle classes and helper functions
 /****************************************************************************/
 #pragma once
+#include <config.h>
 #include <string>
 #include <set>
 #include <limits>
@@ -42,67 +43,73 @@ class SUMOSAXAttributes;
 // ===========================================================================
 /**
  * @enum SUMOVehicleShape
- * @brief Definition of vehicle classes to differ between different appearences
+ * @brief Definition of vehicle classes to differ between different appearances
  */
-enum SUMOVehicleShape {
+enum class SUMOVehicleShape {
     /// @brief not defined
-    SVS_UNKNOWN,
+    UNKNOWN,
     /// @brief render as a pedestrian
-    SVS_PEDESTRIAN,
+    PEDESTRIAN,
     /// @brief render as a bicycle
-    SVS_BICYCLE,
+    BICYCLE,
     /// @brief render as a moped
-    SVS_MOPED,
+    MOPED,
     /// @brief render as a motorcycle
-    SVS_MOTORCYCLE,
+    MOTORCYCLE,
     /// @brief render as a passenger vehicle
-    SVS_PASSENGER,
+    PASSENGER,
     /// @brief render as a sedan passenger vehicle ("Stufenheck")
-    SVS_PASSENGER_SEDAN,
+    PASSENGER_SEDAN,
     /// @brief render as a hatchback passenger vehicle ("Fliessheck")
-    SVS_PASSENGER_HATCHBACK,
+    PASSENGER_HATCHBACK,
     /// @brief render as a wagon passenger vehicle ("Combi")
-    SVS_PASSENGER_WAGON,
+    PASSENGER_WAGON,
     /// @brief render as a van
-    SVS_PASSENGER_VAN,
+    PASSENGER_VAN,
     /// @brief automated car (with cruise controllers)
-    //SVS_PASSENGER_AUTOMATED,
+    //PASSENGER_AUTOMATED,
+    /// @brief render as a taxi
+    TAXI,
     /// @brief render as a delivery vehicle
-    SVS_DELIVERY,
+    DELIVERY,
     /// @brief render as a transport vehicle
-    SVS_TRUCK,
+    TRUCK,
     /// @brief render as a semi-trailer transport vehicle ("Sattelschlepper")
-    SVS_TRUCK_SEMITRAILER,
+    TRUCK_SEMITRAILER,
     /// @brief render as a transport vehicle with one trailer
-    SVS_TRUCK_1TRAILER,
+    TRUCK_1TRAILER,
     /// @brief render as a bus
-    SVS_BUS,
+    BUS,
     /// @brief render as a coach
-    SVS_BUS_COACH,
+    BUS_COACH,
     /// @brief render as a flexible city bus
-    SVS_BUS_FLEXIBLE,
+    BUS_FLEXIBLE,
     /// @brief render as a trolley bus
-    SVS_BUS_TROLLEY,
+    BUS_TROLLEY,
     /// @brief render as a rail
-    SVS_RAIL,
+    RAIL,
     /// @brief render as a (city) rail without locomotive
-    SVS_RAIL_CAR,
+    RAIL_CAR,
     /// @brief render as a cargo train
-    SVS_RAIL_CARGO,
+    RAIL_CARGO,
     /// @brief render as a (futuristic) e-vehicle
-    SVS_E_VEHICLE,
+    E_VEHICLE,
     /// @brief render as a giant ant
-    SVS_ANT,
+    ANT,
     /// @brief render as a arbitrary ship
-    SVS_SHIP,
+    SHIP,
     /// @brief render as an emergency vehicle
-    SVS_EMERGENCY,
+    EMERGENCY,
     /// @brief render as a fire brigade
-    SVS_FIREBRIGADE,
+    FIREBRIGADE,
     /// @brief render as a police car
-    SVS_POLICE,
+    POLICE,
     /// @brief render as a rickshaw
-    SVS_RICKSHAW
+    RICKSHAW,
+    /// @brief render as a scooter
+    SCOOTER,
+    /// @brief render as aircraft
+    AIRCRAFT
 };
 
 
@@ -199,6 +206,8 @@ enum SUMOVehicleClass {
 
     /// @brief classes which drive on tracks
     SVC_RAIL_CLASSES = SVC_RAIL_ELECTRIC | SVC_RAIL_FAST | SVC_RAIL | SVC_RAIL_URBAN | SVC_TRAM,
+    /// @brief public transport
+    SVC_PUBLIC_CLASSES = SVC_BUS | SVC_RAIL_CLASSES,
     /// @brief classes which drive on roads
     SVC_ROAD_CLASSES = (SVC_PEDESTRIAN | SVC_PASSENGER | SVC_HOV | SVC_TAXI | SVC_BUS | SVC_COACH | SVC_DELIVERY
                         | SVC_TRUCK | SVC_TRAILER | SVC_MOTORCYCLE | SVC_MOPED | SVC_BICYCLE | SVC_E_VEHICLE),
@@ -227,6 +236,57 @@ extern const SVCPermissions SVC_UNSPECIFIED;
  */
 typedef int SUMOEmissionClass;
 
+// ===========================================================================
+// Stop Offsets
+// ===========================================================================
+
+/// @brief stop offset
+class StopOffset {
+
+public:
+    /// @brief constructor
+    StopOffset();
+
+    /// @brief constructor (parser)
+    StopOffset(const SUMOSAXAttributes& attrs, bool& ok);
+
+    /// @brief check if stopOffset was defined
+    bool isDefined() const;
+
+    /// @brief reset stopOffset
+    void reset();
+
+    /// @brief get permissions
+    SVCPermissions getPermissions() const;
+
+    /// @brief get exceptions (used in netedit)
+    std::string getExceptions() const;
+
+    /// @brief get offset
+    double getOffset() const;
+
+    /// @brief update permissions
+    void setPermissions(const SVCPermissions permissions);
+
+    /// @brief set exceptions (used in netedit)
+    void setExceptions(const std::string permissions);
+
+    /// @brief set offset
+    void setOffset(const double offset);
+
+    /// @brief comparator
+    bool operator==(StopOffset const& other) const;
+
+    /// @brief comparator
+    bool operator!=(StopOffset const& other) const;
+
+private:
+    /// @brief permissions (allowed)
+    SVCPermissions myPermissions;
+
+    /// @brief offset
+    double myOffset;
+};
 
 // ===========================================================================
 // method declarations
@@ -235,6 +295,7 @@ typedef int SUMOEmissionClass;
 // ---------------------------------------------------------------------------
 // abstract vehicle class / purpose
 // ---------------------------------------------------------------------------
+
 /** @brief Returns the ids of the given classes, divided using a ' '
  * @param[in] the permissions to encode
  * @param[in] expand whether 'all' should be used
@@ -277,9 +338,9 @@ extern bool canParseVehicleClasses(const std::string& classes);
  * @param[in] allowedS Definition which classes are allowed
  * @param[in] disallowedS Definition which classes are not allowed
  */
-extern SVCPermissions parseVehicleClasses(const std::string& allowedS, const std::string& disallowedS, double networkVersion = NETWORK_VERSION);
+extern SVCPermissions parseVehicleClasses(const std::string& allowedS, const std::string& disallowedS, const MMVersion& networkVersion = NETWORK_VERSION);
 
-/** @brief Encodes the given vector of allowed classs into a bitset
+/** @brief Encodes the given vector of allowed class into a bitset
  * Unlike the methods which parse a string it gives immediately a warning output on deprecated vehicle classes.
  * @param[in] classesS The names vector to parse
  */
@@ -294,12 +355,10 @@ extern void writePermissions(OutputDevice& into, SVCPermissions permissions);
 /// @brief writes allowed disallowed attributes if needed;
 extern void writePreferences(OutputDevice& into, SVCPermissions preferred);
 
-/// @brief Extract stopOffsets from attributes of stopOffset element
-extern std::map<SVCPermissions, double> parseStopOffsets(const SUMOSAXAttributes& attrs, bool& ok);
-
 // ---------------------------------------------------------------------------
 // vehicle shape class
 // ---------------------------------------------------------------------------
+
 /** @brief Returns the class name of the shape class given by its id
  * @param[in] id The id of the shape class
  * @return The string representation of this class
@@ -320,6 +379,18 @@ extern bool canParseVehicleShape(const std::string& shape);
  * @return Whether the edge is a railway edge
  */
 extern bool isRailway(SVCPermissions permissions);
+
+/** @brief Returns whether an edge with the given permission is a tram edge
+ * @param[in] permissions The permissions of the edge
+ * @return Whether the edge is a tram edge
+ */
+extern bool isTram(SVCPermissions permissions);
+
+/** @brief Returns whether an edge with the given permission is a bicycle edge
+ * @param[in] permissions The permissions of the edge
+ * @return Whether the edge is a bicycle edge
+ */
+extern bool isBikepath(SVCPermissions permissions);
 
 /** @brief Returns whether an edge with the given permission is a waterway edge
  * @param[in] permissions The permissions of the edge
@@ -360,9 +431,11 @@ extern const std::string DEFAULT_PEDTYPE_ID;
 extern const std::string DEFAULT_BIKETYPE_ID;
 extern const std::string DEFAULT_CONTAINERTYPE_ID;
 extern const std::string DEFAULT_TAXITYPE_ID;
+extern const std::set<std::string> DEFAULT_VTYPES;
 
 extern const double DEFAULT_VEH_PROB; // !!! does this belong here?
 
 extern const double DEFAULT_PEDESTRIAN_SPEED;
+extern const double DEFAULT_BICYCLE_SPEED;
 
 extern const double DEFAULT_CONTAINER_TRANSHIP_SPEED;

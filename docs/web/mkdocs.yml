@@ -1,24 +1,22 @@
 site_name: SUMO Documentation
 site_url: https://sumo.dlr.de/docs/
-site_favicon: favicon.ico
 repo_url: https://github.com/eclipse/sumo/
-edit_uri: edit/master/docs/web/docs/
+edit_uri: edit/main/docs/web/docs/
 site_description: SUMO Documentation
 use_directory_urls: false
 dev_addr: 127.0.0.1:8000
 #docs_dir: docs
 #site_dir: site
-copyright: "Copyright &copy; 2001 - 2020 German Aerospace Center (DLR) and others."
+copyright: "Copyright &copy; 2001-2023 German Aerospace Center (DLR) and others."
 
 nav:
   - Documentation: index.md
-  - Tutorials: Tutorials.md
+  - Tutorials: Tutorials/index.md
   - FAQ: FAQ.md
   - Downloads: Downloads.md
   - Publications: Publications.md
-  - Developer: Developer/Main.md
+  - Developer: Developer/index.md
   - ChangeLog: ChangeLog.md
-  - Recent Changes: https://github.com/eclipse/sumo/commits/master/docs/web
   - Contact: https://eclipse.org/sumo/contact/
 
 theme:
@@ -33,8 +31,12 @@ plugins:
   - git-revision-date:
       as_datetime: true
   - macros
+  #- redirects:
+      #redirect_maps:
+          #"Z/index.md" : "ChangeLog.md"
 
 markdown_extensions:
+  - attr_list
   - admonition
   - pymdownx.tilde
   - meta
@@ -55,10 +57,11 @@ markdown_extensions:
       user: eclipse
       repo: sumo
   - plantuml_markdown
+  - codehilite
 
 extra:
-    Version: 1.8.0
-    ReleaseDate: 02.12.2020
+    Version: 1.16.0
+    ReleaseDate: 07.02.2023
 
     AdditionalFile: '[*additional-file*](/docs/sumo.html#format_of_additional_files)'
     AdditionalFiles: '[*additional-files*](/docs/sumo.html#format_of_additional_files)'
@@ -77,6 +80,6 @@ extra:
     DT_STR: '[*&lt;STRING&gt;*](/docs/Basics/Notation.html#referenced_data_types)'
     DT_TIME: '[*&lt;TIME&gt;*](/docs/Basics/Notation.html#referenced_data_types)'
     Outdated: '<div style="background: #801010; padding: .5em; border: 1px dashed #ffcc44; margin-right:10px; margin-left:10px; color: #ffffff">This information is outdated.</div>'
-    Source: 'https://github.com/eclipse/sumo/blob/master/'
+    Source: 'https://github.com/eclipse/sumo/blob/main/'
     SUMO: '***&lt;SUMO_HOME&gt;***'
     SUMOUSERConference: '[SUMO User Conference](https://eclipse.org/sumo/conference)'

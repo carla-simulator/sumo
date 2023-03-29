@@ -1,6 +1,6 @@
 /****************************************************************************/
 // Eclipse SUMO, Simulation of Urban MObility; see https://eclipse.org/sumo
-// Copyright (C) 2013-2020 German Aerospace Center (DLR) and others.
+// Copyright (C) 2013-2023 German Aerospace Center (DLR) and others.
 // This program and the accompanying materials are made available under the
 // terms of the Eclipse Public License 2.0 which is available at
 // https://www.eclipse.org/legal/epl-2.0/
@@ -15,6 +15,7 @@
 /// @author  Daniel Krajzewicz
 /// @author  Jakob Erdmann
 /// @author  Leonhard Luecken
+/// @author  Mirko Barthauer
 /// @date    11.06.2013
 ///
 // An SSM-device logs encounters / conflicts of the carrying vehicle with other surrounding vehicles.
@@ -175,6 +176,10 @@ private:
         struct Trajectory {
             // positions
             PositionVector x;
+            // lane IDs
+            std::vector<std::string> lane;
+            // lane positions
+            std::vector<double> lanePos;
             // momentary speeds
             PositionVector v;
         };
@@ -203,7 +208,8 @@ private:
         ~Encounter();
 
         /// @brief add a new data point and update encounter type
-        void add(double time, EncounterType type, Position egoX, Position egoV, Position foeX, Position foeV,
+        void add(double time, EncounterType type, Position egoX, std::string egoLane, double egoLanePos,
+                 Position egoV, Position foeX, std::string foeLane, double foeLanePos, Position foeV,
                  Position conflictPoint, double egoDistToConflict, double foeDistToConflict, double ttc, double drac, std::pair<double, double> pet);
 
         /// @brief Returns the number of trajectory points stored
@@ -376,6 +382,11 @@ public:
      */
     static const std::set<MSDevice_SSM*, ComparatorNumericalIdLess>& getInstances();
 
+    /// @brief return the edges where the SSM device should scan
+    static const std::set<const MSEdge*>& getEdgeFilter() {
+        return myEdgeFilter;
+    }
+
     /** @brief This is called once per time step in MSNet::writeOutput() and
      *         collects the surrounding vehicles, updates information on encounters
      *         and flushes the encounters qualified as conflicts (@see thresholds)
@@ -498,9 +509,11 @@ private:
      * @param range Detection range. For vehicles closer than this distance from the ego vehicle, SSMs are traced
      * @param extraTime Extra time in seconds to be logged after a conflict is over
      * @param useGeoCoords Whether coordinates should be written out in the original coordinate reference system or as sumo's x,y values
+     * @param writePositions Whether positions (coordinates) should be written for each timestep
+     * @param writeLanesPositions Whether lanes and their positions should be written for each timestep and each conflict
      */
     MSDevice_SSM(SUMOVehicle& holder, const std::string& id, std::string outputFilename, std::map<std::string, double> thresholds,
-                 bool trajectories, double range, double extraTime, bool useGeoCoords);
+                 bool trajectories, double range, double extraTime, bool useGeoCoords, bool writePositions, bool writeLanesPositions);
 
     /** @brief Finds encounters for which the foe vehicle has disappeared from range.
      *         remainingExtraTime is decreased until it reaches zero, which triggers closing the encounter.
@@ -685,10 +698,16 @@ private:
     static double getDetectionRange(const SUMOVehicle& v);
     static double getExtraTime(const SUMOVehicle& v);
     static bool useGeoCoords(const SUMOVehicle& v);
+    static bool writePositions(const SUMOVehicle& v);
+    static bool writeLanesPositions(const SUMOVehicle& v);
     static bool requestsTrajectories(const SUMOVehicle& v);
     static bool getMeasuresAndThresholds(const SUMOVehicle& v, std::string deviceID,
                                          std::map<std::string, double>& thresholds);
     ///@}
+
+    /// @brief initialize edge filter (once)
+    static void initEdgeFilter();
+
 
 private:
     /// @name Device parameters
@@ -705,6 +724,10 @@ private:
     double myExtraTime;
     /// Whether to use the original coordinate system for output
     bool myUseGeoCoords;
+    /// Wether to print the positions for all timesteps
+    bool myWritePositions;
+    /// Wether to print the lanes and positions for all timesteps and conflicts
+    bool myWriteLanesPositions;
     /// Flags for switching on / off comutation of different SSMs, derived from myMeasures
     bool myComputeTTC, myComputeDRAC, myComputePET, myComputeBR, myComputeSGAP, myComputeTGAP;
     MSVehicle* myHolderMS;
@@ -726,6 +749,12 @@ private:
     /// @name Internal storage for global measures
     /// @{
     std::vector<double> myGlobalMeasuresTimeSpan;
+    /// @brief All values for positions (coordinates)
+    PositionVector myGlobalMeasuresPositions;
+    /// @brief All values for lanes
+    std::vector<std::string> myGlobalMeasuresLaneIDs;
+    /// @brief All values for positions on the lanes
+    std::vector<double> myGlobalMeasuresLanesPositions;
     /// @brief All values for brake rate
     std::vector<double> myBRspan;
     /// @brief All values for space gap
@@ -740,15 +769,20 @@ private:
     /// @}
     /// @}
 
+    /// @brief spatial filter for SSM device output
+    static std::set<const MSEdge*> myEdgeFilter;
+    static bool myEdgeFilterInitialized;
+    static bool myEdgeFilterActive;
+
     /// Output device
     OutputDevice* myOutputFile;
 
     /// @brief remember which files were created already (don't duplicate xml root-elements)
-    static std::set<std::string> createdOutputFiles;
+    static std::set<std::string> myCreatedOutputFiles;
 
 
     /// @brief bitset storing info whether warning has already been issued about unset parameter (warn only once!)
-    static int issuedParameterWarnFlags;
+    static int myIssuedParameterWarnFlags;
     enum SSMParameterWarning {
         SSM_WARN_MEASURES = 1,
         SSM_WARN_THRESHOLDS = 1 << 1,
@@ -756,7 +790,9 @@ private:
         SSM_WARN_RANGE = 1 << 3,
         SSM_WARN_EXTRATIME = 1 << 4,
         SSM_WARN_FILE = 1 << 5,
-        SSM_WARN_GEO = 1 << 6
+        SSM_WARN_GEO = 1 << 6,
+        SSM_WARN_POS = 1 << 7,
+        SSM_WARN_LANEPOS = 1 << 8
     };
 
 

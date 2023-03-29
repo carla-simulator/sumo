@@ -1,6 +1,6 @@
 /****************************************************************************/
 // Eclipse SUMO, Simulation of Urban MObility; see https://eclipse.org/sumo
-// Copyright (C) 2001-2020 German Aerospace Center (DLR) and others.
+// Copyright (C) 2001-2023 German Aerospace Center (DLR) and others.
 // This program and the accompanying materials are made available under the
 // terms of the Eclipse Public License 2.0 which is available at
 // https://www.eclipse.org/legal/epl-2.0/
@@ -19,9 +19,13 @@
 // GUIJunctionWrapper)
 /****************************************************************************/
 #pragma once
-#include "GNENetworkElement.h"
+#include <config.h>
 
+#include <netedit/elements/GNECandidateElement.h>
+#include <utils/gui/globjects/GUIPolygon.h>
 #include <netbuild/NBNode.h>
+
+#include "GNENetworkElement.h"
 
 // ===========================================================================
 // class declarations
@@ -42,7 +46,7 @@ class GNEConnection;
  *  is computed using the junction's position to which an offset of 1m to each
  *  side is added.
  */
-class GNEJunction : public GNENetworkElement {
+class GNEJunction : public GNENetworkElement, public GNECandidateElement {
 
     /// @brief Declare friend class
     friend class GNEChange_TLS;
@@ -78,7 +82,7 @@ public:
     /// @name Functions related with move elements
     /// @{
     /// @brief get move operation for the given shapeOffset (can be nullptr)
-    GNEMoveOperation* getMoveOperation(const double shapeOffset);
+    GNEMoveOperation* getMoveOperation();
 
     /// @brief remove geometry point in the clicked position
     void removeGeometryPoint(const Position clickedPosition, GNEUndoList* undoList);
@@ -95,6 +99,9 @@ public:
      */
     GUIGLObjectPopupMenu* getPopUpMenu(GUIMainWindow& app, GUISUMOAbstractView& parent);
 
+    /// @brief return exaggeration associated with this GLObject
+    double getExaggeration(const GUIVisualizationSettings& s) const;
+
     /// @brief update centering boundary (implies change in RTREE)
     void updateCenteringBoundary(const bool updateGrid);
 
@@ -103,6 +110,12 @@ public:
      * @see GUIGlObject::drawGL
      */
     void drawGL(const GUIVisualizationSettings& s) const;
+
+    /// @brief delete element
+    void deleteGLObject();
+
+    /// @brief update GLObject (geometry, ID, etc.)
+    void updateGLObject();
     /// @}
 
     /// @brief Return net build node
@@ -131,6 +144,9 @@ public:
 
     /// @brief Returns GNECrossings
     const std::vector<GNECrossing*>& getGNECrossings() const;
+
+    /// @brief Returns GNEWalkingAreas
+    const std::vector<GNEWalkingArea*>& getGNEWalkingAreas() const;
 
     /// @brief Returns all GNEConnections vinculated with this junction
     std::vector<GNEConnection*> getGNEConnections() const;
@@ -161,7 +177,7 @@ public:
 
     /* @brief method for checking if the key and their correspond attribute are valids
      * @param[in] key The attribute key
-     * @param[in] value The value asociated to key key
+     * @param[in] value The value associated to key key
      * @return true if the value is valid, false in other case
      */
     bool isValid(SumoXMLAttr key, const std::string& value);
@@ -170,12 +186,17 @@ public:
      * @param[in] key The attribute key
      */
     bool isAttributeEnabled(SumoXMLAttr key) const;
+
+    /* @brief method for check if the value for certain attribute is computed (for example, due a network recomputing)
+     * @param[in] key The attribute key
+     */
+    bool isAttributeComputed(SumoXMLAttr key) const;
     /// @}
 
     /// @brief get parameters map
-    const std::map<std::string, std::string>& getACParametersMap() const;
+    const Parameterised::Map& getACParametersMap() const;
 
-    /// @brief set responsibility for deleting internal strctures
+    /// @brief set responsibility for deleting internal structures
     void setResponsible(bool newVal);
 
     /* @brief notify junction that one of its edges has changed its shape, and
@@ -221,29 +242,23 @@ public:
     /// @brief get GNECrossing if exist, and if not create it if create is enabled
     GNECrossing* retrieveGNECrossing(NBNode::Crossing* NBNodeCrossing, bool createIfNoExist = true);
 
+    /// @brief get GNEWalkingArea if exist, and if not create it if create is enabled
+    GNEWalkingArea* retrieveGNEWalkingArea(const std::string& NBNodeWalkingAreaID, bool createIfNoExist = true);
+
     /// @brief mark connections as deprecated
     void markConnectionsDeprecated(bool includingNeighbours);
 
-    /// @brief add path additional element (used by GNEPathElement)
-    void addPathAdditionalElement(GNEAdditional* additionalElement);
+    /// @brief set junction Type (using undo/redo)
+    void setJunctionType(const std::string& value, GNEUndoList* undoList);
 
-    /// @brief remove path additional element (used by GNEPathElement)
-    void removePathAdditionalElement(GNEAdditional* additionalElement);
+    /// @brief get the maximum size (in either x-, or y-dimension) for determining whether to draw or not
+    double getMaxDrawingSize() const;
 
-    /// @brief add path demand element (used by GNEPathElement)
-    void addPathDemandElement(GNEDemandElement* demandElement);
+    /// @brief clear walking areas
+    void clearWalkingAreas();
 
-    /// @brief remove path demand element (used by GNEPathElement)
-    void removePathDemandElement(GNEDemandElement* demandElement);
-
-    /// @brief add path demand element (used by GNEPathElement)
-    void addPathGenericData(GNEGenericData* genericData);
-
-    /// @brief remove path demand element (used by GNEPathElement)
-    void removePathGenericData(GNEGenericData* genericData);
-
-    /// @brief invalidate path element childs
-    void invalidatePathElements();
+    /// @brief rebuilds WalkingAreas objects for this junction
+    void rebuildGNEWalkingAreas();
 
 protected:
     /// @brief A reference to the represented junction
@@ -258,14 +273,8 @@ protected:
     /// @brief the built crossing objects
     std::vector<GNECrossing*> myGNECrossings;
 
-    /// @brief map with references to path additional elements
-    std::map<SumoXMLTag, std::vector<GNEAdditional*> > myPathAdditionalElements;
-
-    /// @brief map with references to path demand elements
-    std::map<SumoXMLTag, std::vector<GNEDemandElement*> > myPathDemandElements;
-
-    /// @brief map with references to path generic data elements
-    std::map<SumoXMLTag, std::vector<GNEGenericData*> > myPathGenericDatas;
+    /// @brief the built walkingArea objects
+    std::vector<GNEWalkingArea*> myGNEWalkingAreas;
 
     /// @brief The maximum size (in either x-, or y-dimension) for determining whether to draw or not
     double myMaxDrawingSize;
@@ -289,12 +298,35 @@ protected:
     /// @brief whether this junction probably should have some connections but doesn't
     bool myColorForMissingConnections;
 
+    /// @brief An object that stores the shape and its tesselation
+    mutable TesselatedPolygon myTesselation;
+
+    /// @brief exaggeration used in tesselation
+    mutable double myExaggeration;
+
 private:
+    /// @brief check if draw junction as bubble
+    bool drawAsBubble(const GUIVisualizationSettings& s) const;
+
+    /// @brief draw junction as bubble
+    void drawJunctionAsBubble(const GUIVisualizationSettings& s,
+                              const double junctionExaggeration, const Position mousePosition) const;
+
+    /// @brief draw junction as bubble
+    void drawJunctionAsShape(const GUIVisualizationSettings& s,
+                             const double junctionExaggeration, const Position mousePosition) const;
+
     /// @brief draw TLS icon
     void drawTLSIcon(const GUIVisualizationSettings& s) const;
 
     /// @brief draw junction childs
     void drawJunctionChildren(const GUIVisualizationSettings& s) const;
+
+    /// @brief draw dotted contours (bubble)
+    void drawDottedContoursBubble(const GUIVisualizationSettings& s, const double junctionExaggeration) const;
+
+    /// @brief draw dotted contours (shape)
+    void drawDottedContoursShape(const GUIVisualizationSettings& s, const double junctionExaggeration) const;
 
     /// @brief method for setting the attribute and nothing else (used in GNEChange_Attribute)
     void setAttribute(SumoXMLAttr key, const std::string& value);
@@ -306,9 +338,9 @@ private:
     void commitMoveShape(const GNEMoveResult& moveResult, GNEUndoList* undoList);
 
     /**@brief reposition the node at pos without updating GRID and informs the edges
-    * @param[in] pos The new position
-    * @note: those operations are not added to the undoList.
-    */
+     * @param[in] pos The new position
+     * @note: those operations are not added to the undoList.
+     */
     void moveJunctionGeometry(const Position& pos, const bool updateEdgeBoundaries);
 
     /// @brief sets junction color depending on circumstances
@@ -334,6 +366,9 @@ private:
 
     /// @brief temporarily mirror coordinates in lefthand network to compute correct crossing geometries
     void mirrorXLeftHand();
+
+    /// @brief build TLS operations contextual menu
+    void buildTLSOperations(GUISUMOAbstractView& parent, GUIGLObjectPopupMenu* ret, const int numSelectedJunctions);
 
     /// @brief Invalidated copy constructor.
     GNEJunction(const GNEJunction&) = delete;

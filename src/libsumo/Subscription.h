@@ -1,6 +1,6 @@
 /****************************************************************************/
 // Eclipse SUMO, Simulation of Urban MObility; see https://eclipse.org/sumo
-// Copyright (C) 2001-2020 German Aerospace Center (DLR) and others.
+// Copyright (C) 2001-2023 German Aerospace Center (DLR) and others.
 // This program and the accompanying materials are made available under the
 // terms of the Eclipse Public License 2.0 which is available at
 // https://www.eclipse.org/legal/epl-2.0/
@@ -18,8 +18,10 @@
 // Subscription representation for libsumo and TraCI
 /****************************************************************************/
 #pragma once
+#include <config.h>
 #include <vector>
 #include <set>
+#include <foreign/tcpip/storage.h>
 #include <libsumo/TraCIDefs.h>
 #include <utils/common/SUMOTime.h>
 
@@ -44,7 +46,7 @@ enum SubscriptionFilterType {
     SUBS_FILTER_UPSTREAM_DIST = 1 << 3,
     // Only return leader and follower on specified lanes in context subscription result
     SUBS_FILTER_LEAD_FOLLOW = 1 << 4,
-    // Only return foes on upcoming junction in context subscription result
+    // Only return foes on upcoming junctions in context subscription result
     SUBS_FILTER_TURN = 1 << 6,
     // Only return vehicles of the given vClass in context subscription result
     SUBS_FILTER_VCLASS = 1 << 7,
@@ -78,7 +80,7 @@ public:
     */
     Subscription(int commandIdArg, const std::string& idArg,
                  const std::vector<int>& variablesArg,
-                 const std::vector<std::vector<unsigned char>>& paramsArg,
+                 const std::vector<std::shared_ptr<tcpip::Storage> >& paramsArg,
                  SUMOTime beginTimeArg, SUMOTime endTimeArg,
                  int contextDomainArg, double rangeArg)
         : commandId(commandIdArg),
@@ -93,6 +95,7 @@ public:
           filterLanes(),
           filterDownstreamDist(-1),
           filterUpstreamDist(-1),
+          filterFoeDistToJunction(-1),
           filterVTypes(),
           filterVClasses(0),
           filterFieldOfVisionOpeningAngle(-1),
@@ -113,7 +116,7 @@ public:
     /// @brief The subscribed variables
     std::vector<int> variables;
     /// @brief The parameters for the subscribed variables
-    std::vector<std::vector<unsigned char> > parameters;
+    std::vector<std::shared_ptr<tcpip::Storage> > parameters;
     /// @brief The begin time of the subscription
     SUMOTime beginTime;
     /// @brief The end time of the subscription
@@ -131,6 +134,8 @@ public:
     double filterDownstreamDist;
     /// @brief Upstream distance specified by the upstream distance filter
     double filterUpstreamDist;
+    /// @brief Foe distance to junction specified by the turn filter
+    double filterFoeDistToJunction;
     /// @brief vTypes specified by the vTypes filter
     std::set<std::string> filterVTypes;
     /// @brief vClasses specified by the vClasses filter, @see SVCPermissions
@@ -144,23 +149,26 @@ public:
 class VariableWrapper {
 public:
     /// @brief Definition of a method to be called for serving an associated commandID
-    typedef bool(*SubscriptionHandler)(const std::string& objID, const int variable, VariableWrapper* wrapper);
+    typedef bool(*SubscriptionHandler)(const std::string& objID, const int variable, VariableWrapper* wrapper, tcpip::Storage* paramData);
     VariableWrapper(SubscriptionHandler handler = nullptr) : handle(handler) {}
+    virtual ~VariableWrapper() {}
     SubscriptionHandler handle;
-    virtual void setContext(const std::string& /* refID */) {}
-    virtual void setParams(const std::vector<unsigned char>* /* params */) {}
-    virtual const std::vector<unsigned char>* getParams() const {
-        return nullptr;
-    }
+    virtual void setContext(const std::string* const /* refID */) {}
     virtual void clear() {}
     virtual bool wrapDouble(const std::string& objID, const int variable, const double value) = 0;
     virtual bool wrapInt(const std::string& objID, const int variable, const int value) = 0;
     virtual bool wrapString(const std::string& objID, const int variable, const std::string& value) = 0;
     virtual bool wrapStringList(const std::string& objID, const int variable, const std::vector<std::string>& value) = 0;
+    virtual bool wrapDoubleList(const std::string& objID, const int variable, const std::vector<double>& value) = 0;
     virtual bool wrapPosition(const std::string& objID, const int variable, const TraCIPosition& value) = 0;
+    virtual bool wrapPositionVector(const std::string& objID, const int variable, const TraCIPositionVector& value) = 0;
     virtual bool wrapColor(const std::string& objID, const int variable, const TraCIColor& value) = 0;
-    virtual bool wrapRoadPosition(const std::string& objID, const int variable, const TraCIRoadPosition& value) = 0;
+    virtual bool wrapStringDoublePair(const std::string& objID, const int variable, const std::pair<std::string, double>& value) = 0;
+    virtual bool wrapStringPair(const std::string& objID, const int variable, const std::pair<std::string, std::string>& value) = 0;
+    virtual void empty(const std::string& /* objID */) {}
 };
+
+
 }
 
 

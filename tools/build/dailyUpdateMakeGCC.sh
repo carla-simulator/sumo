@@ -1,4 +1,21 @@
 #!/bin/bash
+# Eclipse SUMO, Simulation of Urban MObility; see https://eclipse.org/sumo
+# Copyright (C) 2008-2022 German Aerospace Center (DLR) and others.
+# This program and the accompanying materials are made available under the
+# terms of the Eclipse Public License 2.0 which is available at
+# https://www.eclipse.org/legal/epl-2.0/
+# This Source Code may also be made available under the following Secondary
+# Licenses when the conditions for such availability set forth in the Eclipse
+# Public License 2.0 are satisfied: GNU General Public License, version 2
+# or later which is available at
+# https://www.gnu.org/licenses/old-licenses/gpl-2.0-standalone.html
+# SPDX-License-Identifier: EPL-2.0 OR GPL-2.0-or-later
+
+# @file    dailyUpdateMakeGCC.sh
+# @author  Michael Behrisch
+# @date    2008
+
+# Does the nightly git pull on the linux server and then runs build and tests
 PREFIX=$1
 export FILEPREFIX=$2
 export SMTP_SERVER=$3
@@ -9,6 +26,8 @@ TESTLOG=$PREFIX/${FILEPREFIX}test.log
 export SUMO_BATCH_RESULT=$PREFIX/${FILEPREFIX}batch_result
 export SUMO_REPORT=$PREFIX/${FILEPREFIX}report
 export SUMO_BINDIR=$PREFIX/sumo/bin
+# the following is only needed for the clang build but it does not hurt others
+export LSAN_OPTIONS=suppressions=$PREFIX/sumo/build/clang_memleak_suppressions.txt
 if test $# -ge 4; then
   CONFIGURE_OPT=$4
 fi
@@ -28,6 +47,7 @@ mkdir build/$FILEPREFIX && cd build/$FILEPREFIX
 cmake ${CONFIGURE_OPT:5} -DCMAKE_INSTALL_PREFIX=$PREFIX ../.. >> $MAKELOG 2>&1 || (echo "cmake failed" | tee -a $STATUSLOG; tail -10 $MAKELOG)
 if make -j32 >> $MAKELOG 2>&1; then
   date >> $MAKELOG
+  make lisum >> $MAKELOG 2>&1
   if make install >> $MAKELOG 2>&1; then
     if test "$FILEPREFIX" == "gcc4_64"; then
       make -j distcheck >> $MAKELOG 2>&1 || (echo "make distcheck failed" | tee -a $STATUSLOG; tail -10 $MAKELOG)
@@ -43,7 +63,7 @@ echo `grep -ci 'warn[iu]ng:' $MAKELOG` warnings >> $STATUSLOG
 
 echo "--" >> $STATUSLOG
 cd $PREFIX/sumo
-if test -e $SUMO_BINDIR/sumo -a $SUMO_BINDIR/sumo -nt $PREFIX/sumo/configure; then
+if test -e $SUMO_BINDIR/sumo -a $SUMO_BINDIR/sumo -nt build/$FILEPREFIX/Makefile; then
   # run tests
   export PATH=$PREFIX/texttest/bin:$PATH
   export TEXTTEST_TMP=$PREFIX/texttesttmp
@@ -54,14 +74,23 @@ if test -e $SUMO_BINDIR/sumo -a $SUMO_BINDIR/sumo -nt $PREFIX/sumo/configure; th
   else
     tests/runTests.sh -b $FILEPREFIX -name $TESTLABEL &> $TESTLOG
     if which Xvfb &>/dev/null; then
-      tests/runTests.sh -a sumo.gui -b $FILEPREFIX -name $TESTLABEL >> $TESTLOG 2>&1
-      tests/runTests.sh -a netedit.gui -b $FILEPREFIX -name $TESTLABEL >> $TESTLOG 2>&1
+      if test ${FILEPREFIX::10} == "clangMacOS"; then
+        tests/runTests.sh -a sumo.gui.mac -b $FILEPREFIX -name $TESTLABEL >> $TESTLOG 2>&1
+      else
+        tests/runTests.sh -a sumo.gui -b $FILEPREFIX -name $TESTLABEL >> $TESTLOG 2>&1
+      fi
     fi
   fi
   tests/runTests.sh -b $FILEPREFIX -name $TESTLABEL -coll >> $TESTLOG 2>&1
-  echo "batchreport" >> $STATUSLOG
+  if test -e build/$FILEPREFIX/src/CMakeFiles/sumo.dir/sumo_main.cpp.gcda; then
+    echo "lcov/html" >> $STATUSLOG
+    echo "Coverage report" >> $STATUSLOG
+  else
+    echo "batchreport" >> $STATUSLOG
+  fi
 fi
 
+# running extra tests for the coverage report
 if test -e build/$FILEPREFIX/src/CMakeFiles/sumo.dir/sumo_main.cpp.gcda; then
   date >> $TESTLOG
   tests/runExtraTests.py --gui "b $FILEPREFIX" >> $TESTLOG 2>&1
@@ -83,5 +112,33 @@ if make -j32 >> $MAKEALLLOG 2>&1; then
 else
   echo "make with all options failed" | tee -a $STATUSLOG; tail -20 $MAKEALLLOG
 fi
+cd $PREFIX/sumo
 echo `grep -ci 'warn[iu]ng:' $MAKEALLLOG` warnings >> $STATUSLOG
 echo "--" >> $STATUSLOG
+
+basename $TESTLOG >> $STATUSLOG
+date >> $STATUSLOG
+echo "--" >> $STATUSLOG
+
+# netedit tests
+if test -e $SUMO_BINDIR/netedit -a $SUMO_BINDIR/netedit -nt build/$FILEPREFIX/Makefile; then
+  if test "$FILEPREFIX" == "gcc4_64"; then
+    tests/runNeteditDailyTests.sh -b ${FILEPREFIX}netedit -name $TESTLABEL >> $TESTLOG 2>&1
+    tests/runTests.sh -b ${FILEPREFIX} -name $TESTLABEL -coll >> $TESTLOG 2>&1
+  fi
+fi
+
+# macOS M1 wheels
+if test ${FILEPREFIX: -2} == "M1"; then
+  WHEELLOG=$PREFIX/${FILEPREFIX}wheel.log
+  rm -rf dist dist_native _skbuild wheelhouse
+  python3 tools/build/setup-sumo.py bdist_wheel > $WHEELLOG 2>&1
+  python3 tools/build/setup-libsumo.py bdist_wheel >> $WHEELLOG 2>&1
+  python3 tools/build/setup-libtraci.py bdist_wheel >> $WHEELLOG 2>&1
+  mv dist/eclipse_sumo-* `echo dist/eclipse_sumo-* | sed 's/cp39-cp39/py2.py3-none/'`
+  # the credentials are in ~/.pypirc
+  twine upload --skip-existing -r testpypi dist/*
+  mv dist dist_native  # just as backup
+  docker run --rm -v $PWD:/github/workspace manylinux2014_aarch64 tools/build/build_wheels.sh $HTTPS_PROXY >> $WHEELLOG 2>&1
+  twine upload --skip-existing -r testpypi wheelhouse/*
+fi

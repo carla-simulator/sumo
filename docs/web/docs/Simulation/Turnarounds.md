@@ -1,6 +1,5 @@
 ---
-title: Simulation/Turnarounds
-permalink: /Simulation/Turnarounds/
+title: Turnarounds
 ---
 
 # Introduction
@@ -29,7 +28,7 @@ with
     When loading trips with `fromJunction` or `toJunction` attributes with [sumo](../sumo.md) or [duarouter](../duarouter.md), the option **--junction-taz** must be set or an equivalent TAZ-file must be loaded.
 
 ## Trips between TAZ
-Instead of departing as junctions (which internally use specialised TAZ), the
+Instead of departing as junctions (which internally use specialized TAZ), the
 user may define traffic larger assignment zones (TAZ / districts) as origins and
 destinations of travel. This will also cause vehicles to pick a suitable
 direction. If the main goal of these zones is to avoid turnarounds, then the
@@ -41,7 +40,7 @@ If routes between edges already exist, the [duarouter option **--remove-loops**]
 
 # Controlling where turnarounds may happen
 By removing turnaround connections from a network (i.e. with
-[netedit](../netedit.md), turnarounds and unsuitable locations can be prevented.
+[netedit](../Netedit/index.md), turnarounds and unsuitable locations can be prevented.
 
 Often it is easier to control the generation of turnaround connections when
 importing the network. For this purpose [netconvert](../netconvert.md) provides a number of options.

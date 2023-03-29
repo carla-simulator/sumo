@@ -1,6 +1,6 @@
 /****************************************************************************/
 // Eclipse SUMO, Simulation of Urban MObility; see https://eclipse.org/sumo
-// Copyright (C) 2010-2020 German Aerospace Center (DLR) and others.
+// Copyright (C) 2010-2023 German Aerospace Center (DLR) and others.
 // This program and the accompanying materials are made available under the
 // terms of the Eclipse Public License 2.0 which is available at
 // https://www.eclipse.org/legal/epl-2.0/
@@ -21,16 +21,15 @@
 //      start taking a look at the getEstimateQueueLength() method of the collector.
 /****************************************************************************/
 #pragma once
+#include <config.h>
 
 
-#define SWARM_DEBUG
-#include <utils/common/SwarmDebug.h>
-#include "MSSOTLSensors.h"
-#include "MSSOTLDefinitions.h"
 #include <cmath>
 #include <map>
 #include <utility>
 #include <microsim/output/MSE2Collector.h>
+#include "MSSOTLSensors.h"
+#include "MSSOTLDefinitions.h"
 
 class MSSOTLE2Sensors :	public MSSOTLSensors {
 protected :

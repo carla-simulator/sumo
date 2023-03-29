@@ -1,6 +1,6 @@
 /****************************************************************************/
 // Eclipse SUMO, Simulation of Urban MObility; see https://eclipse.org/sumo
-// Copyright (C) 2001-2020 German Aerospace Center (DLR) and others.
+// Copyright (C) 2001-2023 German Aerospace Center (DLR) and others.
 // This program and the accompanying materials are made available under the
 // terms of the Eclipse Public License 2.0 which is available at
 // https://www.eclipse.org/legal/epl-2.0/
@@ -63,6 +63,10 @@ MSBatteryExport::write(OutputDevice& of, SUMOTime timestep, int precision) {
                 of.writeAttr(SUMO_ATTR_ID, veh->getID());
                 // Write consum
                 of.writeAttr(SUMO_ATTR_ENERGYCONSUMED, batteryToExport->getConsum());
+                // Write total consumption
+                of.writeAttr(SUMO_ATTR_TOTALENERGYCONSUMED, batteryToExport->getTotalConsumption());
+                // Write total regeneration
+                of.writeAttr(SUMO_ATTR_TOTALENERGYREGENERATED, batteryToExport->getTotalRegenerated());
                 // Write Actual battery capacity
                 of.writeAttr(SUMO_ATTR_ACTUALBATTERYCAPACITY, batteryToExport->getActualBatteryCapacity());
                 // Write Maximum battery capacity

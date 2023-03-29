@@ -1,6 +1,5 @@
 ---
-title: Developer/How To/Car-Following Model
-permalink: /Developer/How_To/Car-Following_Model/
+title: Car-Following Model
 ---
 
 This short document describes how a new car-following model can be added
@@ -58,15 +57,15 @@ where you have to put the call to your model's constructor into.
 ```
 case SUMO_TAG_CF_SMART_SK:
   model = new MSCFModel_SmartSK(vtype,
-                                from.get(SUMO_ATTR_ACCEL, SUMOVTypeParameter::getDefaultAccel(from.vehicleClass)),
-                                from.get(SUMO_ATTR_DECEL, SUMOVTypeParameter::getDefaultDecel(from.vehicleClass)),
-                                from.get(SUMO_ATTR_SIGMA, SUMOVTypeParameter::getDefaultImperfection(from.vehicleClass)),
-                                from.get(SUMO_ATTR_TAU, 1.),
-                                from.get(SUMO_ATTR_TMP1, 1.),
-                                from.get(SUMO_ATTR_TMP1, 1.),
-                                from.get(SUMO_ATTR_TMP1, 1.),
-                                from.get(SUMO_ATTR_TMP1, 1.),
-                                from.get(SUMO_ATTR_TMP1, 1.));
+                                from.getCFParam(SUMO_ATTR_ACCEL, SUMOVTypeParameter::getDefaultAccel(from.vehicleClass)),
+                                from.getCFParam(SUMO_ATTR_DECEL, SUMOVTypeParameter::getDefaultDecel(from.vehicleClass)),
+                                from.getCFParam(SUMO_ATTR_SIGMA, SUMOVTypeParameter::getDefaultImperfection(from.vehicleClass)),
+                                from.getCFParam(SUMO_ATTR_TAU, 1.),
+                                from.getCFParam(SUMO_ATTR_TMP1, 1.),
+                                from.getCFParam(SUMO_ATTR_TMP1, 1.),
+                                from.getCFParam(SUMO_ATTR_TMP1, 1.),
+                                from.getCFParam(SUMO_ATTR_TMP1, 1.),
+                                from.getCFParam(SUMO_ATTR_TMP1, 1.));
 ```
 
 You may note that the constructor is read with values from "from". The
@@ -127,6 +126,16 @@ virtual int getModelID() const {
  return SUMO_TAG_CF_SMART_SK;
 }
 ```
+
+## Using Custom Parameters via TraCI
+
+A carFollowModel can override the functions getParameter and setParameter inherited from MSCFModel. 
+Any calls to 'traci.vehicle.setParameter' and 'traci.vehicle.getParameter' where the key starts with "carFollowModel." will then be forwarded to these methods (without the prefix).
+The call
+`traci.vehicle.setParameter(vehID, "carFollowModel.XYZ", "42")`
+will be mapped onto the call
+`MSCFModel::setParameter(MSVehicle* veh, "XYZ" , "42")` which is called on the current carFollowModel of the vehicle.
+
 
 ## XML Validation
 

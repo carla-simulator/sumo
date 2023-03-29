@@ -1,6 +1,6 @@
 /****************************************************************************/
 // Eclipse SUMO, Simulation of Urban MObility; see https://eclipse.org/sumo
-// Copyright (C) 2014-2020 German Aerospace Center (DLR) and others.
+// Copyright (C) 2014-2023 German Aerospace Center (DLR) and others.
 // This program and the accompanying materials are made available under the
 // terms of the Eclipse Public License 2.0 which is available at
 // https://www.eclipse.org/legal/epl-2.0/
@@ -57,8 +57,14 @@ public:
 
     ~MSPModel_Striping();
 
+    /// @brief Resets pedestrians when quick-loading state
+    void clearState();
+
     /// @brief register the given person as a pedestrian
     MSTransportableStateAdapter* add(MSTransportable* transportable, MSStageMoving* stage, SUMOTime now);
+
+    /// @brief load the state of the given transportable
+    MSTransportableStateAdapter* loadState(MSTransportable* transportable, MSStageMoving* stage, std::istringstream& in);
 
     /// @brief remove the specified person from the pedestrian simulation
     void remove(MSTransportableStateAdapter* state);
@@ -82,7 +88,7 @@ public:
     bool usingInternalLanes();
 
     /// @brief returns the next pedestrian beyond minPos that is laterally between minRight and maxLeft or 0
-    PersonDist nextBlocking(const MSLane* lane, double minPos, double minRight, double maxLeft, double stopTime = 0);
+    PersonDist nextBlocking(const MSLane* lane, double minPos, double minRight, double maxLeft, double stopTime = 0, bool bidi = false);
 
     /// @brief model parameters
     ///@{
@@ -93,10 +99,19 @@ public:
     // @brief the factor for random slow-down
     static double dawdling;
 
+    // @brief the safety buffer to vehicles
+    static double minGapToVehicle;
+
+    // @brief intermediate points to smooth out lanes within the walkingarea
+    static int myWalkingAreaDetail;
+
     // @brief the time threshold before becoming jammed
     static SUMOTime jamTime;
     static SUMOTime jamTimeCrossing;
     static SUMOTime jamTimeNarrow;
+
+    // @brief use old style departPosLat interpretation
+    static bool myLegacyPosLat;
 
     // @brief the distance (in seconds) to look ahead for changing stripes
     static const double LOOKAHEAD_SAMEDIR;
@@ -126,6 +141,7 @@ public:
     // @brief fraction of the leftmost lanes to reserve for oncoming traffic
     static double RESERVE_FOR_ONCOMING_FACTOR;
     static double RESERVE_FOR_ONCOMING_FACTOR_JUNCTIONS;
+    static double RESERVE_FOR_ONCOMING_MAX;
 
     // @brief the time pedestrians take to reach maximum impatience
     static const double MAX_WAIT_TOLERANCE;
@@ -213,15 +229,18 @@ protected:
         ObstacleType type;
         /// @brief the id / description of the obstacle
         std::string description;
+
+        bool closer(const Obstacle& o, int dir);
     };
 
     struct WalkingAreaPath {
-        WalkingAreaPath(const MSLane* _from, const MSLane* _walkingArea, const MSLane* _to, const PositionVector& _shape, int _dir) :
+        WalkingAreaPath(const MSLane* _from, const MSLane* _walkingArea, const MSLane* _to, const PositionVector& _shape, int _dir, double _angleOverride) :
             from(_from),
             to(_to),
             lane(_walkingArea),
             shape(_shape),
             dir(_dir),
+            angleOverride(_angleOverride),
             length(_shape.length()) {
         }
 
@@ -230,11 +249,8 @@ protected:
         const MSLane* const lane; // the walkingArea;
         const PositionVector shape;
         const int dir; // the direction when entering this path
+        const double angleOverride;
         const double length;
-
-    private:
-        /// @brief Invalidated assignment operator
-        WalkingAreaPath& operator=(const WalkingAreaPath& s) = delete;
 
     };
 
@@ -265,21 +281,26 @@ protected:
         /// @brief abstract methods inherited from PedestrianState
         /// @{
         double getEdgePos(const MSStageMoving& stage, SUMOTime now) const;
+        int getDirection(const MSStageMoving& stage, SUMOTime now) const;
         Position getPosition(const MSStageMoving& stage, SUMOTime now) const;
         double getAngle(const MSStageMoving& stage, SUMOTime now) const;
         SUMOTime getWaitingTime(const MSStageMoving& stage, SUMOTime now) const;
         double getSpeed(const MSStageMoving& stage) const;
         const MSEdge* getNextEdge(const MSStageMoving& stage) const;
+        void moveTo(MSPerson* p, MSLane* lane, double lanePos, double lanePosLat, SUMOTime t);
         void moveToXY(MSPerson* p, Position pos, MSLane* lane, double lanePos,
                       double lanePosLat, double angle, int routeOffset,
                       const ConstMSEdgeVector& edges, SUMOTime t);
         /// @brief whether the transportable is jammed
         bool isJammed() const;
         const MSLane* getLane() const;
+        double getPathLength() const;
         /// @}
 
         PState(MSPerson* person, MSStageMoving* stage, const MSLane* lane);
 
+        /// @brief constructor for loading state
+        PState(MSPerson* person, MSStageMoving* stage, std::istringstream* in = nullptr);
 
         ~PState() {};
         MSPerson* myPerson;
@@ -294,6 +315,8 @@ protected:
         int myDir;
         /// @brief the current walking speed
         double mySpeed;
+        /// @brief the current lateral walking speed
+        double mySpeedLat;
         /// @brief whether the pedestrian is waiting to start its walk
         bool myWaitingToEnter;
         /// @brief the consecutive time spent at speed 0
@@ -362,23 +385,40 @@ protected:
         /// @brief return the person width
         virtual double getWidth() const;
 
+        virtual ObstacleType getOType() const {
+            return OBSTACLE_PED;
+        }
+
         /// @brief whether the person is currently being controlled via TraCI
         bool isRemoteControlled() const;
+
+        /** @brief Saves the current state into the given stream
+         */
+        void saveState(std::ostringstream& out);
 
     protected:
         /// @brief constructor for PStateVehicle
         PState();
+    private:
+        /// @brief Invalidated assignment operator.
+        PState& operator=(const PState&) = delete;
     };
 
     class PStateVehicle : public PState {
     public:
-        PStateVehicle(const MSVehicle* veh, const MSLane* walkingarea, double relX, double relY);
+        PStateVehicle(const MSVehicle* veh, const MSLane* walkingarea, double relX, double relY, double xWidth, double yWidth);
         const std::string& getID() const;
         double getMinX(const bool includeMinGap = true) const;
         double getMaxX(const bool includeMinGap = true) const;
         double getWidth() const;
+
+        ObstacleType getOType() const {
+            return OBSTACLE_VEHICLE;
+        }
     private:
         const MSVehicle* myVehicle;
+        const double myXWidth;
+        const double myYWidth;
     };
 
 
@@ -391,7 +431,7 @@ protected:
         MSPModel_Striping* const myModel;
     private:
         /// @brief Invalidated assignment operator.
-        MovePedestrians& operator=(const MovePedestrians&);
+        MovePedestrians& operator=(const MovePedestrians&) = delete;
     };
 
     /// @brief sorts the persons by position on the lane. If dir is forward, higher x positions come first.
@@ -411,10 +451,6 @@ protected:
 
     private:
         const int myDir;
-
-    private:
-        /// @brief Invalidated assignment operator.
-        by_xpos_sorter& operator=(const by_xpos_sorter&);
     };
 
 
@@ -422,7 +458,7 @@ protected:
     void moveInDirection(SUMOTime currentTime, std::set<MSPerson*>& changedLane, int dir);
 
     /// @brief move pedestrians forward on one lane
-    void moveInDirectionOnLane(Pedestrians& pedestrians, const MSLane* lane, SUMOTime currentTime, std::set<MSPerson*>& changedLane, int dir);
+    void moveInDirectionOnLane(Pedestrians& pedestrians, const MSLane* lane, SUMOTime currentTime, std::set<MSPerson*>& changedLane, int dir, bool debug);
 
     /// @brief handle arrivals and lane advancement
     void arriveAndAdvance(Pedestrians& pedestrians, SUMOTime currentTime, std::set<MSPerson*>& changedLane, int dir);
@@ -494,8 +530,11 @@ private:
 
     static bool usingInternalLanesStatic();
 
-    static bool addVehicleFoe(const MSVehicle* veh, const MSLane* walkingarea, const Position& relPos, double lateral_offset,
+    static bool addVehicleFoe(const MSVehicle* veh, const MSLane* walkingarea, const Position& relPos, double xWidth, double yWidth, double lateral_offset,
                               double minY, double maxY, Pedestrians& toDelete, Pedestrians& transformedPeds);
+
+    static int getReserved(int stripes, double factor);
+
 
 private:
     /// @brief the total number of active pedestrians

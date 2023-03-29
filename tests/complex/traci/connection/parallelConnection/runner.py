@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 # Eclipse SUMO, Simulation of Urban MObility; see https://eclipse.org/sumo
-# Copyright (C) 2008-2020 German Aerospace Center (DLR) and others.
+# Copyright (C) 2008-2023 German Aerospace Center (DLR) and others.
 # This program and the accompanying materials are made available under the
 # terms of the Eclipse Public License 2.0 which is available at
 # https://www.eclipse.org/legal/epl-2.0/
@@ -22,7 +22,8 @@ from __future__ import print_function
 import os
 import sys
 
-sys.path.append(os.path.join(os.environ["SUMO_HOME"], "tools"))
+if "SUMO_HOME" in os.environ:
+    sys.path.append(os.path.join(os.environ["SUMO_HOME"], "tools"))
 import sumolib  # noqa
 import traci  # noqa
 
@@ -37,7 +38,7 @@ def runSingle(sumoEndTime, traciEndTime, label):
     fdi.close()
     fdo.close()
     step = 0
-    traci.start([sumoBinary, "-c", "used.sumocfg", "-S", "-Q"], port=PORT, label=label)
+    traci.start([sumoBinary, "-c", "used.sumocfg", "-S", "-Q"], port=PORT, label=label, stdout=sys.stdout)
     while not step > traciEndTime:
         traci.simulationStep()
         vehs = traci.vehicle.getIDList()

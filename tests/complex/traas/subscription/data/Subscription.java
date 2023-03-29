@@ -1,6 +1,6 @@
 /****************************************************************************/
 // Eclipse SUMO, Simulation of Urban MObility; see https://eclipse.org/sumo
-// Copyright (C) 2017-2020 German Aerospace Center (DLR) and others.
+// Copyright (C) 2017-2023 German Aerospace Center (DLR) and others.
 // TraaS module
 // Copyright (C) 2013-2017 Dresden University of Technology
 // This program and the accompanying materials are made available under the
@@ -32,10 +32,10 @@ import de.tudresden.sumo.subscription.VariableSubscription;
 import de.tudresden.sumo.subscription.SubscribtionVariable;
 import de.tudresden.sumo.subscription.SubscriptionObject;
 import de.tudresden.sumo.subscription.ResponseType;
-import de.tudresden.ws.container.SumoVehicleData;
-import de.tudresden.ws.container.SumoStringList;
-import de.tudresden.ws.container.SumoPrimitive;
-import de.tudresden.ws.container.SumoPosition2D;
+import de.tudresden.sumo.objects.SumoVehicleData;
+import de.tudresden.sumo.objects.SumoStringList;
+import de.tudresden.sumo.objects.SumoPrimitive;
+import de.tudresden.sumo.objects.SumoPosition2D;
 
 public class Subscription implements Observer {
 

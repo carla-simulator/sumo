@@ -1,6 +1,6 @@
 /****************************************************************************/
 // Eclipse SUMO, Simulation of Urban MObility; see https://eclipse.org/sumo
-// Copyright (C) 2017-2020 German Aerospace Center (DLR) and others.
+// Copyright (C) 2017-2023 German Aerospace Center (DLR) and others.
 // This program and the accompanying materials are made available under the
 // terms of the Eclipse Public License 2.0 which is available at
 // https://www.eclipse.org/legal/epl-2.0/
@@ -104,16 +104,14 @@ BusStop::getPersonIDs(const std::string& stopID) {
 
 std::string
 BusStop::getParameter(const std::string& stopID, const std::string& param) {
-    const MSStoppingPlace* s = getBusStop(stopID);
-    return s->getParameter(param, "");
+    return getBusStop(stopID)->getParameter(param, "");
 }
 
 LIBSUMO_GET_PARAMETER_WITH_KEY_IMPLEMENTATION(BusStop)
 
 void
 BusStop::setParameter(const std::string& stopID, const std::string& key, const std::string& value) {
-    MSStoppingPlace* s = getBusStop(stopID);
-    s->setParameter(key, value);
+    getBusStop(stopID)->setParameter(key, value);
 }
 
 
@@ -122,11 +120,7 @@ LIBSUMO_SUBSCRIPTION_IMPLEMENTATION(BusStop, BUSSTOP)
 
 MSStoppingPlace*
 BusStop::getBusStop(const std::string& id) {
-    MSStoppingPlace* s = MSNet::getInstance()->getStoppingPlace(id, SUMO_TAG_BUS_STOP);
-    if (s == nullptr) {
-        throw TraCIException("BusStop '" + id + "' is not known");
-    }
-    return s;
+    return Helper::getStoppingPlace(id, SUMO_TAG_BUS_STOP);
 }
 
 
@@ -137,7 +131,7 @@ BusStop::makeWrapper() {
 
 
 bool
-BusStop::handleVariable(const std::string& objID, const int variable, VariableWrapper* wrapper) {
+BusStop::handleVariable(const std::string& objID, const int variable, VariableWrapper* wrapper, tcpip::Storage* paramData) {
     switch (variable) {
         case TRACI_ID_LIST:
             return wrapper->wrapStringList(objID, variable, getIDList());
@@ -159,6 +153,12 @@ BusStop::handleVariable(const std::string& objID, const int variable, VariableWr
             return wrapper->wrapInt(objID, variable, getPersonCount(objID));
         case VAR_BUS_STOP_WAITING_IDS:
             return wrapper->wrapStringList(objID, variable, getPersonIDs(objID));
+        case libsumo::VAR_PARAMETER:
+            paramData->readUnsignedByte();
+            return wrapper->wrapString(objID, variable, getParameter(objID, paramData->readString()));
+        case libsumo::VAR_PARAMETER_WITH_KEY:
+            paramData->readUnsignedByte();
+            return wrapper->wrapStringPair(objID, variable, getParameterWithKey(objID, paramData->readString()));
         default:
             return false;
     }

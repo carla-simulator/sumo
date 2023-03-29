@@ -1,6 +1,6 @@
 /****************************************************************************/
 // Eclipse SUMO, Simulation of Urban MObility; see https://eclipse.org/sumo
-// Copyright (C) 2001-2020 German Aerospace Center (DLR) and others.
+// Copyright (C) 2001-2023 German Aerospace Center (DLR) and others.
 // This program and the accompanying materials are made available under the
 // terms of the Eclipse Public License 2.0 which is available at
 // https://www.eclipse.org/legal/epl-2.0/
@@ -21,47 +21,28 @@
 ///
 // A single child window which contains a view of the simulation area
 /****************************************************************************/
-#include <config.h>
 
-#include <string>
-#include <vector>
-#include <fxkeys.h>
-#include <utils/common/UtilExceptions.h>
-#include <utils/geom/Position.h>
-#include <utils/geom/Boundary.h>
-#include <utils/foxtools/MFXUtils.h>
+#include <utils/common/MsgHandler.h>
 #include <utils/foxtools/MFXCheckableButton.h>
-#include <utils/foxtools/MFXImageHelper.h>
-#include <utils/gui/globjects/GUIGlObjectTypes.h>
-#include <utils/gui/globjects/GUIGlObjectStorage.h>
+#include <utils/foxtools/MFXMenuButtonTooltip.h>
 #include <utils/gui/globjects/GUIShapeContainer.h>
-#include <utils/gui/images/GUIIcons.h>
-#include <utils/gui/images/GUIIconSubSys.h>
 #include <utils/gui/div/GUIGlobalSelection.h>
-#include <utils/gui/div/GUIIOGlobals.h>
 #include <utils/gui/div/GUIDesigns.h>
-#include <utils/gui/windows/GUIAppEnum.h>
-#include <utils/gui/windows/GUIDialog_GLObjChooser.h>
-#include <guisim/GUIVehicle.h>
+#include <gui/dialogs/GUIDialog_GLObjChooser.h>
 #include <guisim/GUIPerson.h>
 #include <guisim/GUIEdge.h>
 #include <guisim/GUILane.h>
 #include <guisim/GUINet.h>
 #include <guisim/GUIVehicleControl.h>
 #include <guisim/GUITransportableControl.h>
-#include <microsim/MSJunction.h>
-#include <microsim/MSGlobals.h>
 
-#include "GUIGlobals.h"
 #include "GUIViewTraffic.h"
 #include "GUIApplicationWindow.h"
 #include "GUISUMOViewParent.h"
 
 #include <mesogui/GUIMEVehicleControl.h>
 
-#ifdef HAVE_OSG
 #include <osgview/GUIOSGView.h>
-#endif
 
 #define SPEEDFACTOR_SCALE 100.0
 
@@ -71,15 +52,16 @@
 FXDEFMAP(GUISUMOViewParent) GUISUMOViewParentMap[] = {
     FXMAPFUNC(SEL_COMMAND,  MID_MAKESNAPSHOT,   GUISUMOViewParent::onCmdMakeSnapshot),
     //        FXMAPFUNC(SEL_COMMAND,  MID_ALLOWROTATION,  GUISUMOViewParent::onCmdAllowRotation),
-    FXMAPFUNC(SEL_COMMAND,  MID_LOCATEJUNCTION, GUISUMOViewParent::onCmdLocate),
-    FXMAPFUNC(SEL_COMMAND,  MID_LOCATEEDGE,     GUISUMOViewParent::onCmdLocate),
-    FXMAPFUNC(SEL_COMMAND,  MID_LOCATEVEHICLE,  GUISUMOViewParent::onCmdLocate),
-    FXMAPFUNC(SEL_COMMAND,  MID_LOCATEPERSON,   GUISUMOViewParent::onCmdLocate),
-    FXMAPFUNC(SEL_COMMAND,  MID_LOCATECONTAINER, GUISUMOViewParent::onCmdLocate),
-    FXMAPFUNC(SEL_COMMAND,  MID_LOCATETLS,      GUISUMOViewParent::onCmdLocate),
-    FXMAPFUNC(SEL_COMMAND,  MID_LOCATEADD,      GUISUMOViewParent::onCmdLocate),
-    FXMAPFUNC(SEL_COMMAND,  MID_LOCATEPOI,      GUISUMOViewParent::onCmdLocate),
-    FXMAPFUNC(SEL_COMMAND,  MID_LOCATEPOLY,     GUISUMOViewParent::onCmdLocate),
+    FXMAPFUNC(SEL_COMMAND,  MID_HOTKEY_SHIFT_J_LOCATEJUNCTION,      GUISUMOViewParent::onCmdLocate),
+    FXMAPFUNC(SEL_COMMAND,  MID_HOTKEY_SHIFT_E_LOCATEEDGE,          GUISUMOViewParent::onCmdLocate),
+    FXMAPFUNC(SEL_COMMAND,  MID_HOTKEY_SHIFT_V_LOCATEVEHICLE,       GUISUMOViewParent::onCmdLocate),
+    FXMAPFUNC(SEL_COMMAND,  MID_HOTKEY_SHIFT_P_LOCATEPERSON,        GUISUMOViewParent::onCmdLocate),
+    FXMAPFUNC(SEL_COMMAND,  MID_HOTKEY_SHIFT_C_LOCATECONTAINER,     GUISUMOViewParent::onCmdLocate),
+    FXMAPFUNC(SEL_COMMAND,  MID_HOTKEY_SHIFT_T_LOCATETLS,           GUISUMOViewParent::onCmdLocate),
+    FXMAPFUNC(SEL_COMMAND,  MID_HOTKEY_SHIFT_A_LOCATEADDITIONAL,    GUISUMOViewParent::onCmdLocate),
+    FXMAPFUNC(SEL_COMMAND,  MID_HOTKEY_SHIFT_O_LOCATEPOI,           GUISUMOViewParent::onCmdLocate),
+    FXMAPFUNC(SEL_COMMAND,  MID_HOTKEY_SHIFT_L_LOCATEPOLY,          GUISUMOViewParent::onCmdLocate),
+
     FXMAPFUNC(SEL_UPDATE,   MID_SPEEDFACTOR,    GUISUMOViewParent::onUpdSpeedFactor),
     FXMAPFUNC(SEL_COMMAND,  MID_SPEEDFACTOR,    GUISUMOViewParent::onCmdSpeedFactor),
     FXMAPFUNC(SEL_COMMAND,  MID_SIMSTEP,        GUISUMOViewParent::onSimStep),
@@ -100,7 +82,7 @@ GUISUMOViewParent::GUISUMOViewParent(FXMDIClient* p, FXMDIMenu* mdimenu,
                                      FXint x, FXint y, FXint w, FXint h) :
     GUIGlChildWindow(p, parentWindow, mdimenu, name, nullptr, ic, opts, x, y, w, h) {
     buildSpeedControlToolbar();
-    myParent->addGLChild(this);
+    myGUIMainWindowParent->addGLChild(this);
 }
 
 
@@ -109,16 +91,16 @@ GUISUMOViewParent::init(FXGLCanvas* share, GUINet& net, GUISUMOViewParent::ViewT
     switch (type) {
         default:
         case VIEW_2D_OPENGL:
-            myView = new GUIViewTraffic(myContentFrame, *myParent, this, net, myParent->getGLVisual(), share);
+            myView = new GUIViewTraffic(myChildWindowContentFrame, *myGUIMainWindowParent, this, net, myGUIMainWindowParent->getGLVisual(), share);
             break;
 #ifdef HAVE_OSG
         case VIEW_3D_OSG:
-            myView = new GUIOSGView(myContentFrame, *myParent, this, net, myParent->getGLVisual(), share);
+            myView = new GUIOSGView(myChildWindowContentFrame, *myGUIMainWindowParent, this, net, myGUIMainWindowParent->getGLVisual(), share);
             break;
 #endif
     }
     myView->buildViewToolBars(this);
-    if (myParent->isGaming()) {
+    if (myGUIMainWindowParent->isGaming()) {
         myStaticNavigationToolBar->hide();
     }
     return myView;
@@ -126,7 +108,7 @@ GUISUMOViewParent::init(FXGLCanvas* share, GUINet& net, GUISUMOViewParent::ViewT
 
 
 GUISUMOViewParent::~GUISUMOViewParent() {
-    myParent->removeGLChild(this);
+    myGUIMainWindowParent->removeGLChild(this);
 }
 
 
@@ -142,42 +124,14 @@ GUISUMOViewParent::setToolBarVisibility(const bool value) {
 
 void
 GUISUMOViewParent::eraseGLObjChooser(GUIDialog_GLObjChooser* GLObjChooser) {
-    if (GLObjChooser == nullptr) {
-        throw ProcessError("ChooserDialog already deleted");
-    } else if (GLObjChooser == myGLObjChooser.ACChooserJunction) {
-        myGLObjChooser.ACChooserJunction = nullptr;
-    } else if (GLObjChooser == myGLObjChooser.ACChooserEdges) {
-        myGLObjChooser.ACChooserEdges = nullptr;
-    } else if (GLObjChooser == myGLObjChooser.ACChooserVehicles) {
-        myGLObjChooser.ACChooserVehicles = nullptr;
-    } else if (GLObjChooser == myGLObjChooser.ACChooserPersons) {
-        myGLObjChooser.ACChooserPersons = nullptr;
-    } else if (GLObjChooser == myGLObjChooser.ACChooserRoutes) {
-        myGLObjChooser.ACChooserRoutes = nullptr;
-    } else if (GLObjChooser == myGLObjChooser.ACChooserStops) {
-        myGLObjChooser.ACChooserStops = nullptr;
-    } else if (GLObjChooser == myGLObjChooser.ACChooserTLS) {
-        myGLObjChooser.ACChooserTLS = nullptr;
-    } else if (GLObjChooser == myGLObjChooser.ACChooserContainer) {
-        myGLObjChooser.ACChooserContainer = nullptr;
-    } else if (GLObjChooser == myGLObjChooser.ACChooserAdditional) {
-        myGLObjChooser.ACChooserAdditional = nullptr;
-    } else if (GLObjChooser == myGLObjChooser.ACChooserPOI) {
-        myGLObjChooser.ACChooserPOI = nullptr;
-    } else if (GLObjChooser == myGLObjChooser.ACChooserPolygon) {
-        myGLObjChooser.ACChooserPolygon = nullptr;
-    } else if (GLObjChooser == myGLObjChooser.ACChooserProhibition) {
-        myGLObjChooser.ACChooserProhibition = nullptr;
-    } else {
-        throw ProcessError("Unregistered chooserDialog");
-    }
+    myGLObjChooser[GLObjChooser->getMessageId()] = nullptr;
 }
 
 
 long
 GUISUMOViewParent::onCmdMakeSnapshot(FXObject* sender, FXSelector, void*) {
     MFXCheckableButton* button = dynamic_cast<MFXCheckableButton*>(sender);
-    // check if cast was sucesfully
+    // check if cast was successfully
     if (button) {
         if (button->amChecked()) {
             myView->endSnapshot();
@@ -185,12 +139,12 @@ GUISUMOViewParent::onCmdMakeSnapshot(FXObject* sender, FXSelector, void*) {
             return 1;
         }
         // get the new file name
-        FXFileDialog opendialog(this, "Save Snapshot");
+        FXFileDialog opendialog(this, TL("Save Snapshot"));
         opendialog.setIcon(GUIIconSubSys::getIcon(GUIIcon::CAMERA));
         opendialog.setSelectMode(SELECTFILE_ANY);
 #ifdef HAVE_FFMPEG
-        opendialog.setPatternList("All Image and Video Files (*.gif,*.bmp,*.xpm,*.pcx,*.ico,*.rgb,*.xbm,*.tga,*.png,*.jpg,*.jpeg,*.tif,*.tiff,*.ps,*.eps,*.pdf,*.svg,*.tex,*.pgf,*.h264,*.hevc)\n"
-                                  "All Video Files (*.h264,*.hevc)\n"
+        opendialog.setPatternList("All Image and Video Files (*.gif,*.bmp,*.xpm,*.pcx,*.ico,*.rgb,*.xbm,*.tga,*.png,*.jpg,*.jpeg,*.tif,*.tiff,*.ps,*.eps,*.pdf,*.svg,*.tex,*.pgf,*.h264,*.hevc,*.mp4)\n"
+                                  "All Video Files (*.h264,*.hevc,*.mp4)\n"
 #else
         opendialog.setPatternList("All Image Files (*.gif,*.bmp,*.xpm,*.pcx,*.ico,*.rgb,*.xbm,*.tga,*.png,*.jpg,*.jpeg,*.tif,*.tiff,*.ps,*.eps,*.pdf,*.svg,*.tex,*.pgf)\n"
 #endif
@@ -208,162 +162,118 @@ GUISUMOViewParent::onCmdMakeSnapshot(FXObject* sender, FXSelector, void*) {
         }
         gCurrentFolder = opendialog.getDirectory();
         std::string file = opendialog.getFilename().text();
+        if (file.find(".") == std::string::npos) {
+            file.append(".png");
+            WRITE_MESSAGE(TL("No file extension was specified - saving Snapshot as PNG."));
+        }
         std::string error = myView->makeSnapshot(file);
         if (error == "video") {
             button->setChecked(!button->amChecked());
         } else if (error != "") {
-            FXMessageBox::error(this, MBOX_OK, "Saving failed.", "%s", error.c_str());
+            FXMessageBox::error(this, MBOX_OK, TL("Saving failed."), "%s", error.c_str());
+        } else {
+            WRITE_MESSAGE(TL("Snapshot successfully saved!"));
         }
     }
     return 1;
 }
 
 
-long
-GUISUMOViewParent::onCmdLocate(FXObject*, FXSelector sel, void*) {
-    switch (FXSELID(sel)) {
-        case MID_LOCATEJUNCTION: {
-            // check if dialog is already opened
-            if (myGLObjChooser.ACChooserJunction) {
-                // restore focus in the existent chooser dialog
-                myGLObjChooser.ACChooserJunction->restore();
-                myGLObjChooser.ACChooserJunction->setFocus();
-            } else {
-                myGLObjChooser.ACChooserJunction = new GUIDialog_GLObjChooser(this,
-                        GUIIconSubSys::getIcon(GUIIcon::LOCATEJUNCTION), "Junction Chooser",
-                        static_cast<GUINet*>(GUINet::getInstance())->getJunctionIDs(myParent->listInternal()),
-                        GUIGlObjectStorage::gIDStorage);
-            }
-            break;
-        }
-        case MID_LOCATEEDGE: {
-            // check if dialog is already opened
-            if (myGLObjChooser.ACChooserEdges) {
-                // restore focus in the existent chooser dialog
-                myGLObjChooser.ACChooserEdges->restore();
-                myGLObjChooser.ACChooserEdges->setFocus();
-            } else {
-                myGLObjChooser.ACChooserEdges = new GUIDialog_GLObjChooser(this,
-                        GUIIconSubSys::getIcon(GUIIcon::LOCATEEDGE), "Edge Chooser",
-                        GUIEdge::getIDs(myParent->listInternal()),
-                        GUIGlObjectStorage::gIDStorage);
-            }
-            break;
-        }
-        case MID_LOCATEVEHICLE: {
-            // get vehicles
+std::vector<GUIGlID>
+GUISUMOViewParent::getObjectIDs(int messageId) const {
+    switch (messageId) {
+        case MID_HOTKEY_SHIFT_J_LOCATEJUNCTION:
+            return static_cast<GUINet*>(GUINet::getInstance())->getJunctionIDs(myGUIMainWindowParent->listInternal());
+        case MID_HOTKEY_SHIFT_E_LOCATEEDGE:
+            return GUIEdge::getIDs(myGUIMainWindowParent->listInternal());
+        case MID_HOTKEY_SHIFT_V_LOCATEVEHICLE: {
             std::vector<GUIGlID> vehicles;
             if (MSGlobals::gUseMesoSim) {
                 static_cast<GUIMEVehicleControl*>(static_cast<GUINet*>(MSNet::getInstance())->getGUIMEVehicleControl())->insertVehicleIDs(vehicles);
             } else {
                 static_cast<GUIVehicleControl&>(MSNet::getInstance()->getVehicleControl()).insertVehicleIDs(
-                    vehicles, myParent->listParking(), myParent->listTeleporting());
+                    vehicles, myGUIMainWindowParent->listParking(), myGUIMainWindowParent->listTeleporting());
             }
-            // check if dialog is already opened
-            if (myGLObjChooser.ACChooserVehicles) {
-                // restore focus in the existent chooser dialog
-                myGLObjChooser.ACChooserVehicles->restore();
-                myGLObjChooser.ACChooserVehicles->setFocus();
-            } else {
-                myGLObjChooser.ACChooserVehicles = new GUIDialog_GLObjChooser(this,
-                        GUIIconSubSys::getIcon(GUIIcon::LOCATEVEHICLE), "Vehicle Chooser",
-                        vehicles,
-                        GUIGlObjectStorage::gIDStorage);
-            }
-            break;
+            return vehicles;
         }
-        case MID_LOCATEPERSON: {
-            // get persons
+        case MID_HOTKEY_SHIFT_P_LOCATEPERSON: {
             std::vector<GUIGlID> persons;
             static_cast<GUITransportableControl&>(MSNet::getInstance()->getPersonControl()).insertIDs(persons);
-            // check if dialog is already opened
-            if (myGLObjChooser.ACChooserPersons) {
-                // restore focus in the existent chooser dialog
-                myGLObjChooser.ACChooserPersons->restore();
-                myGLObjChooser.ACChooserPersons->setFocus();
-            } else {
-                myGLObjChooser.ACChooserPersons = new GUIDialog_GLObjChooser(this,
-                        GUIIconSubSys::getIcon(GUIIcon::LOCATEPERSON), "Person Chooser",
-                        persons,
-                        GUIGlObjectStorage::gIDStorage);
-            }
-            break;
+            return persons;
         }
-        case MID_LOCATECONTAINER: {
+        case MID_HOTKEY_SHIFT_C_LOCATECONTAINER: {
             // get containers
             std::vector<GUIGlID> containers;
             static_cast<GUITransportableControl&>(MSNet::getInstance()->getContainerControl()).insertIDs(containers);
-            // check if dialog is already opened
-            if (myGLObjChooser.ACChooserContainer) {
-                // restore focus in the existent chooser dialog
-                myGLObjChooser.ACChooserContainer->restore();
-                myGLObjChooser.ACChooserContainer->setFocus();
-            } else {
-                myGLObjChooser.ACChooserContainer = new GUIDialog_GLObjChooser(this,
-                        GUIIconSubSys::getIcon(GUIIcon::LOCATECONTAINER), "Container Chooser",
-                        containers,
-                        GUIGlObjectStorage::gIDStorage);
-            }
-            break;
+            return containers;
         }
-        case MID_LOCATETLS: {
-            // check if dialog is already opened
-            if (myGLObjChooser.ACChooserTLS) {
-                // restore focus in the existent chooser dialog
-                myGLObjChooser.ACChooserTLS->restore();
-                myGLObjChooser.ACChooserTLS->setFocus();
-            } else {
-                myGLObjChooser.ACChooserTLS = new GUIDialog_GLObjChooser(this,
-                        GUIIconSubSys::getIcon(GUIIcon::LOCATETLS), "Traffic Lights Chooser",
-                        static_cast<GUINet*>(GUINet::getInstance())->getTLSIDs(),
-                        GUIGlObjectStorage::gIDStorage);
-            }
-            break;
-        }
-        case MID_LOCATEADD: {
-            // check if dialog is already opened
-            if (myGLObjChooser.ACChooserAdditional) {
-                // restore focus in the existent chooser dialog
-                myGLObjChooser.ACChooserAdditional->restore();
-                myGLObjChooser.ACChooserAdditional->setFocus();
-            } else {
-                myGLObjChooser.ACChooserAdditional = new GUIDialog_GLObjChooser(this,
-                        GUIIconSubSys::getIcon(GUIIcon::LOCATEADD), "Additional Objects Chooser",
-                        GUIGlObject_AbstractAdd::getIDList(GLO_ADDITIONALELEMENT),
-                        GUIGlObjectStorage::gIDStorage);
-            }
-            break;
-        }
-        case MID_LOCATEPOI: {
-            // check if dialog is already opened
-            if (myGLObjChooser.ACChooserPOI) {
-                // restore focus in the existent chooser dialog
-                myGLObjChooser.ACChooserPOI->restore();
-                myGLObjChooser.ACChooserPOI->setFocus();
-            } else {
-                myGLObjChooser.ACChooserPOI = new GUIDialog_GLObjChooser(this,
-                        GUIIconSubSys::getIcon(GUIIcon::LOCATEPOI), "POI Chooser",
-                        static_cast<GUIShapeContainer&>(GUINet::getInstance()->getShapeContainer()).getPOIIds(),
-                        GUIGlObjectStorage::gIDStorage);
-            }
-            break;
-        }
-        case MID_LOCATEPOLY: {
-            // check if dialog is already opened
-            if (myGLObjChooser.ACChooserPolygon) {
-                // restore focus in the existent chooser dialog
-                myGLObjChooser.ACChooserPolygon->restore();
-                myGLObjChooser.ACChooserPolygon->setFocus();
-            } else {
-                myGLObjChooser.ACChooserPolygon = new GUIDialog_GLObjChooser(this,
-                        GUIIconSubSys::getIcon(GUIIcon::LOCATEPOLY), "Polygon Chooser",
-                        static_cast<GUIShapeContainer&>(GUINet::getInstance()->getShapeContainer()).getPolygonIDs(),
-                        GUIGlObjectStorage::gIDStorage);
-            }
-            break;
-        }
+        case MID_HOTKEY_SHIFT_T_LOCATETLS:
+            return static_cast<GUINet*>(GUINet::getInstance())->getTLSIDs();
+        case MID_HOTKEY_SHIFT_A_LOCATEADDITIONAL:
+            return GUIGlObject_AbstractAdd::getIDList(GLO_ADDITIONALELEMENT);
+        case MID_HOTKEY_SHIFT_O_LOCATEPOI:
+            return static_cast<GUIShapeContainer&>(GUINet::getInstance()->getShapeContainer()).getPOIIds();
+        case MID_HOTKEY_SHIFT_L_LOCATEPOLY:
+            return static_cast<GUIShapeContainer&>(GUINet::getInstance()->getShapeContainer()).getPolygonIDs();
         default:
-            throw ProcessError("Unknown Message ID in onCmdLocate");
+            throw ProcessError(TL("Unknown Message ID in onCmdLocate"));
+    }
+}
+
+
+long
+GUISUMOViewParent::onCmdLocate(FXObject*, FXSelector sel, void*) {
+    int messageId = FXSELID(sel);
+    if (myGLObjChooser.count(messageId) == 0 || myGLObjChooser[messageId] == nullptr) {
+        FXIcon* icon = nullptr;
+        std::string titleString = "";
+        switch (messageId) {
+            case MID_HOTKEY_SHIFT_J_LOCATEJUNCTION:
+                icon = GUIIconSubSys::getIcon(GUIIcon::LOCATEJUNCTION);
+                titleString = TL("Junction Chooser");
+                break;
+            case MID_HOTKEY_SHIFT_E_LOCATEEDGE:
+                icon = GUIIconSubSys::getIcon(GUIIcon::LOCATEEDGE);
+                titleString = TL("Edge Chooser");
+                break;
+            case MID_HOTKEY_SHIFT_V_LOCATEVEHICLE:
+                icon = GUIIconSubSys::getIcon(GUIIcon::LOCATEVEHICLE);
+                titleString = TL("Vehicle Chooser");
+                break;
+            case MID_HOTKEY_SHIFT_P_LOCATEPERSON:
+                icon = GUIIconSubSys::getIcon(GUIIcon::LOCATEPERSON);
+                titleString = TL("Person Chooser");
+                break;
+            case MID_HOTKEY_SHIFT_C_LOCATECONTAINER:
+                icon = GUIIconSubSys::getIcon(GUIIcon::LOCATECONTAINER);
+                titleString = TL("Container Chooser");
+                break;
+            case MID_HOTKEY_SHIFT_T_LOCATETLS:
+                icon = GUIIconSubSys::getIcon(GUIIcon::LOCATETLS);
+                titleString = TL("Traffic Lights Chooser");
+                break;
+            case MID_HOTKEY_SHIFT_A_LOCATEADDITIONAL:
+                icon = GUIIconSubSys::getIcon(GUIIcon::LOCATEADD);
+                titleString = TL("Additional Objects Chooser");
+                break;
+            case MID_HOTKEY_SHIFT_O_LOCATEPOI:
+                icon = GUIIconSubSys::getIcon(GUIIcon::LOCATEPOI);
+                titleString = TL("POI Chooser");
+                break;
+            case MID_HOTKEY_SHIFT_L_LOCATEPOLY:
+                icon = GUIIconSubSys::getIcon(GUIIcon::LOCATEPOLY);
+                titleString = TL("Polygon Chooser");
+                break;
+            default:
+                throw ProcessError(TL("Unknown Message ID in onCmdLocate"));
+        }
+
+        myGLObjChooser[messageId] = new GUIDialog_GLObjChooser(this, messageId, icon, titleString.c_str(), getObjectIDs(messageId), GUIGlObjectStorage::gIDStorage);
+
+    } else {
+        myGLObjChooser[messageId]->restore();
+        myGLObjChooser[messageId]->setFocus();
+        myGLObjChooser[messageId]->raise();
     }
     myLocatorPopup->popdown();
     myLocatorButton->killFocus();
@@ -482,41 +392,5 @@ GUISUMOViewParent::onUpdSpeedFactor(FXObject* sender, FXSelector, void* ptr) {
     return 1;
 }
 
-// ===========================================================================
-// private
-// ===========================================================================
-
-GUISUMOViewParent::GLObjChooser::GLObjChooser() :
-    ACChooserJunction(nullptr),
-    ACChooserEdges(nullptr),
-    ACChooserVehicles(nullptr),
-    ACChooserPersons(nullptr),
-    ACChooserContainer(nullptr),
-    ACChooserTLS(nullptr),
-    ACChooserAdditional(nullptr),
-    ACChooserPOI(nullptr),
-    ACChooserPolygon(nullptr),
-    ACChooserRoutes(nullptr),
-    ACChooserStops(nullptr),
-    ACChooserProhibition(nullptr) {
-}
-
-
-GUISUMOViewParent::GLObjChooser::~GLObjChooser() {
-    // remove all dialogs
-    // delete for a nullptr is valid, so no check needed
-    delete ACChooserJunction;
-    delete ACChooserEdges;
-    delete ACChooserVehicles;
-    delete ACChooserPersons;
-    delete ACChooserContainer;
-    delete ACChooserTLS;
-    delete ACChooserAdditional;
-    delete ACChooserPOI;
-    delete ACChooserPolygon;
-    delete ACChooserRoutes;
-    delete ACChooserStops;
-    delete ACChooserProhibition;
-}
 
 /****************************************************************************/

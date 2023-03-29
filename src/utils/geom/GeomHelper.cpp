@@ -1,6 +1,6 @@
 /****************************************************************************/
 // Eclipse SUMO, Simulation of Urban MObility; see https://eclipse.org/sumo
-// Copyright (C) 2001-2020 German Aerospace Center (DLR) and others.
+// Copyright (C) 2001-2023 German Aerospace Center (DLR) and others.
 // This program and the accompanying materials are made available under the
 // terms of the Eclipse Public License 2.0 which is available at
 // https://www.eclipse.org/legal/epl-2.0/
@@ -235,7 +235,7 @@ GeomHelper::legacyDegree(const double angle, const bool positive) {
 PositionVector
 GeomHelper::makeCircle(const double radius, const Position& center, unsigned int nPoints) {
     if (nPoints < 3) {
-        WRITE_ERROR("GeomHelper::makeCircle() requires nPoints>=3");
+        WRITE_ERROR(TL("GeomHelper::makeCircle() requires nPoints>=3"));
     }
     PositionVector circle;
     circle.push_back({radius, 0});
@@ -275,5 +275,60 @@ GeomHelper::makeRing(const double radius1, const double radius2, const Position&
     return ring;
 }
 
+
+
+const Position
+GeomHelper::calculateLotSpacePosition(const PositionVector& shape, const int index, const double spaceDim, const double angle,
+                                      const double width, const double length) {
+    //declare pos
+    Position pos;
+    // declare shape offsets
+    const Position startOffset = shape.positionAtOffset(spaceDim * (index));
+    const Position endOffset = shape.positionAtOffset(spaceDim * (index + 1));
+    // continue depending of nagle
+    if (angle == 0) {
+        // parking parallel to the road
+        pos = endOffset;
+    } else {
+        // angled parking
+        const double hlp_angle = fabs(((double)atan2((endOffset.x() - startOffset.x()), (startOffset.y() - endOffset.y())) * (double)180.0 / (double)M_PI) - 180);
+        if (angle >= 0 && angle <= 90) {
+            pos.setx((startOffset.x() + endOffset.x()) / 2 - (width / 2) * (1 - cos(angle / 180 * M_PI)) * cos(hlp_angle / 180 * M_PI));
+            pos.sety((startOffset.y() + endOffset.y()) / 2 + (width / 2) * (1 - cos(angle / 180 * M_PI)) * sin(hlp_angle / 180 * M_PI));
+            pos.setz((startOffset.z() + endOffset.z()) / 2);
+        } else if (angle > 90 && angle <= 180) {
+            pos.setx((startOffset.x() + endOffset.x()) / 2 - (width / 2) * (1 + cos(angle / 180 * M_PI)) * cos(hlp_angle / 180 * M_PI));
+            pos.sety((startOffset.y() + endOffset.y()) / 2 + (width / 2) * (1 + cos(angle / 180 * M_PI)) * sin(hlp_angle / 180 * M_PI));
+            pos.setz((startOffset.z() + endOffset.z()) / 2);
+        } else if (angle > 180 && angle <= 270) {
+            pos.setx((startOffset.x() + endOffset.x()) / 2 - (length)*sin((angle - hlp_angle) / 180 * M_PI) - (width / 2) * (1 + cos(angle / 180 * M_PI)) * cos(hlp_angle / 180 * M_PI));
+            pos.sety((startOffset.y() + endOffset.y()) / 2 + (length)*cos((angle - hlp_angle) / 180 * M_PI) + (width / 2) * (1 + cos(angle / 180 * M_PI)) * sin(hlp_angle / 180 * M_PI));
+            pos.setz((startOffset.z() + endOffset.z()) / 2);
+        } else if (angle > 270 && angle < 360) {
+            pos.setx((startOffset.x() + endOffset.x()) / 2 - (length)*sin((angle - hlp_angle) / 180 * M_PI) - (width / 2) * (1 - cos(angle / 180 * M_PI)) * cos(hlp_angle / 180 * M_PI));
+            pos.sety((startOffset.y() + endOffset.y()) / 2 + (length)*cos((angle - hlp_angle) / 180 * M_PI) + (width / 2) * (1 - cos(angle / 180 * M_PI)) * sin(hlp_angle / 180 * M_PI));
+            pos.setz((startOffset.z() + endOffset.z()) / 2);
+        } else {
+            pos = (startOffset + endOffset) * 0.5;
+        }
+    }
+    return pos;
+}
+
+
+double
+GeomHelper::calculateLotSpaceAngle(const PositionVector& shape, const int index, const double spaceDim, const double angle) {
+    // declare shape offsets
+    const Position startOffset = shape.positionAtOffset(spaceDim * (index));
+    const Position endOffset = shape.positionAtOffset(spaceDim * (index + 1));
+    // return angle
+    return ((double)atan2((endOffset.x() - startOffset.x()), (startOffset.y() - endOffset.y())) * (double)180.0 / (double)M_PI) + angle;
+}
+
+
+double
+GeomHelper::calculateLotSpaceSlope(const PositionVector& shape, const int index, const double spaceDim) {
+    return shape.slopeDegreeAtOffset(spaceDim * (index + 1));
+}
 
 /****************************************************************************/

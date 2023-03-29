@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: utf8 -*-
 # Eclipse SUMO, Simulation of Urban MObility; see https://eclipse.org/sumo
-# Copyright (C) 2010-2020 German Aerospace Center (DLR) and others.
+# Copyright (C) 2010-2023 German Aerospace Center (DLR) and others.
 # This program and the accompanying materials are made available under the
 # terms of the Eclipse Public License 2.0 which is available at
 # https://www.eclipse.org/legal/epl-2.0/
@@ -55,6 +55,7 @@ _DEBUG = True if "debug" in sys.argv else False
 _SCORES = 30
 
 _LANGUAGE_EN = {'title': 'Interactive Traffic Light',
+                'fkk_in': 'Research intersection Ingolstadt',
                 'cross': 'Simple Junction',
                 'cross_demo': 'Simple Junction (Demo)',
                 'square': 'Four Junctions',
@@ -62,7 +63,8 @@ _LANGUAGE_EN = {'title': 'Interactive Traffic Light',
                 'kuehne': 'Prof. Kühne',
                 'bs3d': '3D Junction Virtual World',
                 'bs3Dosm': '3D Junction OpenStreetMap',
-                'ramp': 'Highway Ramp',
+                'highway': 'Autobahnauffahrt',
+                'ramp': 'Combined Highway On and Off Ramp',
                 'corridor': 'Corridor',
                 'A10KW': 'Highway Ramp A10',
                 'DRT': 'Demand Responsive Transport (new)',
@@ -78,6 +80,7 @@ _LANGUAGE_EN = {'title': 'Interactive Traffic Light',
                 'Continue': 'Continue',
                 }
 _LANGUAGE_DE = {'title': 'Interaktives Ampelspiel',
+                'fkk_in': 'Forschungskreuzung Ingolstadt',
                 'cross': 'Einfache Kreuzung',
                 'cross_demo': 'Einfache Kreuzung (Demo)',
                 'square': 'Vier Kreuzungen',
@@ -85,7 +88,8 @@ _LANGUAGE_DE = {'title': 'Interaktives Ampelspiel',
                 'kuehne': 'Prof. Kühne',
                 'bs3d': '3D Forschungskreuzung Virtuelle Welt',
                 'bs3Dosm': '3D Forschungskreuzung OpenStreetMap',
-                'ramp': 'Autobahnauffahrt',
+                'highway': 'Autobahnauffahrt',
+                'ramp': 'Kombinierte Autobahnauf- und -abfahrt',
                 'A10KW': 'A10 KW',
                 'DRT': 'Bedarfsbus (neu)',
                 'DRT2': 'Bedarfsbus für Fortgeschrittene (neu)',
@@ -231,38 +235,28 @@ def computeScoreDRT(gamename):
 
 
 def computeScoreSquare(gamename):
-    rideWaitingTime = 0
-    rideDuration = 0
-    rideStarted = 0
-    rideFinished = 0
+    maxScore = 1000.0
+    expectedVehCount = 142
+    timeLoss = 0
+    tripCount = 0
+    arrived = 0
     tripinfos = gamename + ".tripinfos.xml"
-    rideCount = 0
-    for ride in sumolib.xml.parse(tripinfos, 'tripinfo'):
-        if float(ride.waitingTime) < 0:
-            if _DEBUG:
-                print("negative waitingTime")
-            ride.waitingTime = 10000
-        rideWaitingTime += float(ride.waitingTime)
-        if ride.vType.startswith("ev"):
-            rideWaitingTime += 10 * float(ride.waitingTime)
-        if float(ride.duration) >= 0:
-            rideDuration += float(ride.duration)
-            rideStarted += 1
-        if float(ride.arrival) >= 0:
-            rideFinished += 1
+    for trip in sumolib.xml.parse(tripinfos, 'tripinfo'):
+        timeLoss += float(trip.timeLoss) + float(trip.departDelay)
+        tripCount += 1
+        if float(trip.arrival) > 0:
+            arrived += 1
 
-        rideCount += 1
-
-    if rideCount == 0:
+    if tripCount == 0:
         return 0, 0, False
     else:
-        avgWT = rideWaitingTime / rideCount
-        avgDur = 0 if rideStarted == 0 else rideDuration / rideStarted
-        score = 1000 - int(avgWT + avgDur)
+        # early-abort score is close to 0, do-nothing timeLoss is ~8000
+        earlyEndPenalty = (expectedVehCount - tripCount) * (maxScore / expectedVehCount)
+        score = int(1000 - earlyEndPenalty - timeLoss / 10.0)
         if _DEBUG:
-            print("rideWaitingTime=%s rideDuration=%s persons=%s started=%s finished=%s avgWT=%s avgDur=%s" % (
-                rideWaitingTime, rideDuration, rideCount, rideStarted, rideFinished, avgWT, avgDur))
-        return score, rideCount, True
+            print("tripCount=%s arrived=%s timeLoss=%s avtTimeLoss=%s earlyEndPenalty=%s" % (
+                tripCount, arrived, timeLoss, timeLoss / tripCount, earlyEndPenalty))
+        return score, arrived, True
 
 
 _SCORING_FUNCTION = defaultdict(lambda: computeScoreFromWaitingTime)
@@ -296,8 +290,10 @@ def loadHighscore():
             printDebug("FAILED")
 
     try:
-        return pickle.load(open(_SCOREFILE))
-    except Exception:
+        with open(_SCOREFILE, 'rb') as sf:
+            return pickle.load(sf)
+    except Exception as e:
+        print(e)
         pass
     return {}
 
@@ -463,7 +459,7 @@ class ScoreDialog:
             high[category] = _SCORES * [("", "", -1.)]
         idx = 0
         for n, g, p in high[category]:
-            if not haveHigh and p < score:
+            if not haveHigh and score is not None and p < score:
                 Tkinter.Label(
                     self.root, text=(str(idx + 1) + '. ')).grid(row=idx)
                 self.name = Tkinter.Entry(self.root)
@@ -519,10 +515,11 @@ class ScoreDialog:
             Tkinter.Label(self.root, text=name, padx=5,
                           bg="pale green").grid(row=self.idx, sticky=Tkinter.W, column=1)
             try:
-                f = open(_SCOREFILE, 'w')
+                f = open(_SCOREFILE, 'wb')
                 pickle.dump(high, f)
                 f.close()
-            except Exception:
+            except Exception as e:
+                print(e)
                 pass
 
             if _UPLOAD:
@@ -555,7 +552,7 @@ base = os.path.dirname(sys.argv[0])
 high = loadHighscore()
 
 
-guisimPath = sumolib.checkBinary("sumo-gui")
+guisimPath = sumolib.checkBinary("sumo-gui", os.path.dirname(os.path.abspath(__file__)))
 haveOSG = "OSG" in subprocess.check_output(sumolib.checkBinary("sumo"), universal_newlines=True)
 
 if options.stereo:

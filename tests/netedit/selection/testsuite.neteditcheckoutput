@@ -1,10 +1,10 @@
 # basic test
 basic
 
-# check draws selections (Rectangle, polygons, etc.)
+# check draws selections (rectangle, polygons, etc.)
 draws
 
-# view options (toogle edges, show connections, etc.)
+# view options (toggle edges, show connections, etc.)
 viewoptions
 
 # operations (load, save, etc.)

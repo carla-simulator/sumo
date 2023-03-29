@@ -1,6 +1,5 @@
 ---
-title: Simulation/Output/Instantaneous Induction Loops Detectors
-permalink: /Simulation/Output/Instantaneous_Induction_Loops_Detectors/
+title: Instantaneous Induction Loops Detectors
 ---
 
 ## Instantiating within the Simulation
@@ -8,10 +7,9 @@ permalink: /Simulation/Output/Instantaneous_Induction_Loops_Detectors/
 An instantaneous induction loop is defined this way within an additional
 file like this:
 
-```
+```xml
 <instantInductionLoop id="<ID>" lane="<LANE_ID>" pos="<POSITION_ON_LANE>" file="<OUTPUT_FILE>" [friendlyPos="x"]/>
 ```
-
 
 The "`id`" is any string by which you can name
 the detector. The attributes "`lane` and
@@ -34,7 +32,7 @@ The attributes:
 | vTypes         | string             | space separated list of vehicle type ids to consider, "" means all; default "".                       |
 
 !!! note
-    Instead of manually defining detectors in an xml file, they can also be defined visually with [netedit](../../netedit.md).
+    Instead of manually defining detectors in an xml file, they can also be defined visually with [netedit](../../Netedit/index.md).
 
 ## Generated Output
 
@@ -77,13 +75,17 @@ teleported a leave event without occupancy is generated.
 
 ## Visualisation
 
-![instantaneous_loops.svg](../../images/Instantaneous_loops.svg "instantaneous_loops.svg") 
-**Figure: A scenario with induction loops**
-
-
-![instantaneous_loop_closeup.svg](../../images/Instantaneous_loop_closeup.svg "instantaneous_loop_closeup.svg") 
-**Figure: A close-up view at an
-induction loop**
+<table style="border: 0 !important"><thead><tr><td style="border: none; vertical-align:middle; text-align:center;">
+<figure>
+<img src="../../images/Instantaneous_loops.svg" alt="" />
+<figcaption>A scenario with induction loops</figcaption>
+</figure>
+</td><td style="border: none; vertical-align:middle; text-align:center;">
+<figure>
+<img src="../../images/Instantaneous_loop_closeup.svg" alt="" />
+<figcaption>A close-up view at an induction loop</figcaption>
+</figure>
+</td></tr></thead></table>
 
 ## Further Notes
 

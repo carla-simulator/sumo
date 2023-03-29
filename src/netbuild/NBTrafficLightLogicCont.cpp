@@ -1,6 +1,6 @@
 /****************************************************************************/
 // Eclipse SUMO, Simulation of Urban MObility; see https://eclipse.org/sumo
-// Copyright (C) 2001-2020 German Aerospace Center (DLR) and others.
+// Copyright (C) 2001-2023 German Aerospace Center (DLR) and others.
 // This program and the accompanying materials are made available under the
 // terms of the Eclipse Public License 2.0 which is available at
 // https://www.eclipse.org/legal/epl-2.0/
@@ -69,18 +69,26 @@ NBTrafficLightLogicCont::applyOptions(OptionsCont& oc) {
 }
 
 
+std::string
+NBTrafficLightLogicCont::getNextProgramID(const std::string& id) const {
+    IDSupplier idS("", 0);
+    if (myDefinitions.count(id)) {
+        const Program2Def& programs = myDefinitions.find(id)->second;
+        for (auto item : programs) {
+            idS.avoid(item.first);
+        }
+    }
+    return idS.getNext();
+}
+
+
 bool
 NBTrafficLightLogicCont::insert(NBTrafficLightDefinition* logic, bool forceInsert) {
     myExtracted.erase(logic);
     if (myDefinitions.count(logic->getID())) {
         if (myDefinitions[logic->getID()].count(logic->getProgramID())) {
             if (forceInsert) {
-                const Program2Def& programs = myDefinitions[logic->getID()];
-                IDSupplier idS("", 0);
-                for (Program2Def::const_iterator it_prog = programs.begin(); it_prog != programs.end(); it_prog++) {
-                    idS.avoid(it_prog->first);
-                }
-                logic->setProgramID(idS.getNext());
+                logic->setProgramID(getNextProgramID(logic->getID()));
             } else {
                 return false;
             }
@@ -136,6 +144,18 @@ NBTrafficLightLogicCont::extract(NBTrafficLightDefinition* definition) {
 }
 
 
+bool
+NBTrafficLightLogicCont::exist(const std::string& newID) const {
+    const auto itD = myDefinitions.find(newID);
+    const auto itC = myComputed.find(newID);
+    if ((itD != myDefinitions.end()) && (itC != myComputed.end())) {
+        return true;
+    } else {
+        return false;
+    }
+}
+
+
 std::pair<int, int>
 NBTrafficLightLogicCont::computeLogics(OptionsCont& oc) {
     // clean previous logics
@@ -144,7 +164,21 @@ NBTrafficLightLogicCont::computeLogics(OptionsCont& oc) {
         delete *it;
     }
     myComputed.clear();
-
+    if (oc.getBool("tls.rebuild")) {
+        for (NBTrafficLightDefinition* def : getDefinitions()) {
+            NBLoadedSUMOTLDef* lDef = dynamic_cast<NBLoadedSUMOTLDef*>(def);
+            if (lDef != nullptr) {
+                NBOwnTLDef* oDef = new NBOwnTLDef(def->getID(), def->getNodes(), def->getOffset(), def->getType());
+                oDef->setProgramID(def->getProgramID());
+                oDef->setParticipantsInformation();
+                for (NBNode* node : oDef->getNodes()) {
+                    node->removeTrafficLight(def);
+                }
+                removeProgram(def->getID(), def->getProgramID());
+                insert(oDef);
+            }
+        }
+    }
     if (oc.getBool("tls.group-signals")) {
         // replace NBOwnTLDef tld with NBLoadedSUMOTLDef
         for (NBTrafficLightDefinition* def : getDefinitions()) {
@@ -160,6 +194,7 @@ NBTrafficLightLogicCont::computeLogics(OptionsCont& oc) {
                     }
                     removeProgram(def->getID(), def->getProgramID());
                     insert(lDef);
+                    delete logic;
                 }
             }
             if (lDef != nullptr) {
@@ -197,16 +232,16 @@ NBTrafficLightLogicCont::computeSingleLogic(OptionsCont& oc, NBTrafficLightDefin
     // build program
     NBTrafficLightLogic* built = def->compute(oc);
     if (built == nullptr) {
-        WRITE_WARNING("Could not build program '" + programID + "' for traffic light '" + id + "'");
+        WRITE_WARNINGF(TL("Could not build program '%' for traffic light '%'"), programID, id);
         return false;
     }
     // compute offset
     SUMOTime T = built->getDuration();
     if (myHalfOffsetTLS.count(id)) {
-        built->setOffset(TIME2STEPS(floor(STEPS2TIME(T / 2.))));
+        built->setOffset(TIME2STEPS(floor(STEPS2TIME(T / 2))));
     }
     if (myQuarterOffsetTLS.count(id)) {
-        built->setOffset(TIME2STEPS(floor(STEPS2TIME(T / 4.))));
+        built->setOffset(TIME2STEPS(floor(STEPS2TIME(T / 4))));
     }
     // and insert the result after computation
     // make sure we don't leak memory if computeSingleLogic is called externally
@@ -302,7 +337,7 @@ NBTrafficLightLogicCont::setTLControllingInformation(const NBEdgeCont& ec, const
     for (Definitions::iterator it = definitions.begin(); it != definitions.end(); it++) {
         (*it)->setParticipantsInformation();
     }
-    // clear previous information because tlDefs may have been removed in NETEDIT
+    // clear previous information because tlDefs may have been removed in netedit
     ec.clearControllingTLInformation();
     // insert the information about the tl-controlling
     for (Definitions::iterator it = definitions.begin(); it != definitions.end(); it++) {
@@ -338,7 +373,7 @@ NBTrafficLightLogicCont::setOpenDriveSignalParameters() {
         for (const NBConnection& con : def->getControlledLinks()) {
             const NBEdge::Connection& c = con.getFrom()->getConnection(con.getFromLane(), con.getTo(), con.getToLane());
             if (!c.knowsParameter("signalID") && defaultSignalIDs.count(con.getFrom()) != 0) {
-                WRITE_WARNINGF("Guessing signalID for link index % at traffic light '%'.", con.getTLIndex(), def->getID());
+                WRITE_WARNINGF(TL("Guessing signalID for link index % at traffic light '%'."), con.getTLIndex(), def->getID());
                 def->setParameter("linkSignalID:" + toString(con.getTLIndex()), defaultSignalIDs[con.getFrom()]);
             }
         }
@@ -371,5 +406,31 @@ NBTrafficLightLogicCont::getDefinitions() const {
     return result;
 }
 
+
+void
+NBTrafficLightLogicCont::rename(NBTrafficLightDefinition* tlDef, const std::string& newID) {
+    auto it = myDefinitions.find(tlDef->getID());
+    if (it != myDefinitions.end()) {
+        for (auto item : it->second) {
+            item.second->setID(newID);
+        }
+        myDefinitions[newID] = it->second;
+        myDefinitions.erase(it);
+    }
+    auto it2 = myComputed.find(tlDef->getID());
+    if (it2 != myComputed.end()) {
+        for (auto item : it2->second) {
+            item.second->setID(newID);
+        }
+        myComputed[newID] = it2->second;
+        myComputed.erase(it2);
+    }
+}
+
+
+int
+NBTrafficLightLogicCont::getNumExtracted() const {
+    return (int)myExtracted.size();
+}
 
 /****************************************************************************/

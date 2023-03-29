@@ -45,7 +45,6 @@ on("ready", function(){
                     count: parseFloat(this.count.value)
                 };
             }
-
             return null;
         }
     };
@@ -62,6 +61,69 @@ on("ready", function(){
         new Settings("Trains", "rail", 40, 2),
         new Settings("Ships", "ship", 40, 2)
     ];
+
+    function RoadTypes(){
+        this.init.apply(this, arguments);
+    }
+
+    RoadTypes.prototype = {
+        init: function (category, typeList) {
+            this.category = category;
+            this.typeList = typeList;
+
+            var node = elem("<div>", {className: "container"});
+            var header = elem("<h4>", {textContent: category});
+            var checkbox = elem("<input>",{type: "checkbox", checked:true, className: "checkAll", id: category.toLowerCase()});
+            node.append(header);
+            node.append(checkbox);
+
+            var types = elem("<div>", {className: "roadTypes " + category.toLowerCase()});
+            var label = elem("<label>");
+
+            for (var i = 0; i < typeList.length; i++) {
+                label = elem("<label>", {textContent: typeList[i]});
+                let roadTypeId = this.category + "_" + typeList[i]
+                this.roadTypeCheck = elem("<input>",{type: "checkbox", checked:true, id: roadTypeId});
+
+                label.append(this.roadTypeCheck);
+                types.append(label);
+            }
+
+            node.append(types);
+            elem("#road-types").append(node);
+        },
+
+        getEnabledTypeList: function () {
+            var retEnabledTypeList = [];
+            for (var j = 0; j < this.typeList.length; j++) {
+                var roadTypeId = this.category + "_" + this.typeList[j];
+                if (document.getElementById(roadTypeId).checked) {
+                    retEnabledTypeList.push(this.typeList[j]);
+                    if (this.typeList[j].match(/^(motorway|trunk|primary|secondary|tertiary)$/)) {
+                        retEnabledTypeList.push(this.typeList[j] + "_link");
+                    }
+                }
+            }
+            return retEnabledTypeList;
+        }
+    };
+
+    const categories = {};
+    categories["Highway"] = ["motorway", "trunk", "primary","secondary", "tertiary", "unclassified", "residential",
+        "living_street", "unsurfaced", "service", "raceway", "bus_guideway"];
+    categories["Pedestrians"] = ["track", "footway", "pedestrian", "path", "bridleway", "cycleway", "step", "steps",
+        "stairs"];              //"Pedestrians" has also the "highway" key in OSM, this will be transformed in startBuild()
+    categories["Railway"] = ["preserved", "tram", "subway", "light_rail", "rail", "highspeed", "monorail"];
+    categories["Aeroway"] = ["stopway", "parking_position", "taxiway", "taxilane", "runway", "highway_strip"]
+    categories["Waterway"] = ["river", "canal"];
+    categories["Aerialway"] = ["cable_car", "gondola"];
+    categories["Route"] = ["ferry"];
+
+    var roadClasses = [];
+
+    for (const [key, value] of Object.entries(categories)) {
+        roadClasses.push(new RoadTypes(key, value));
+    }
 
     var activeTab = null;
 
@@ -107,7 +169,7 @@ on("ready", function(){
 
     var canvas = elem("canvas");
     var canvasActive = false;
-    var canvasRect = [.1, .1, .9, .9];
+    var canvasRect = [.1, .1, .75, .9];
     var ctx = canvas.getContext("2d");
 
     /**
@@ -130,7 +192,7 @@ on("ready", function(){
     function draw(){
         var x0 = canvas.width * canvasRect[0],
             y0 = canvas.height * canvasRect[1],
-            x1 = canvas.width * canvasRect[2] - 250,
+            x1 = canvas.width * canvasRect[2],
             y1 = canvas.height * canvasRect[3];
 
         ctx.clearRect(0, 0, canvas.width, canvas.height);
@@ -159,7 +221,7 @@ on("ready", function(){
     function changeMousePointer(x, y, down){
         var x0 = canvas.width * canvasRect[0],
             y0 = canvas.height * canvasRect[1],
-            x1 = canvas.width * canvasRect[2] - 250,
+            x1 = canvas.width * canvasRect[2],
             y1 = canvas.height * canvasRect[3];
 
         var cursor = "", t = 20; //tolerance
@@ -191,15 +253,43 @@ on("ready", function(){
         mouse.x = evt.clientX;
         mouse.y = evt.clientY;
         if(mouse.area !== null){
-            if(mouse.area[1] == "n")
-                canvasRect[1] += dy;
-            else if(mouse.area[1] == "s")
-                canvasRect[3] += dy;
+            if(mouse.area[1] == "n"){
+                if((canvasRect[1] + dy)<=canvasRect[3]){
+                    canvasRect[1] += dy;
+                } else if ((canvasRect[1] + dy)>canvasRect[3]){
+                    [canvasRect[1], canvasRect[3]] = [canvasRect[3], canvasRect[1]];
+                    canvasRect[3] += dy;
+                    mouse.area[1] = "s";
+                }
+            }
+            else if(mouse.area[1] == "s"){
+                if((canvasRect[3] + dy)>=canvasRect[1]){
+                    canvasRect[3] += dy;
+                } else if ((canvasRect[3] + dy)<canvasRect[1]){
+                    [canvasRect[1], canvasRect[3]] = [canvasRect[3], canvasRect[1]];
+                    canvasRect[1] += dy;
+                    mouse.area[1] = "n";
+                }
+            }
 
-            if(mouse.area[2] == "w")
-                canvasRect[0] += dx;
-            else if(mouse.area[2] == "e")
-                canvasRect[2] += dx;
+            if(mouse.area[2] == "w"){
+                if((canvasRect[0] + dx)<=canvasRect[2]){
+                    canvasRect[0] += dx;
+                } else if ((canvasRect[0] + dx)>canvasRect[2]){
+                    [canvasRect[0], canvasRect[2]] = [canvasRect[2], canvasRect[0]];
+                    canvasRect[2] += dx;
+                    mouse.area[2] = "e";
+                }
+            }
+            else if(mouse.area[2] == "e"){
+                if((canvasRect[2] + dx)>=canvasRect[0]){
+                    canvasRect[2] += dx;
+                } else if ((canvasRect[2] + dx)<canvasRect[0]){
+                    [canvasRect[0], canvasRect[2]] = [canvasRect[2], canvasRect[0]];
+                    canvasRect[0] += dx;
+                    mouse.area[2] = "w";
+                }
+            }
 
             if(mouse.area[1] == "m"){
                 canvasRect[0] += dx;
@@ -216,8 +306,8 @@ on("ready", function(){
      * @function
      * checks if the checkbox is checked and displays the canvas in this case, else not
      **/
-    function toogleCanvas(){
-        if(canvasToogle.checked){
+    function toggleCanvas(){
+        if(canvasToggle.checked){
             canvasActive = true;
             canvas.style.removeProperty("display");
         } else {
@@ -226,10 +316,22 @@ on("ready", function(){
         }
     }
 
-    var canvasToogle = elem("#canvas-toogle");
+    var canvasToggle = elem("#canvas-toggle");
 
-    canvasToogle.on("click", toogleCanvas);
-    toogleCanvas();
+    canvasToggle.on("click", toggleCanvas);
+    toggleCanvas();
+
+    // function to check or uncheck all checkboxes for a certain roadType
+    var checkOrUncheckAll = function() {
+        Array.from(document.querySelectorAll(".roadTypes." + this.getAttribute("id") + " input[type=checkbox]")).forEach(el => el.checked = this.checked);
+    };
+
+    // listen if a roadType checkbox is selected/unselected
+    var roadTypeCheckboxes = document.getElementsByClassName("checkAll"); 
+
+    Array.from(roadTypeCheckboxes).forEach(function(element) {
+        element.addEventListener("click", checkOrUncheckAll);
+    });
 
     // OSM map
     // avoid cross domain resource sharing issues (#3991)
@@ -433,7 +535,8 @@ on("ready", function(){
             leftHand: elem("#leftHand").checked,
             decal: elem("#decal").checked,
             carOnlyNetwork: elem("#carOnlyNetwork").checked,
-            vehicles: {}
+            vehicles: {},
+            roadTypes:{}                                                            // sab-inf
         };
 
         // calculates the coordinates of the rectangle if area-picking is active
@@ -453,6 +556,23 @@ on("ready", function(){
             var result = vehicleClass.toJSON();
             if(result)
                 data.vehicles[vehicleClass.internal] = result;
+        });
+
+        roadClasses.forEach(function(roadType){
+            var result = roadType.getEnabledTypeList();
+            if(result){
+                // in OSM "pedestrians" have also the key "highway", therefore we prepare the data accordingly
+                if(roadType.category == "Pedestrians" || roadType.category == "Highway"){
+                    try{
+                        data.roadTypes["Highway"] = data.roadTypes["Highway"].concat(result);
+                    }catch (e){
+                        if (e instanceof TypeError) {
+                            data.roadTypes["Highway"] = result;
+                        }
+                    }
+                }else
+                    data.roadTypes[roadType.category] = result;
+            }
         });
 
         try {

@@ -1,6 +1,6 @@
 /****************************************************************************/
 // Eclipse SUMO, Simulation of Urban MObility; see https://eclipse.org/sumo
-// Copyright (C) 2001-2020 German Aerospace Center (DLR) and others.
+// Copyright (C) 2001-2023 German Aerospace Center (DLR) and others.
 // This program and the accompanying materials are made available under the
 // terms of the Eclipse Public License 2.0 which is available at
 // https://www.eclipse.org/legal/epl-2.0/
@@ -41,37 +41,56 @@ recheckForLoops(ConstROEdgeVector& edges, const ConstROEdgeVector& mandatory) {
     // XXX check for departLane, departPos, departSpeed, ....
 
     // removal of edge loops within the route (edge occurs twice)
-    std::map<const ROEdge*, int> lastOccurence; // index of the last occurence of this edge
-    for (int ii = 0; ii < (int)edges.size(); ++ii) {
-        std::map<const ROEdge*, int>::iterator it_pre = lastOccurence.find(edges[ii]);
-        if (it_pre != lastOccurence.end() &&
-                noMandatory(mandatory, edges.begin() + it_pre->second, edges.begin() + ii)) {
-            edges.erase(edges.begin() + it_pre->second, edges.begin() + ii);
-            ii = it_pre->second;
-        } else {
-            lastOccurence[edges[ii]] = ii;
+    // call repeatedly until no more loops have been found
+    bool findLoop = true;
+    while (findLoop) {
+        findLoop = false;
+        std::map<const ROEdge*, int> lastOccurrence; // index of the last occurrence of this edge
+        for (int ii = 0; ii < (int)edges.size(); ++ii) {
+            std::map<const ROEdge*, int>::iterator it_pre = lastOccurrence.find(edges[ii]);
+            if (it_pre != lastOccurrence.end() &&
+                    noMandatory(mandatory, edges.begin() + it_pre->second, edges.begin() + ii)) {
+                edges.erase(edges.begin() + it_pre->second, edges.begin() + ii);
+                ii = it_pre->second;
+                findLoop = true;
+                break;
+            } else {
+                lastOccurrence[edges[ii]] = ii;
+            }
         }
     }
 
     // remove loops at the route's begin
     //  (vehicle makes a turnaround to get into the right direction at an already passed node)
     const RONode* start = edges[0]->getFromJunction();
-    int lastStart = 0;
-    for (int i = 1; i < (int)edges.size(); i++) {
-        if (edges[i]->getFromJunction() == start) {
-            lastStart = i;
-        }
+    if (start == nullptr && edges.size() > 1) {
+        // taz edge has no fromJunction
+        start = edges[1]->getFromJunction();
     }
-    if (lastStart > 0 && noMandatory(mandatory, edges.begin(), edges.begin() + lastStart - 1)) {
-        edges.erase(edges.begin(), edges.begin() + lastStart - 1);
+    if (start != nullptr) {
+        int lastStart = 0;
+        for (int i = 1; i < (int)edges.size(); i++) {
+            if (edges[i]->getFromJunction() == start) {
+                lastStart = i;
+            }
+        }
+        if (lastStart > 0 && noMandatory(mandatory, edges.begin(), edges.begin() + lastStart - 1)) {
+            edges.erase(edges.begin(), edges.begin() + lastStart - 1);
+        }
     }
     // remove loops at the route's end
     //  (vehicle makes a turnaround to get into the right direction at an already passed node)
     const RONode* end = edges.back()->getToJunction();
-    for (int i = 0; i < (int)edges.size() - 1; i++) {
-        if (edges[i]->getToJunction() == end && noMandatory(mandatory, edges.begin() + i + 2, edges.end())) {
-            edges.erase(edges.begin() + i + 2, edges.end());
-            break;
+    if (end == nullptr && edges.size() > 1) {
+        // taz edge has no toJunction
+        end = edges[edges.size() - 2]->getToJunction();
+    }
+    if (end != nullptr) {
+        for (int i = 0; i < (int)edges.size() - 1; i++) {
+            if (edges[i]->getToJunction() == end && noMandatory(mandatory, edges.begin() + i + 2, edges.end())) {
+                edges.erase(edges.begin() + i + 2, edges.end());
+                break;
+            }
         }
     }
 

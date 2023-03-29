@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 
-<!-- generated on Tue Sep  8 13:06:13 2020 by Eclipse SUMO polyconvert Version v1_6_0+2018-124343ba59
+<!-- generated on 2023-02-06 12:10:37 by Eclipse SUMO polyconvert Version v1_15_0+2198-1709483215c
 -->
 
 <xsd:schema elementFormDefault="qualified" xmlns:xsd="http://www.w3.org/2001/XMLSchema">
@@ -26,6 +26,7 @@
             <xsd:element name="dlr-navteq-poly-files" type="fileOptionType" minOccurs="0"/>
             <xsd:element name="dlr-navteq-poi-files" type="fileOptionType" minOccurs="0"/>
             <xsd:element name="visum-files" type="fileOptionType" minOccurs="0"/>
+            <xsd:element name="visum.language-file" type="fileOptionType" minOccurs="0"/>
             <xsd:element name="xml-files" type="fileOptionType" minOccurs="0"/>
             <xsd:element name="osm-files" type="fileOptionType" minOccurs="0"/>
             <xsd:element name="osm.keep-full-type" type="boolOptionType" minOccurs="0"/>
@@ -114,6 +115,7 @@
             <xsd:element name="log" type="fileOptionType" minOccurs="0"/>
             <xsd:element name="message-log" type="fileOptionType" minOccurs="0"/>
             <xsd:element name="error-log" type="fileOptionType" minOccurs="0"/>
+            <xsd:element name="language" type="strOptionType" minOccurs="0"/>
         </xsd:all>
     </xsd:complexType>
 

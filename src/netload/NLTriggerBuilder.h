@@ -1,6 +1,6 @@
 /****************************************************************************/
 // Eclipse SUMO, Simulation of Urban MObility; see https://eclipse.org/sumo
-// Copyright (C) 2002-2020 German Aerospace Center (DLR) and others.
+// Copyright (C) 2002-2023 German Aerospace Center (DLR) and others.
 // This program and the accompanying materials are made available under the
 // terms of the Eclipse Public License 2.0 which is available at
 // https://www.eclipse.org/legal/epl-2.0/
@@ -26,6 +26,7 @@
 
 #include <string>
 #include <vector>
+#include <utils/common/RGBColor.h>
 
 
 // ===========================================================================
@@ -113,11 +114,9 @@ public:
      *
      * @param[in] net The network the rerouter belongs to
      * @param[in] attrs SAX-attributes which define the trigger
-     * @param[in] base The base path
      * @exception InvalidArgument If a parameter (edge) is not valid
      */
-    void parseAndBuildRerouter(MSNet& net, const SUMOSAXAttributes& attrs,
-                               const std::string& base);
+    void parseAndBuildRerouter(MSNet& net, const SUMOSAXAttributes& attrs);
 
 
     /** @brief Parses the values and builds a stopping places for busses, trains or container vehicles
@@ -151,7 +150,8 @@ public:
                                   MSLane* lane, double frompos, double topos,
                                   unsigned int capacity,
                                   double width, double length, double angle, const std::string& name,
-                                  bool onRoad);
+                                  bool onRoad,
+                                  const std::string& departPos);
 
 
     /** @brief Add a lot entry to current parking area
@@ -164,10 +164,12 @@ public:
      * @param[in] width Width of the lot rectangle
      * @param[in] length Length of the lot rectangle
      * @param[in] angle Angle of the lot rectangle
+     * @param[in] slope Slope of the lot rectangle
      * @exception InvalidArgument If the current parking area is 0
      */
     void addLotEntry(double x, double y, double z,
-                     double width, double length, double angle);
+                     double width, double length,
+                     double angle, double slope);
 
 
 
@@ -308,7 +310,7 @@ protected:
      */
     virtual void buildStoppingPlace(MSNet& net, std::string id, std::vector<std::string> lines, MSLane* lane,
                                     double frompos, double topos, const SumoXMLTag element, std::string string,
-                                    int personCapacity, double parkingLength);
+                                    int personCapacity, double parkingLength, RGBColor& color);
 
     /** @brief Builds a charging station
      *
@@ -326,7 +328,7 @@ protected:
      * @exception InvalidArgument If the charging station can not be added to the net (is duplicate)
      */
     virtual void buildChargingStation(MSNet& net, const std::string& id, MSLane* lane, double frompos, double topos, const std::string& name,
-                                      double chargingPower, double efficiency, bool chargeInTransit, double chargeDelay);
+                                      double chargingPower, double efficiency, bool chargeInTransit, SUMOTime chargeDelay);
 
     /** @brief Builds an overhead wire segment
     *
@@ -362,9 +364,10 @@ protected:
     * @param[in] net The net the traction substation belongs to
     * @param[in] id The id of the traction substation
     * @param[in] voltage The voltage level of the voltage source representing the traction substation
+    * @param[in] currentLimit The electric current limit(max current flowing from(through) the traction substation)
     * @exception InvalidArgument If the over can not be added to the net (is duplicate according to the id)
     */
-    void buildTractionSubstation(MSNet& net, std::string id, double voltage);
+    void buildTractionSubstation(MSNet& net, std::string id, double voltage, double currentLimit);
 
     virtual void buildOverheadWireClamp(MSNet& net, const std::string& id, MSLane* lane_start, MSLane* lane_end);
 
@@ -415,12 +418,10 @@ protected:
      * @param[in] id The id of the rerouter
      * @param[in] edges The edges the rerouter is placed at
      * @param[in] prob The probability the rerouter reoutes vehicles with
-     * @param[in] file The file to read the reroute definitions from
      */
     virtual MSTriggeredRerouter* buildRerouter(MSNet& net,
             const std::string& id, MSEdgeVector& edges,
-            double prob, const std::string& file, bool off,
-            SUMOTime timeThreshold,
+            double prob, bool off, SUMOTime timeThreshold,
             const std::string& vTypes);
     //@}
 

@@ -1,6 +1,6 @@
 /****************************************************************************/
 // Eclipse SUMO, Simulation of Urban MObility; see https://eclipse.org/sumo
-// Copyright (C) 2001-2020 German Aerospace Center (DLR) and others.
+// Copyright (C) 2001-2023 German Aerospace Center (DLR) and others.
 // This program and the accompanying materials are made available under the
 // terms of the Eclipse Public License 2.0 which is available at
 // https://www.eclipse.org/legal/epl-2.0/
@@ -50,7 +50,6 @@ class MSRoute;
  * Microsocopic view at the simulation
  */
 class GUIViewTraffic : public GUISUMOAbstractView {
-    FXDECLARE(GUIViewTraffic)
 public:
     /// @brief constructor
     GUIViewTraffic(FXComposite* p, GUIMainWindow& app,
@@ -58,6 +57,9 @@ public:
                    FXGLCanvas* share);
     /// @brief destructor
     virtual ~GUIViewTraffic();
+
+    /// @brief recalculate boundaries
+    void recalculateBoundaries();
 
     /// @brief builds the view toolbars
     virtual void buildViewToolBars(GUIGlChildWindow*);
@@ -83,10 +85,17 @@ public:
 
     /// @brief recalibrate color scheme according to the current value range
     void buildColorRainbow(const GUIVisualizationSettings& s, GUIColorScheme& scheme, int active, GUIGlObjectType objectType,
-                           bool hide = false, double hideThreshold = 0);
+                           bool hide = false, double hideThreshold = 0,
+                           bool hide2 = false, double hideThreshold2 = 0);
 
     /// @brief return list of loaded edgeData attributes
     std::vector<std::string> getEdgeDataAttrs() const;
+
+    /// @brief return list of loaded edgeData ids (being computed in the current simulation)
+    std::vector<std::string> getMeanDataIDs() const;
+
+    /// @brief return list of available attributes for the given meanData id
+    std::vector<std::string> getMeanDataAttrs(const std::string& meanDataID) const;
 
     /// @brief return list of available edge parameters
     std::vector<std::string> getEdgeLaneParamKeys(bool edgeKeys) const;
@@ -111,6 +120,7 @@ public:
 
     /// @brief highlight edges according to reachability
     long onCmdShowReachability(FXObject*, FXSelector, void*);
+    static long showLaneReachability(GUILane* lane, FXObject*, FXSelector);
 
     long onDoubleClicked(FXObject*, FXSelector, void*);
 

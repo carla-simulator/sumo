@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 # Eclipse SUMO, Simulation of Urban MObility; see https://eclipse.org/sumo
-# Copyright (C) 2008-2020 German Aerospace Center (DLR) and others.
+# Copyright (C) 2008-2023 German Aerospace Center (DLR) and others.
 # This program and the accompanying materials are made available under the
 # terms of the Eclipse Public License 2.0 which is available at
 # https://www.eclipse.org/legal/epl-2.0/
@@ -20,8 +20,8 @@ from __future__ import print_function
 import os
 import sys
 
-SUMO_HOME = os.path.join(os.path.dirname(__file__), "..", "..", "..", "..")
-sys.path.append(os.path.join(os.environ.get("SUMO_HOME", SUMO_HOME), "tools"))
+if "SUMO_HOME" in os.environ:
+    sys.path.append(os.path.join(os.environ["SUMO_HOME"], "tools"))
 
 import traci  # noqa
 import sumolib  # noqa
@@ -32,6 +32,7 @@ traci.start([sumoBinary,
              "-n", "input_net.net.xml",
              "-r", "input_routes.rou.xml",
              "--no-step-log",
+             # "--step-length", "0.25",
              ] + sys.argv[1:])
 
 vehID = "ego"
@@ -41,12 +42,10 @@ while traci.simulation.getMinExpectedNumber() > 0:
     try:
         followerAutoDist = traci.vehicle.getFollower(vehID)
         followerLowDist = traci.vehicle.getFollower(vehID, 5)
-        print("%s: followerAuto=%s followerShort=%s" % (
-            t, followerAutoDist, followerLowDist))
-    except traci.TraCIException as e:
+        print("%s: egoLane=%s followerAuto=%s followerShort=%s" % (
+            t, traci.vehicle.getLaneID(vehID), followerAutoDist, followerLowDist))
+    except traci.TraCIException:
         # ego left the simulation
-        if traci.isLibsumo():
-            print(e, file=sys.stderr)
         break
     traci.simulationStep()
 

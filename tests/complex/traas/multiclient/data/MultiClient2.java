@@ -1,6 +1,6 @@
 /****************************************************************************/
 // Eclipse SUMO, Simulation of Urban MObility; see https://eclipse.org/sumo
-// Copyright (C) 2017-2020 German Aerospace Center (DLR) and others.
+// Copyright (C) 2017-2023 German Aerospace Center (DLR) and others.
 // TraaS module
 // Copyright (C) 2013-2017 Dresden University of Technology
 // This program and the accompanying materials are made available under the
@@ -24,7 +24,7 @@ import de.tudresden.sumo.cmd.Simulation;
 import de.tudresden.sumo.cmd.Vehicle;
 import de.tudresden.sumo.cmd.Inductionloop;
 import de.tudresden.sumo.cmd.Trafficlight;
-import de.tudresden.ws.container.SumoVehicleData;
+import de.tudresden.sumo.objects.SumoVehicleData;
 
 public class MultiClient2 {
 

@@ -1,6 +1,6 @@
 /****************************************************************************/
 // Eclipse SUMO, Simulation of Urban MObility; see https://eclipse.org/sumo
-// Copyright (C) 2013-2020 German Aerospace Center (DLR) and others.
+// Copyright (C) 2013-2023 German Aerospace Center (DLR) and others.
 // This program and the accompanying materials are made available under the
 // terms of the Eclipse Public License 2.0 which is available at
 // https://www.eclipse.org/legal/epl-2.0/
@@ -16,6 +16,8 @@
 /// @author  Michael Behrisch
 /// @author  Jakob Erdmann
 /// @author  Leonhard Luecken
+/// @author  Mirko Barthauer
+/// @author  Johannes Rummel
 /// @date    11.06.2013
 ///
 // An SSM-device logs encounters / conflicts of the carrying vehicle with other surrounding vehicles
@@ -26,21 +28,24 @@
 
 #include <iostream>
 #include <algorithm>
+#include <utils/common/FileHelpers.h>
 #include <utils/common/StringTokenizer.h>
-#include <utils/geom/GeomHelper.h>
 #include <utils/common/StringUtils.h>
+#include <utils/geom/GeoConvHelper.h>
+#include <utils/geom/GeomHelper.h>
+#include <utils/geom/Position.h>
 #include <utils/options/OptionsCont.h>
 #include <utils/iodevices/OutputDevice.h>
 #include <utils/vehicle/SUMOVehicle.h>
 #include <microsim/MSNet.h>
 #include <microsim/MSJunction.h>
 #include <microsim/MSLane.h>
+#include <microsim/MSLink.h>
 #include <microsim/MSEdge.h>
 #include <microsim/MSVehicle.h>
 #include <microsim/MSVehicleControl.h>
+#include <microsim/MSJunctionControl.h>
 #include <microsim/lcmodels/MSAbstractLaneChangeModel.h>
-#include <utils/geom/Position.h>
-#include <utils/geom/GeoConvHelper.h>
 #include "MSDevice_SSM.h"
 
 // ===========================================================================
@@ -53,23 +58,20 @@
 //#define DEBUG_SSM_DRAC
 //#define DEBUG_SSM_NOTIFICATIONS
 //#define DEBUG_COND(ego) MSNet::getInstance()->getCurrentTimeStep() > 308000
-//#define DEBUG_COND(ego) (ego!=nullptr && ego->isSelected())
-//#define DEBUG_COND_FIND(ego) (ego.isSelected())
-#define DEBUG_COND_FIND(ego) (ego.getID() == DEBUG_EGO_ID)
-#define DEBUG_EGO_ID "286"
-#define DEBUG_FOE_ID "205"
+//
+//#define DEBUG_EGO_ID "286"
+//#define DEBUG_FOE_ID "205"
+//#define DEBUG_COND_FIND(ego) (ego.getID() == DEBUG_EGO_ID)
+//#define DEBUG_COND(ego) ((ego)!=nullptr && (ego)->getID() == DEBUG_EGO_ID)
+//#define DEBUG_COND_ENCOUNTER(e) ((DEBUG_EGO_ID == std::string("") || e->egoID == DEBUG_EGO_ID) && (DEBUG_FOE_ID == std::string("") || e->foeID == DEBUG_FOE_ID))
 
-#define DEBUG_COND(ego) ((ego)!=nullptr && (ego)->getID() == DEBUG_EGO_ID)
-
-#define DEBUG_COND_ENCOUNTER(e) ((DEBUG_EGO_ID == std::string("") || e->egoID == DEBUG_EGO_ID) && (DEBUG_FOE_ID == std::string("") || e->foeID == DEBUG_FOE_ID))
-//#define DEBUG_COND_ENCOUNTER(e) (e->ego != nullptr && e->ego->isSelected() && e->foe != nullptr && e->foe->isSelected())
+#define DEBUG_COND(ego) (ego!=nullptr && ego->isSelected())
+#define DEBUG_COND_FIND(ego) (ego.isSelected())
+#define DEBUG_COND_ENCOUNTER(e) (e->ego != nullptr && e->ego->isSelected() && e->foe != nullptr && e->foe->isSelected())
 
 // ===========================================================================
 // Constants
 // ===========================================================================
-// default value for the detection range of potential opponents
-#define DEFAULT_RANGE 50.0
-
 // list of implemented SSMs (NOTE: To add more SSMs, identifiers are added to AVAILABLE_SSMS
 //                                 and a default threshold must be defined. A corresponding
 //                                 case should be added to the switch in buildVehicleDevices,
@@ -87,10 +89,15 @@
 #define DEFAULT_EXTRA_TIME 5.      // in seconds, events get logged for extra time even if encounter is over
 
 // ===========================================================================
+// static members
+// ===========================================================================
+std::set<const MSEdge*> MSDevice_SSM::myEdgeFilter;
+bool MSDevice_SSM::myEdgeFilterInitialized(false);
+bool MSDevice_SSM::myEdgeFilterActive(false);
+
+// ===========================================================================
 // method definitions
 // ===========================================================================
-
-
 
 /// Nicer output for EncounterType enum
 std::ostream& operator<<(std::ostream& out, MSDevice_SSM::EncounterType type) {
@@ -176,9 +183,9 @@ std::ostream& operator<<(std::ostream& out, MSDevice_SSM::EncounterType type) {
 
 std::set<MSDevice_SSM*, ComparatorNumericalIdLess>* MSDevice_SSM::myInstances = new std::set<MSDevice_SSM*, ComparatorNumericalIdLess>();
 
-std::set<std::string> MSDevice_SSM::createdOutputFiles;
+std::set<std::string> MSDevice_SSM::myCreatedOutputFiles;
 
-int MSDevice_SSM::issuedParameterWarnFlags = 0;
+int MSDevice_SSM::myIssuedParameterWarnFlags = 0;
 
 const std::set<MSDevice_SSM*, ComparatorNumericalIdLess>&
 MSDevice_SSM::getInstances() {
@@ -196,11 +203,12 @@ MSDevice_SSM::cleanup() {
         }
         myInstances->clear();
     }
-    for (auto& fn : createdOutputFiles) {
-        OutputDevice* file = &OutputDevice::getDevice(fn);
-        file->closeTag();
+    for (const std::string& fn : myCreatedOutputFiles) {
+        OutputDevice::getDevice(fn).closeTag();
     }
+    myCreatedOutputFiles.clear();
 }
+
 
 void
 MSDevice_SSM::insertOptions(OptionsCont& oc) {
@@ -208,27 +216,73 @@ MSDevice_SSM::insertOptions(OptionsCont& oc) {
     insertDefaultAssignmentOptions("ssm", "SSM Device", oc);
 
     // custom options
-    oc.doRegister("device.ssm.measures", Option::makeUnsetWithDefault<Option_String, std::string>(""));
-    oc.addDescription("device.ssm.measures", "SSM Device", "Specifies which measures will be logged (as a space separated sequence of IDs in ('TTC', 'DRAC', 'PET')).");
-    oc.doRegister("device.ssm.thresholds", Option::makeUnsetWithDefault<Option_String, std::string>(""));
-    oc.addDescription("device.ssm.thresholds", "SSM Device", "Specifies thresholds corresponding to the specified measures (see documentation and watch the order!). Only events exceeding the thresholds will be logged.");
-    oc.doRegister("device.ssm.trajectories",  Option::makeUnsetWithDefault<Option_Bool, bool>(false));
-    oc.addDescription("device.ssm.trajectories", "SSM Device", "Specifies whether trajectories will be logged (if false, only the extremal values and times are reported, this is the default).");
-    oc.doRegister("device.ssm.range", Option::makeUnsetWithDefault<Option_Float, double>(DEFAULT_RANGE));
-    oc.addDescription("device.ssm.range", "SSM Device", "Specifies the detection range in meters (default is " + ::toString(DEFAULT_RANGE) + "m.). For vehicles below this distance from the equipped vehicle, SSM values are traced.");
-    oc.doRegister("device.ssm.extratime", Option::makeUnsetWithDefault<Option_Float, double>(DEFAULT_EXTRA_TIME));
-    oc.addDescription("device.ssm.extratime", "SSM Device", "Specifies the time in seconds to be logged after a conflict is over (default is " + ::toString(DEFAULT_EXTRA_TIME) + "secs.). Required >0 if PET is to be calculated for crossing conflicts.");
-    oc.doRegister("device.ssm.file", Option::makeUnsetWithDefault<Option_String, std::string>(""));
-    oc.addDescription("device.ssm.file", "SSM Device", "Give a global default filename for the SSM output.");
-    oc.doRegister("device.ssm.geo", Option::makeUnsetWithDefault<Option_Bool, bool>(false));
-    oc.addDescription("device.ssm.geo", "SSM Device", "Whether to use coordinates of the original reference system in output (default is false).");
+    oc.doRegister("device.ssm.measures", new Option_String(""));
+    oc.addDescription("device.ssm.measures", "SSM Device", TL("Specifies which measures will be logged (as a space or comma-separated sequence of IDs in ('TTC', 'DRAC', 'PET'))"));
+    oc.doRegister("device.ssm.thresholds", new Option_String(""));
+    oc.addDescription("device.ssm.thresholds", "SSM Device", TL("Specifies space or comma-separated thresholds corresponding to the specified measures (see documentation and watch the order!). Only events exceeding the thresholds will be logged."));
+    oc.doRegister("device.ssm.trajectories",  new Option_Bool(false));
+    oc.addDescription("device.ssm.trajectories", "SSM Device", TL("Specifies whether trajectories will be logged (if false, only the extremal values and times are reported)."));
+    oc.doRegister("device.ssm.range", new Option_Float(50.));
+    oc.addDescription("device.ssm.range", "SSM Device", TL("Specifies the detection range in meters. For vehicles below this distance from the equipped vehicle, SSM values are traced."));
+    oc.doRegister("device.ssm.extratime", new Option_Float(DEFAULT_EXTRA_TIME));
+    oc.addDescription("device.ssm.extratime", "SSM Device", TL("Specifies the time in seconds to be logged after a conflict is over. Required >0 if PET is to be calculated for crossing conflicts."));
+    oc.doRegister("device.ssm.file", new Option_String(""));
+    oc.addDescription("device.ssm.file", "SSM Device", TL("Give a global default filename for the SSM output"));
+    oc.doRegister("device.ssm.geo", new Option_Bool(false));
+    oc.addDescription("device.ssm.geo", "SSM Device", TL("Whether to use coordinates of the original reference system in output"));
+    oc.doRegister("device.ssm.write-positions", new Option_Bool(false));
+    oc.addDescription("device.ssm.write-positions", "SSM Device", TL("Whether to write positions (coordinates) for each timestep"));
+    oc.doRegister("device.ssm.write-lane-positions", new Option_Bool(false));
+    oc.addDescription("device.ssm.write-lane-positions", "SSM Device", TL("Whether to write lanes and their positions for each timestep"));
+}
+
+
+void
+MSDevice_SSM::initEdgeFilter() {
+    myEdgeFilterInitialized = true;
+    if (OptionsCont::getOptions().isSet("device.ssm.filter-edges.input-file")) {
+        const std::string file = OptionsCont::getOptions().getString("device.ssm.filter-edges.input-file");
+        std::ifstream strm(file.c_str());
+        if (!strm.good()) {
+            throw ProcessError(TLF("Could not load names of edges for filtering SSM device output from '%'.", file));
+        }
+        myEdgeFilterActive = true;
+        while (strm.good()) {
+            std::string line;
+            strm >> line;
+            // maybe we're loading an edge-selection
+            if (StringUtils::startsWith(line, "edge:")) {
+                std::string edgeID = line.substr(5);
+                MSEdge* edge = MSEdge::dictionary(edgeID);
+                if (edge != nullptr) {
+                    myEdgeFilter.insert(edge);
+                } else {
+                    WRITE_WARNING("Unknown edge ID '" + edgeID + "' in SSM device edge filter (" + file + "): " + line);
+                }
+            } else if (StringUtils::startsWith(line, "junction:")) {
+                // get the internal edge(s) of a junction
+                std::string junctionID = line.substr(9);
+                MSJunction* junction = MSNet::getInstance()->getJunctionControl().get(junctionID);
+                if (junction != nullptr) {
+                    for (MSLane* const internalLane : junction->getInternalLanes()) {
+                        myEdgeFilter.insert(&(internalLane->getEdge()));
+                    }
+                } else {
+                    WRITE_WARNING("Unknown junction ID '" + junctionID + "' in SSM device edge filter (" + file + "): " + line);
+                }
+            } else if (line == "") { // ignore empty lines (mostly last line)
+            } else {
+                WRITE_WARNING("Cannot interpret line in SSM device edge filter (" + file + "): " + line);
+            }
+        }
+    }
 }
 
 void
 MSDevice_SSM::buildVehicleDevices(SUMOVehicle& v, std::vector<MSVehicleDevice*>& into) {
     if (equippedByDefaultAssignmentOptions(OptionsCont::getOptions(), "ssm", v, false)) {
         if (MSGlobals::gUseMesoSim) {
-            WRITE_WARNING("SSM Device for vehicle '" + v.getID() + "' will not be built. (SSMs not supported in MESO)");
+            WRITE_WARNINGF("SSM Device for vehicle '%' will not be built. (SSMs not supported in MESO)", v.getID());
             return;
         }
         // ID for the device
@@ -258,9 +312,18 @@ MSDevice_SSM::buildVehicleDevices(SUMOVehicle& v, std::vector<MSVehicleDevice*>&
 
         const bool useGeo = useGeoCoords(v);
 
+        const bool writePos = writePositions(v);
+
+        const bool writeLanesPos = writeLanesPositions(v);
+
         // Build the device (XXX: who deletes it?)
-        MSDevice_SSM* device = new MSDevice_SSM(v, deviceID, file, thresholds, trajectories, range, extraTime, useGeo);
+        MSDevice_SSM* device = new MSDevice_SSM(v, deviceID, file, thresholds, trajectories, range, extraTime, useGeo, writePos, writeLanesPos);
         into.push_back(device);
+
+        // Init spatial filter (once)
+        if (!myEdgeFilterInitialized) {
+            initEdgeFilter();
+        }
     }
 }
 
@@ -299,7 +362,8 @@ MSDevice_SSM::Encounter::~Encounter() {
 
 
 void
-MSDevice_SSM::Encounter::add(double time, const EncounterType type, Position egoX, Position egoV, Position foeX, Position foeV,
+MSDevice_SSM::Encounter::add(double time, const EncounterType type, Position egoX, std::string egoLane, double egoLanePos, Position egoV,
+                             Position foeX, std::string foeLane, double foeLanePos, Position foeV,
                              Position conflictPoint, double egoDistToConflict, double foeDistToConflict, double ttc, double drac, std::pair<double, double> pet) {
 #ifdef DEBUG_ENCOUNTER
     if (DEBUG_COND_ENCOUNTER(this))
@@ -316,8 +380,12 @@ MSDevice_SSM::Encounter::add(double time, const EncounterType type, Position ego
     timeSpan.push_back(time);
     typeSpan.push_back(type);
     egoTrajectory.x.push_back(egoX);
+    egoTrajectory.lane.push_back(egoLane);
+    egoTrajectory.lanePos.push_back(egoLanePos);
     egoTrajectory.v.push_back(egoV);
     foeTrajectory.x.push_back(foeX);
+    foeTrajectory.lane.push_back(foeLane);
+    foeTrajectory.lanePos.push_back(foeLanePos);
     foeTrajectory.v.push_back(foeV);
     conflictPointSpan.push_back(conflictPoint);
     egoDistsToConflict.push_back(egoDistToConflict);
@@ -418,7 +486,15 @@ MSDevice_SSM::update() {
 #endif
     // Scan surroundings for other vehicles
     FoeInfoMap foes;
-    findSurroundingVehicles(*myHolderMS, myRange, foes);
+    bool scan = true;
+    if (myEdgeFilterActive) {
+        // Is the ego vehicle inside the filtered edge subset?
+        const MSEdge* egoEdge = &((*myHolderMS).getLane()->getEdge());
+        scan = myEdgeFilter.find(egoEdge) != myEdgeFilter.end();
+    }
+    if (scan) {
+        findSurroundingVehicles(*myHolderMS, myRange, foes);
+    }
 
 #ifdef DEBUG_SSM
     if (DEBUG_COND(myHolderMS)) {
@@ -451,6 +527,13 @@ void
 MSDevice_SSM::computeGlobalMeasures() {
     if (myComputeBR || myComputeSGAP || myComputeTGAP) {
         myGlobalMeasuresTimeSpan.push_back(SIMTIME);
+        if (myWritePositions) {
+            myGlobalMeasuresPositions.push_back(myHolderMS->getPosition());
+        }
+        if (myWriteLanesPositions) {
+            myGlobalMeasuresLaneIDs.push_back(myHolderMS->getLane()->getID());
+            myGlobalMeasuresLanesPositions.push_back(myHolderMS->getPositionOnLane());
+        }
         if (myComputeBR) {
             double br = MAX2(-myHolderMS->getAcceleration(), 0.0);
             if (br > myMaxBR.second) {
@@ -532,6 +615,7 @@ MSDevice_SSM::createEncounters(FoeInfoMap& foes) {
     }
 }
 
+
 void
 MSDevice_SSM::resetEncounters() {
     // Call processEncounters() with empty vehicle set
@@ -539,6 +623,7 @@ MSDevice_SSM::resetEncounters() {
     // processEncounters with empty argument closes all encounters
     processEncounters(foes, true);
 }
+
 
 void
 MSDevice_SSM::processEncounters(FoeInfoMap& foes, bool forceClose) {
@@ -679,7 +764,7 @@ MSDevice_SSM::closeEncounter(Encounter* e) {
                 auto c = myPastConflicts.top();
                 myPastConflicts.pop();
                 if (DEBUG_COND(myHolderMS)) {
-                    std::cout << "  Conflict with foe '" << c->foe << "' (time " << c->begin << "-" << c->end << ")\n";
+                    std::cout << "  Conflict with foe '" << c->foe << "' (time=" << c->begin << "-" << c->end << ")\n";
                 }
                 if (c->begin < lastBegin) {
                     std::cout << "  Queue corrupt...\n";
@@ -791,7 +876,8 @@ MSDevice_SSM::updateEncounter(Encounter* e, FoeInfo* foeInfo) {
         e->currentType = eInfo.type;
     } else {
         // Add current states to trajectories and update type
-        e->add(SIMTIME, eInfo.type, e->ego->getPosition(), e->ego->getVelocityVector(), e->foe->getPosition(), e->foe->getVelocityVector(),
+        e->add(SIMTIME, eInfo.type, e->ego->getPosition(), e->ego->getLane()->getID(), e->ego->getPositionOnLane(), e->ego->getVelocityVector(),
+               e->foe->getPosition(), e->foe->getLane()->getID(), e->foe->getPositionOnLane(), e->foe->getVelocityVector(),
                eInfo.conflictPoint, eInfo.egoConflictEntryDist, eInfo.foeConflictEntryDist, eInfo.ttc, eInfo.drac, eInfo.pet);
     }
     // Keep encounter
@@ -968,9 +1054,7 @@ MSDevice_SSM::estimateConflictTimes(EncounterApproachInfo& eInfo) {
     if (eInfo.egoEstimatedConflictEntryTime == 0. && eInfo.foeEstimatedConflictEntryTime == 0. &&
             eInfo.egoConflictExitDist >= 0 && eInfo.foeConflictExitDist >= 0) {
         type = ENCOUNTER_TYPE_COLLISION;
-        std::stringstream ss;
-        ss << "SSM device of vehicle '" << e->egoID << "' detected collision with vehicle '" << e->foeID << "' at time " << SIMTIME;
-        WRITE_WARNING(ss.str());
+        WRITE_WARNINGF(TL("SSM device of vehicle '%' detected collision with vehicle '%' at time=%."), e->egoID, e->foeID, time2string(SIMSTEP));
     } else if (eInfo.egoEstimatedConflictEntryTime < eInfo.foeEstimatedConflictEntryTime) {
         // ego is estimated first at conflict point
 #ifdef DEBUG_SSM
@@ -2101,7 +2185,7 @@ MSDevice_SSM::classifyEncounter(const FoeInfo* foeInfo, EncounterApproachInfo& e
                     // (since they approach via the same link, findSurroundingVehicles() would have determined a
                     // different conflictLane if both are not on the junction)
                     if (egoLane != egoConflictLane || foeLane != foeConflictLane) {
-                        WRITE_WARNINGF("Cannot classify SSM encounter between ego vehicle % and foe vehicle % at time %\n", e->ego->getID(), e->foe->getID(), SIMTIME);
+                        WRITE_WARNINGF(TL("Cannot classify SSM encounter between ego vehicle % and foe vehicle % at time=%\n"), e->ego->getID(), e->foe->getID(), SIMTIME);
                         return ENCOUNTER_TYPE_NOCONFLICT_AHEAD;
                     }
                     if (egoLane == foeLane) {
@@ -2135,14 +2219,7 @@ MSDevice_SSM::classifyEncounter(const FoeInfo* foeInfo, EncounterApproachInfo& e
                         }
 #endif
                         MSLane* lane = egoEntryLink->getViaLane();
-#ifdef _MSC_VER
-#pragma warning(push)
-#pragma warning(disable: 4127) // do not warn about constant conditional expression
-#endif
                         while (true) {
-#ifdef _MSC_VER
-#pragma warning(pop)
-#endif
                             // Find first of egoLane and foeLane while crossing the junction (this dertermines who's the follower)
                             // Then set the conflict lane to the lane of the leader and adapt the follower's distance to conflict
                             if (egoLane == lane) {
@@ -2276,33 +2353,29 @@ MSDevice_SSM::classifyEncounter(const FoeInfo* foeInfo, EncounterApproachInfo& e
                 // Here we also determine the real crossing lanes (before the conflict lane is the first lane of the connection)
                 // for the ego
                 double egoDistToConflictFromJunctionEntry = INVALID_DOUBLE;
-                double foeInternalLaneLengthsBeforeCrossing = 0.;
                 while (foeConflictLane != nullptr && foeConflictLane->isInternal()) {
                     egoDistToConflictFromJunctionEntry = egoEntryLink->getLengthsBeforeCrossing(foeConflictLane);
                     if (egoDistToConflictFromJunctionEntry != INVALID_DOUBLE) {
                         // found correct foeConflictLane
                         egoDistToConflictFromJunctionEntry += 0.5 * (foeConflictLane->getWidth() - e->foe->getVehicleType().getWidth());
                         break;
-                    } else {
-                        foeInternalLaneLengthsBeforeCrossing += foeConflictLane->getLength();
                     }
                     if (!foeConflictLane->getCanonicalSuccessorLane()->isInternal()) {
                         // intersection has wierd geometry and the intersection was found
                         egoDistToConflictFromJunctionEntry = 0;
-                        WRITE_WARNINGF("Cannot compute SSM due to bad internal lane geometry at junction '%'. Crossing point between traffic from links % and % not found.",
+                        WRITE_WARNINGF(TL("Cannot compute SSM due to bad internal lane geometry at junction '%'. Crossing point between traffic from links % and % not found."),
                                        egoEntryLink->getJunction()->getID(),
                                        egoEntryLink->getIndex(),
                                        foeEntryLink->getIndex());
                         break;
                     }
                     foeConflictLane = foeConflictLane->getCanonicalSuccessorLane();
-                    assert(foeConflictLane != 0 && foeConflictLane->isInternal()); // this loop should be ended by the break! Otherwise the lanes do not cross, which should be the case here.
+                    assert(foeConflictLane != nullptr && foeConflictLane->isInternal()); // this loop should be ended by the break! Otherwise the lanes do not cross, which should be the case here.
                 }
                 assert(egoDistToConflictFromJunctionEntry != INVALID_DOUBLE);
 
                 // for the foe
                 double foeDistToConflictFromJunctionEntry = INVALID_DOUBLE;
-                double egoInternalLaneLengthsBeforeCrossing = 0.;
                 foeDistToConflictFromJunctionEntry = INVALID_DOUBLE;
                 while (egoConflictLane != nullptr && egoConflictLane->isInternal()) {
                     foeDistToConflictFromJunctionEntry = foeEntryLink->getLengthsBeforeCrossing(egoConflictLane);
@@ -2310,20 +2383,18 @@ MSDevice_SSM::classifyEncounter(const FoeInfo* foeInfo, EncounterApproachInfo& e
                         // found correct egoConflictLane
                         foeDistToConflictFromJunctionEntry += 0.5 * (egoConflictLane->getWidth() - e->ego->getVehicleType().getWidth());
                         break;
-                    } else {
-                        egoInternalLaneLengthsBeforeCrossing += egoConflictLane->getLength();
                     }
                     if (!egoConflictLane->getCanonicalSuccessorLane()->isInternal()) {
                         // intersection has wierd geometry and the intersection was found
                         foeDistToConflictFromJunctionEntry = 0;
-                        WRITE_WARNINGF("Cannot compute SSM due to bad internal lane geometry at junction '%'. Crossing point between traffic from links % and % not found.",
+                        WRITE_WARNINGF(TL("Cannot compute SSM due to bad internal lane geometry at junction '%'. Crossing point between traffic from links % and % not found."),
                                        foeEntryLink->getJunction()->getID(),
                                        foeEntryLink->getIndex(),
                                        egoEntryLink->getIndex());
                         break;
                     }
                     egoConflictLane = egoConflictLane->getCanonicalSuccessorLane();
-                    assert(egoConflictLane != 0 && egoConflictLane->isInternal()); // this loop should be ended by the break! Otherwise the lanes do not cross, which should be the case here.
+                    assert(egoConflictLane != nullptr && egoConflictLane->isInternal()); // this loop should be ended by the break! Otherwise the lanes do not cross, which should be the case here.
                 }
                 assert(foeDistToConflictFromJunctionEntry != INVALID_DOUBLE);
 
@@ -2439,6 +2510,10 @@ MSDevice_SSM::findFoeConflictLane(const MSVehicle* foe, const MSLane* egoConflic
         if (egoIt != myHolder.getRoute().end()) {
             // same direction, foe is leader
             if (myHolderMS->getLaneChangeModel().isOpposite()) {
+                if (egoConflictLane->isInternal() && !foe->getLane()->isInternal()) {
+                    // lead/follow situation resolved elsewhere
+                    return nullptr;
+                }
                 return foe->getLane();
             } else {
                 // adjacent
@@ -2585,6 +2660,13 @@ MSDevice_SSM::flushGlobalMeasures() {
         myOutputFile->openTag("globalMeasures");
         myOutputFile->writeAttr("ego", egoID);
         myOutputFile->openTag("timeSpan").writeAttr("values", myGlobalMeasuresTimeSpan).closeTag();
+        if (myWritePositions) {
+            myOutputFile->openTag("positions").writeAttr("values", myGlobalMeasuresPositions).closeTag();
+        }
+        if (myWriteLanesPositions) {
+            myOutputFile->openTag("lane").writeAttr("values", myGlobalMeasuresLaneIDs).closeTag();
+            myOutputFile->openTag("lanePosition").writeAttr("values", myGlobalMeasuresLanesPositions).closeTag();
+        }
         if (myComputeBR) {
             myOutputFile->openTag("BRSpan").writeAttr("values", myBRspan).closeTag();
 
@@ -2664,9 +2746,17 @@ MSDevice_SSM::writeOutConflict(Encounter* e) {
         }
 
         myOutputFile->openTag("egoPosition").writeAttr("values", ::toString(e->egoTrajectory.x, myUseGeoCoords ? gPrecisionGeo : gPrecision)).closeTag();
+        if (myWriteLanesPositions) {
+            myOutputFile->openTag("egoLane").writeAttr("values", ::toString(e->egoTrajectory.lane)).closeTag();
+            myOutputFile->openTag("egoLanePosition").writeAttr("values", ::toString(e->egoTrajectory.lanePos)).closeTag();
+        }
         myOutputFile->openTag("egoVelocity").writeAttr("values", ::toString(e->egoTrajectory.v)).closeTag();
 
         myOutputFile->openTag("foePosition").writeAttr("values", ::toString(e->foeTrajectory.x, myUseGeoCoords ? gPrecisionGeo : gPrecision)).closeTag();
+        if (myWriteLanesPositions) {
+            myOutputFile->openTag("foeLane").writeAttr("values", ::toString(e->foeTrajectory.lane)).closeTag();
+            myOutputFile->openTag("foeLanePosition").writeAttr("values", ::toString(e->foeTrajectory.lanePos)).closeTag();
+        }
         myOutputFile->openTag("foeVelocity").writeAttr("values", ::toString(e->foeTrajectory.v)).closeTag();
 
         myOutputFile->openTag("conflictPoint").writeAttr("values", makeStringWithNAs(e->conflictPointSpan, myUseGeoCoords ? gPrecisionGeo : gPrecision)).closeTag();
@@ -2755,13 +2845,15 @@ MSDevice_SSM::makeStringWithNAs(const PositionVector& v, const int precision) {
 // MSDevice_SSM-methods
 // ---------------------------------------------------------------------------
 MSDevice_SSM::MSDevice_SSM(SUMOVehicle& holder, const std::string& id, std::string outputFilename, std::map<std::string, double> thresholds,
-                           bool trajectories, double range, double extraTime, bool useGeoCoords) :
+                           bool trajectories, double range, double extraTime, bool useGeoCoords, bool writePositions, bool writeLanesPositions) :
     MSVehicleDevice(holder, id),
     myThresholds(thresholds),
     mySaveTrajectories(trajectories),
     myRange(range),
     myExtraTime(extraTime),
     myUseGeoCoords(useGeoCoords),
+    myWritePositions(writePositions),
+    myWriteLanesPositions(writeLanesPositions),
     myOldestActiveEncounterBegin(INVALID_DOUBLE),
     myMaxBR(std::make_pair(-1, Position(0., 0.)), 0.0),
     myMinSGAP(std::make_pair(std::make_pair(-1, Position(0., 0.)), std::numeric_limits<double>::max()), ""),
@@ -2784,9 +2876,9 @@ MSDevice_SSM::MSDevice_SSM(SUMOVehicle& holder, const std::string& id, std::stri
     myOutputFile = &OutputDevice::getDevice(outputFilename);
 //    TODO: make xsd, include header
 //    myOutputFile.writeXMLHeader("SSMLog", "SSMLog.xsd");
-    if (createdOutputFiles.count(outputFilename) == 0) {
+    if (myCreatedOutputFiles.count(outputFilename) == 0) {
         myOutputFile->writeXMLHeader("SSMLog", "");
-        createdOutputFiles.insert(outputFilename);
+        myCreatedOutputFiles.insert(outputFilename);
     }
     // register at static instance container
     myInstances->insert(this);
@@ -2825,7 +2917,7 @@ MSDevice_SSM::notifyEnter(SUMOTrafficObject& veh, MSMoveReminder::Notification r
 #ifdef DEBUG_SSM_NOTIFICATIONS
     MSBaseVehicle* v = (MSBaseVehicle*) &veh;
     if (DEBUG_COND(v)) {
-            std::cout << SIMTIME << "device '" << getID() << "' notifyEnter: reason=" << reason << " currentEdge=" << v->getLane()->getEdge().getID() << "\n";
+        std::cout << SIMTIME << "device '" << getID() << "' notifyEnter: reason=" << reason << " currentEdge=" << v->getLane()->getEdge().getID() << "\n";
     }
 #else
     UNUSED_PARAMETER(veh);
@@ -2896,7 +2988,18 @@ MSDevice_SSM::findSurroundingVehicles(const MSVehicle& veh, double range, FoeInf
 
     // Best continuation lanes for the ego vehicle
     std::vector<MSLane*> egoBestLanes = veh.getBestLanesContinuation();
+
+    // current lane in loop below
+    const MSLane* lane = veh.getLane();
+    const MSEdge* egoEdge = &(lane->getEdge());
     const bool isOpposite = veh.getLaneChangeModel().isOpposite();
+    std::vector<MSLane*>::const_iterator laneIter = egoBestLanes.begin();
+    assert(lane->isInternal() || lane == *laneIter || isOpposite);
+    assert(lane != 0);
+    if (lane->isInternal() && egoBestLanes[0] != nullptr) { // outdated BestLanes, see #11336
+        return;
+    }
+
     if (isOpposite) {
         for (int i = 0; i < (int)egoBestLanes.size(); i++) {
             if (egoBestLanes[i] != nullptr && egoBestLanes[i]->getEdge().getOppositeEdge() != nullptr) {
@@ -2904,13 +3007,7 @@ MSDevice_SSM::findSurroundingVehicles(const MSVehicle& veh, double range, FoeInf
             }
         }
     }
-    std::vector<MSLane*>::const_iterator laneIter = egoBestLanes.begin();
 
-    // current lane in loop below
-    const MSLane* lane = veh.getLane();
-    const MSEdge* egoEdge = &(lane->getEdge());
-    assert(lane->isInternal() || lane == *laneIter);
-    assert(lane != 0);
     // next non-internal lane on the route
     const MSLane* nextNonInternalLane = nullptr;
 
@@ -3033,7 +3130,7 @@ MSDevice_SSM::findSurroundingVehicles(const MSVehicle& veh, double range, FoeInf
                 // Upcoming junction
                 const MSJunction* junction;
                 if (isOpposite) {
-                    junction = lane->getOpposite()->getEdge().getToJunction();
+                    junction = lane->getParallelOpposite()->getEdge().getToJunction();
                 } else {
                     junction = lane->getEdge().getToJunction();
                 }
@@ -3045,7 +3142,7 @@ MSDevice_SSM::findSurroundingVehicles(const MSVehicle& veh, double range, FoeInf
                 if (isOpposite && link == nullptr) {
                     link = nextNonInternalLane->getLinkTo(lane);
                     if (link == nullptr) {
-                        link = lane->getOpposite()->getLinkTo(nextNonInternalLane);
+                        link = lane->getParallelOpposite()->getLinkTo(nextNonInternalLane);
                     }
                 }
                 if (link == nullptr) {
@@ -3074,6 +3171,7 @@ MSDevice_SSM::findSurroundingVehicles(const MSVehicle& veh, double range, FoeInf
 
                     // Collect vehicles on incoming edges (except the last edge, where we already collected). Use full range.
                     if (isOpposite) {
+                        // look for vehicles that are also driving on the opposite side behind ego
                         const ConstMSEdgeVector& outgoing = junction->getOutgoing();
                         for (ConstMSEdgeVector::const_iterator ei = outgoing.begin(); ei != outgoing.end(); ++ei) {
                             if (*ei == edge || (*ei)->isInternal()) {
@@ -3140,9 +3238,14 @@ MSDevice_SSM::findSurroundingVehicles(const MSVehicle& veh, double range, FoeInf
 #endif
 
     // remove ego vehicle
-    foeCollector.erase(&veh);
+    const auto& it = foeCollector.find(&veh);
+    if (it != foeCollector.end()) {
+        delete it->second;
+        foeCollector.erase(it);
+    }
     gDebugFlag3 = false;
 }
+
 
 void
 MSDevice_SSM::getUpstreamVehicles(const UpstreamScanStartInfo& scanStart, FoeInfoMap& foeCollector, std::set<const MSLane*>& seenLanes, const std::set<const MSJunction*>& routeJunctions) {
@@ -3252,7 +3355,8 @@ MSDevice_SSM::getUpstreamVehicles(const UpstreamScanStartInfo& scanStart, FoeInf
                 continue;
             }
 
-            double distOnJunction = scanStart.edge->isInternal() ? 0. : inEdge->getInternalFollowingLengthTo(scanStart.edge);
+            // XXX the length may be wrong if there are parallel internal edges for different vClasses
+            double distOnJunction = scanStart.edge->isInternal() ? 0. : inEdge->getInternalFollowingLengthTo(scanStart.edge, SVC_IGNORING);
             if (distOnJunction >= remainingRange) {
 #ifdef DEBUG_SSM_SURROUNDING
                 //if (gDebugFlag3) std::cout << "Scan stops on junction (between " << inEdge->getID() << " and " << scanStart.edge->getID() << ") at rel. dist " << distOnJunction << "\n";
@@ -3383,19 +3487,19 @@ MSDevice_SSM::getOutputFilename(const SUMOVehicle& v, std::string deviceID) {
         try {
             file = v.getParameter().getParameter("device.ssm.file", file);
         } catch (...) {
-            WRITE_WARNING("Invalid value '" + v.getParameter().getParameter("device.ssm.file", file) + "'for vehicle parameter 'ssm.measures'");
+            WRITE_WARNINGF(TL("Invalid value '%'for vehicle parameter 'ssm.measures'."), v.getParameter().getParameter("device.ssm.file", file));
         }
     } else if (v.getVehicleType().getParameter().knowsParameter("device.ssm.file")) {
         try {
             file = v.getVehicleType().getParameter().getParameter("device.ssm.file", file);
         } catch (...) {
-            WRITE_WARNING("Invalid value '" + v.getVehicleType().getParameter().getParameter("device.ssm.file", file) + "'for vType parameter 'ssm.measures'");
+            WRITE_WARNINGF(TL("Invalid value '%'for vType parameter 'ssm.measures'."), v.getVehicleType().getParameter().getParameter("device.ssm.file", file));
         }
     } else {
         file = oc.getString("device.ssm.file") == "" ? file : oc.getString("device.ssm.file");
-        if (!oc.isSet("device.ssm.file") && (issuedParameterWarnFlags & SSM_WARN_FILE) == 0) {
-            std::cout << "vehicle '" << v.getID() << "' does not supply vehicle parameter 'device.ssm.file'. Using default of '" << file << "'\n";
-            issuedParameterWarnFlags |= SSM_WARN_FILE;
+        if (oc.isDefault("device.ssm.file") && (myIssuedParameterWarnFlags & SSM_WARN_FILE) == 0) {
+            WRITE_MESSAGEF(TL("Vehicle '%' does not supply vehicle parameter 'device.ssm.file'. Using default of '%'."), v.getID(), file);
+            myIssuedParameterWarnFlags |= SSM_WARN_FILE;
         }
     }
     if (OptionsCont::getOptions().isSet("configuration-file")) {
@@ -3417,22 +3521,76 @@ MSDevice_SSM::useGeoCoords(const SUMOVehicle& v) {
         try {
             useGeo = StringUtils::toBool(v.getParameter().getParameter("device.ssm.geo", "no"));
         } catch (...) {
-            WRITE_WARNING("Invalid value '" + v.getParameter().getParameter("device.ssm.geo", "no") + "'for vehicle parameter 'ssm.geo'");
+            WRITE_WARNINGF(TL("Invalid value '%'for vehicle parameter 'ssm.geo'."), v.getParameter().getParameter("device.ssm.geo", "no"));
         }
     } else if (v.getVehicleType().getParameter().knowsParameter("device.ssm.geo")) {
         try {
             useGeo = StringUtils::toBool(v.getVehicleType().getParameter().getParameter("device.ssm.geo", "no"));
         } catch (...) {
-            WRITE_WARNING("Invalid value '" + v.getVehicleType().getParameter().getParameter("device.ssm.geo", "no") + "'for vType parameter 'ssm.geo'");
+            WRITE_WARNINGF(TL("Invalid value '%'for vType parameter 'ssm.geo'."), v.getVehicleType().getParameter().getParameter("device.ssm.geo", "no"));
         }
     } else {
         useGeo = oc.getBool("device.ssm.geo");
-        if (!oc.isSet("device.ssm.geo") && (issuedParameterWarnFlags & SSM_WARN_GEO) == 0) {
-            std::cout << "vehicle '" << v.getID() << "' does not supply vehicle parameter 'device.ssm.geo'. Using default of '" << ::toString(useGeo) << "'\n";
-            issuedParameterWarnFlags |= SSM_WARN_GEO;
+        if (oc.isDefault("device.ssm.geo") && (myIssuedParameterWarnFlags & SSM_WARN_GEO) == 0) {
+            WRITE_MESSAGEF(TL("Vehicle '%' does not supply vehicle parameter 'device.ssm.geo'. Using default of '%'."), v.getID(), toString(useGeo));
+            myIssuedParameterWarnFlags |= SSM_WARN_GEO;
         }
     }
     return useGeo;
+}
+
+
+bool
+MSDevice_SSM::writePositions(const SUMOVehicle& v) {
+    OptionsCont& oc = OptionsCont::getOptions();
+    bool writePos = false;
+    if (v.getParameter().knowsParameter("device.ssm.write-positions")) {
+        try {
+            writePos = StringUtils::toBool(v.getParameter().getParameter("device.ssm.write-positions", "no"));
+        } catch (...) {
+            WRITE_WARNINGF(TL("Invalid value '%'for vehicle parameter 'ssm.write-positions'."), v.getParameter().getParameter("device.ssm.write-positions", "no"));
+        }
+    } else if (v.getVehicleType().getParameter().knowsParameter("device.ssm.write-positions")) {
+        try {
+            writePos = StringUtils::toBool(v.getVehicleType().getParameter().getParameter("device.ssm.write-positions", "no"));
+        } catch (...) {
+            WRITE_WARNINGF(TL("Invalid value '%'for vType parameter 'ssm.write-positions'."), v.getVehicleType().getParameter().getParameter("device.ssm.write-positions", "no"));
+        }
+    } else {
+        writePos = oc.getBool("device.ssm.write-positions");
+        if (oc.isDefault("device.ssm.write-positions") && (myIssuedParameterWarnFlags & SSM_WARN_POS) == 0) {
+            WRITE_MESSAGEF(TL("Vehicle '%' does not supply vehicle parameter 'device.ssm.write-positions'. Using default of '%'."), v.getID(), toString(writePos));
+            myIssuedParameterWarnFlags |= SSM_WARN_POS;
+        }
+    }
+    return writePos;
+}
+
+
+bool
+MSDevice_SSM::writeLanesPositions(const SUMOVehicle& v) {
+    OptionsCont& oc = OptionsCont::getOptions();
+    bool writeLanesPos = false;
+    if (v.getParameter().knowsParameter("device.ssm.write-lane-positions")) {
+        try {
+            writeLanesPos = StringUtils::toBool(v.getParameter().getParameter("device.ssm.write-lane-positions", "no"));
+        } catch (...) {
+            WRITE_WARNINGF(TL("Invalid value '%'for vehicle parameter 'ssm.write-lane-positions'."), v.getParameter().getParameter("device.ssm.write-lane-positions", "no"));
+        }
+    } else if (v.getVehicleType().getParameter().knowsParameter("device.ssm.write-lane-positions")) {
+        try {
+            writeLanesPos = StringUtils::toBool(v.getVehicleType().getParameter().getParameter("device.ssm.write-lane-positions", "no"));
+        } catch (...) {
+            WRITE_WARNINGF(TL("Invalid value '%'for vType parameter 'ssm.write-lane-positions'."), v.getVehicleType().getParameter().getParameter("device.ssm.write-lane-positions", "no"));
+        }
+    } else {
+        writeLanesPos = oc.getBool("device.ssm.write-lane-positions");
+        if (oc.isDefault("device.ssm.write-lane-positions") && (myIssuedParameterWarnFlags & SSM_WARN_LANEPOS) == 0) {
+            WRITE_MESSAGEF(TL("Vehicle '%' does not supply vehicle parameter 'device.ssm.write-positions'. Using default of '%'."), v.getID(), toString(writeLanesPos));
+            myIssuedParameterWarnFlags |= SSM_WARN_LANEPOS;
+        }
+    }
+    return writeLanesPos;
 }
 
 
@@ -3444,19 +3602,19 @@ MSDevice_SSM::getDetectionRange(const SUMOVehicle& v) {
         try {
             range = StringUtils::toDouble(v.getParameter().getParameter("device.ssm.range", ""));
         } catch (...) {
-            WRITE_WARNING("Invalid value '" + v.getParameter().getParameter("device.ssm.range", "") + "'for vehicle parameter 'ssm.range'");
+            WRITE_WARNINGF(TL("Invalid value '%'for vehicle parameter 'ssm.range'."), v.getParameter().getParameter("device.ssm.range", ""));
         }
     } else if (v.getVehicleType().getParameter().knowsParameter("device.ssm.range")) {
         try {
             range = StringUtils::toDouble(v.getVehicleType().getParameter().getParameter("device.ssm.range", ""));
         } catch (...) {
-            WRITE_WARNING("Invalid value '" + v.getVehicleType().getParameter().getParameter("device.ssm.range", "") + "'for vType parameter 'ssm.range'");
+            WRITE_WARNINGF(TL("Invalid value '%'for vType parameter 'ssm.range'."), v.getVehicleType().getParameter().getParameter("device.ssm.range", ""));
         }
     } else {
         range = oc.getFloat("device.ssm.range");
-        if (!oc.isSet("device.ssm.range") && (issuedParameterWarnFlags & SSM_WARN_RANGE) == 0) {
-            std::cout << "vehicle '" << v.getID() << "' does not supply vehicle parameter 'device.ssm.range'. Using default of '" << range << "'\n";
-            issuedParameterWarnFlags |= SSM_WARN_RANGE;
+        if (oc.isDefault("device.ssm.range") && (myIssuedParameterWarnFlags & SSM_WARN_RANGE) == 0) {
+            WRITE_MESSAGEF(TL("Vehicle '%' does not supply vehicle parameter 'device.ssm.range'. Using default of '%'."), v.getID(), toString(range));
+            myIssuedParameterWarnFlags |= SSM_WARN_RANGE;
         }
     }
     return range;
@@ -3471,24 +3629,24 @@ MSDevice_SSM::getExtraTime(const SUMOVehicle& v) {
         try {
             extraTime = StringUtils::toDouble(v.getParameter().getParameter("device.ssm.extratime", ""));
         } catch (...) {
-            WRITE_WARNING("Invalid value '" + v.getParameter().getParameter("device.ssm.extratime", "") + "'for vehicle parameter 'ssm.extratime'");
+            WRITE_WARNINGF(TL("Invalid value '%'for vehicle parameter 'ssm.extratime'."), v.getParameter().getParameter("device.ssm.extratime", ""));
         }
     } else if (v.getVehicleType().getParameter().knowsParameter("device.ssm.extratime")) {
         try {
             extraTime = StringUtils::toDouble(v.getVehicleType().getParameter().getParameter("device.ssm.extratime", ""));
         } catch (...) {
-            WRITE_WARNING("Invalid value '" + v.getVehicleType().getParameter().getParameter("device.ssm.extratime", "") + "'for vType parameter 'ssm.extratime'");
+            WRITE_WARNINGF(TL("Invalid value '%'for vType parameter 'ssm.extratime'."), v.getVehicleType().getParameter().getParameter("device.ssm.extratime", ""));
         }
     } else {
         extraTime = oc.getFloat("device.ssm.extratime");
-        if (!oc.isSet("device.ssm.extratime") && (issuedParameterWarnFlags & SSM_WARN_EXTRATIME) == 0) {
-            std::cout << "vehicle '" << v.getID() << "' does not supply vehicle parameter 'device.ssm.extratime'. Using default of '" << extraTime << "'\n";
-            issuedParameterWarnFlags |= SSM_WARN_EXTRATIME;
+        if (oc.isDefault("device.ssm.extratime") && (myIssuedParameterWarnFlags & SSM_WARN_EXTRATIME) == 0) {
+            WRITE_MESSAGEF(TL("Vehicle '%' does not supply vehicle parameter 'device.ssm.extratime'. Using default of '%'."), v.getID(), toString(extraTime));
+            myIssuedParameterWarnFlags |= SSM_WARN_EXTRATIME;
         }
     }
     if (extraTime < 0.) {
         extraTime = DEFAULT_EXTRA_TIME;
-        WRITE_WARNING("Negative (or no) value encountered for vehicle parameter 'device.ssm.extratime' in vehicle '" + v.getID() + "' using default value " + ::toString(extraTime) + " instead");
+        WRITE_WARNINGF(TL("Negative (or no) value encountered for vehicle parameter 'device.ssm.extratime' in vehicle '%' using default value % instead."), v.getID(), ::toString(extraTime));
     }
     return extraTime;
 }
@@ -3502,19 +3660,19 @@ MSDevice_SSM::requestsTrajectories(const SUMOVehicle& v) {
         try {
             trajectories = StringUtils::toBool(v.getParameter().getParameter("device.ssm.trajectories", "no"));
         } catch (...) {
-            WRITE_WARNING("Invalid value '" + v.getParameter().getParameter("device.ssm.trajectories", "no") + "'for vehicle parameter 'ssm.trajectories'");
+            WRITE_WARNINGF(TL("Invalid value '%'for vehicle parameter 'ssm.trajectories'."), v.getParameter().getParameter("device.ssm.trajectories", "no"));
         }
     } else if (v.getVehicleType().getParameter().knowsParameter("device.ssm.trajectories")) {
         try {
             trajectories = StringUtils::toBool(v.getVehicleType().getParameter().getParameter("device.ssm.trajectories", "no"));
         } catch (...) {
-            WRITE_WARNING("Invalid value '" + v.getVehicleType().getParameter().getParameter("device.ssm.trajectories", "no") + "'for vType parameter 'ssm.trajectories'");
+            WRITE_WARNINGF(TL("Invalid value '%'for vType parameter 'ssm.trajectories'."), v.getVehicleType().getParameter().getParameter("device.ssm.trajectories", "no"));
         }
     } else {
         trajectories = oc.getBool("device.ssm.trajectories");
-        if (!oc.isSet("device.ssm.trajectories") && (issuedParameterWarnFlags & SSM_WARN_TRAJECTORIES) == 0) {
-            std::cout << "vehicle '" << v.getID() << "' does not supply vehicle parameter 'device.ssm.trajectories'. Using default of '" << ::toString(trajectories) << "'\n";
-            issuedParameterWarnFlags |= SSM_WARN_TRAJECTORIES;
+        if (oc.isDefault("device.ssm.trajectories") && (myIssuedParameterWarnFlags & SSM_WARN_TRAJECTORIES) == 0) {
+            WRITE_MESSAGEF(TL("Vehicle '%' does not supply vehicle parameter 'device.ssm.trajectories'. Using default of '%'."), v.getID(), toString(trajectories));
+            myIssuedParameterWarnFlags |= SSM_WARN_TRAJECTORIES;
         }
     }
     return trajectories;
@@ -3531,35 +3689,35 @@ MSDevice_SSM::getMeasuresAndThresholds(const SUMOVehicle& v, std::string deviceI
         try {
             measures_str = v.getParameter().getParameter("device.ssm.measures", "");
         } catch (...) {
-            WRITE_WARNING("Invalid value '" + v.getParameter().getParameter("device.ssm.measures", "") + "'for vehicle parameter 'ssm.measures'");
+            WRITE_WARNINGF(TL("Invalid value '%'for vehicle parameter 'ssm.measures'."), v.getParameter().getParameter("device.ssm.measures", ""));
         }
     } else if (v.getVehicleType().getParameter().knowsParameter("device.ssm.measures")) {
         try {
             measures_str = v.getVehicleType().getParameter().getParameter("device.ssm.measures", "");
         } catch (...) {
-            WRITE_WARNING("Invalid value '" + v.getVehicleType().getParameter().getParameter("device.ssm.measures", "") + "'for vType parameter 'ssm.measures'");
+            WRITE_WARNINGF(TL("Invalid value '%'for vType parameter 'ssm.measures'."), v.getVehicleType().getParameter().getParameter("device.ssm.measures", ""));
         }
     } else {
         measures_str = oc.getString("device.ssm.measures");
-        if (!oc.isSet("device.ssm.measures") && (issuedParameterWarnFlags & SSM_WARN_MEASURES) == 0) {
-            std::cout << "vehicle '" << v.getID() << "' does not supply vehicle parameter 'device.ssm.measures'. Using default of '" << measures_str << "'\n";
-            issuedParameterWarnFlags |= SSM_WARN_THRESHOLDS;
+        if (oc.isDefault("device.ssm.measures") && (myIssuedParameterWarnFlags & SSM_WARN_MEASURES) == 0) {
+            WRITE_MESSAGEF(TL("Vehicle '%' does not supply vehicle parameter 'device.ssm.measures'. Using default of '%'."), v.getID(), measures_str);
+            myIssuedParameterWarnFlags |= SSM_WARN_MEASURES;
         }
     }
 
     // Check retrieved measures
     if (measures_str == "") {
-        WRITE_WARNING("No measures specified for ssm device of vehicle '" + v.getID() + "'. Registering all available SSMs.");
+        WRITE_WARNINGF("No measures specified for ssm device of vehicle '%'. Registering all available SSMs.", v.getID());
         measures_str = AVAILABLE_SSMS;
     }
     StringTokenizer st = StringTokenizer(AVAILABLE_SSMS);
     std::vector<std::string> available = st.getVector();
-    st = StringTokenizer(measures_str);
+    st = (measures_str.find(",") != std::string::npos) ? StringTokenizer(measures_str, ",") : StringTokenizer(measures_str);
     std::vector<std::string> measures = st.getVector();
     for (std::vector<std::string>::const_iterator i = measures.begin(); i != measures.end(); ++i) {
         if (std::find(available.begin(), available.end(), *i) == available.end()) {
             // Given identifier is unknown
-            WRITE_ERROR("SSM identifier '" + *i + "' is not supported. Aborting construction of SSM device '" + deviceID + "'.");
+            WRITE_ERRORF(TL("SSM identifier '%' is not supported. Aborting construction of SSM device '%'."), *i, deviceID);
             return false;
         }
     }
@@ -3570,33 +3728,33 @@ MSDevice_SSM::getMeasuresAndThresholds(const SUMOVehicle& v, std::string deviceI
         try {
             thresholds_str = v.getParameter().getParameter("device.ssm.thresholds", "");
         } catch (...) {
-            WRITE_WARNING("Invalid value '" + v.getParameter().getParameter("device.ssm.thresholds", "") + "'for vehicle parameter 'ssm.thresholds'");
+            WRITE_WARNINGF(TL("Invalid value '%'for vehicle parameter 'ssm.thresholds'."), v.getParameter().getParameter("device.ssm.thresholds", ""));
         }
     } else if (v.getVehicleType().getParameter().knowsParameter("device.ssm.thresholds")) {
         try {
             thresholds_str = v.getVehicleType().getParameter().getParameter("device.ssm.thresholds", "");
         } catch (...) {
-            WRITE_WARNING("Invalid value '" + v.getVehicleType().getParameter().getParameter("device.ssm.thresholds", "") + "'for vType parameter 'ssm.thresholds'");
+            WRITE_WARNINGF(TL("Invalid value '%'for vType parameter 'ssm.thresholds'."), v.getVehicleType().getParameter().getParameter("device.ssm.thresholds", ""));
         }
     } else {
         thresholds_str = oc.getString("device.ssm.thresholds");
-        if (!oc.isSet("device.ssm.thresholds") && (issuedParameterWarnFlags & SSM_WARN_THRESHOLDS) == 0) {
-            std::cout << "vehicle '" << v.getID() << "' does not supply vehicle parameter 'device.ssm.thresholds'. Using default of '" << thresholds_str << "'\n";
-            issuedParameterWarnFlags |= SSM_WARN_THRESHOLDS;
+        if (oc.isDefault("device.ssm.thresholds") && (myIssuedParameterWarnFlags & SSM_WARN_THRESHOLDS) == 0) {
+            WRITE_MESSAGEF(TL("Vehicle '%' does not supply vehicle parameter 'device.ssm.thresholds'. Using default of '%'."), v.getID(), thresholds_str);
+            myIssuedParameterWarnFlags |= SSM_WARN_THRESHOLDS;
         }
     }
 
     // Parse vector of doubles from threshold_str
     int count = 0;
     if (thresholds_str != "") {
-        st = StringTokenizer(thresholds_str);
+        st = (thresholds_str.find(",") != std::string::npos) ? StringTokenizer(thresholds_str, ",") : StringTokenizer(thresholds_str);
         while (count < (int)measures.size() && st.hasNext()) {
             double thresh = StringUtils::toDouble(st.next());
             thresholds.insert(std::make_pair(measures[count], thresh));
             ++count;
         }
         if (thresholds.size() < measures.size() || st.hasNext()) {
-            WRITE_ERROR("Given list of thresholds ('" + thresholds_str + "') is not of the same size as the list of measures ('" + measures_str + "').\nPlease specify exactly one threshold for each measure.");
+            WRITE_ERRORF(TL("Given list of thresholds ('%') is not of the same size as the list of measures ('%').\nPlease specify exactly one threshold for each measure."), thresholds_str, measures_str);
             return false;
         }
     } else {
@@ -3660,7 +3818,7 @@ MSDevice_SSM::getParameter(const std::string& key) const {
             return toString(value);
         }
     }
-    throw InvalidArgument("Parameter '" + key + "' is not supported for device of type '" + deviceName() + "'");
+    throw InvalidArgument("Parameter '" + key + "' is not supported for device of type '" + deviceName() + "'.");
 }
 
 
@@ -3670,12 +3828,12 @@ MSDevice_SSM::setParameter(const std::string& key, const std::string& value) {
     try {
         doubleValue = StringUtils::toDouble(value);
     } catch (NumberFormatException&) {
-        throw InvalidArgument("Setting parameter '" + key + "' requires a number for device of type '" + deviceName() + "'");
+        throw InvalidArgument("Setting parameter '" + key + "' requires a number for device of type '" + deviceName() + "'.");
     }
     if (false || key == "foo") {
         UNUSED_PARAMETER(doubleValue);
     } else {
-        throw InvalidArgument("Setting parameter '" + key + "' is not supported for device of type '" + deviceName() + "'");
+        throw InvalidArgument("Setting parameter '" + key + "' is not supported for device of type '" + deviceName() + "'.");
     }
 }
 

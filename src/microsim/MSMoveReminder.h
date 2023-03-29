@@ -1,6 +1,6 @@
 /****************************************************************************/
 // Eclipse SUMO, Simulation of Urban MObility; see https://eclipse.org/sumo
-// Copyright (C) 2003-2020 German Aerospace Center (DLR) and others.
+// Copyright (C) 2003-2023 German Aerospace Center (DLR) and others.
 // This program and the accompanying materials are made available under the
 // terms of the Eclipse Public License 2.0 which is available at
 // https://www.eclipse.org/legal/epl-2.0/
@@ -29,7 +29,7 @@
 #include <utils/common/SUMOTime.h>
 #include <utils/common/StdDefs.h>
 #ifdef HAVE_FOX
-#include <fx.h>
+#include <utils/foxtools/fxheader.h>
 #endif
 
 
@@ -95,6 +95,8 @@ public:
         NOTIFICATION_SEGMENT,
         /// @brief The vehicle changes lanes (micro only)
         NOTIFICATION_LANE_CHANGE,
+        /// @brief The vehicle has been loaded from a state file
+        NOTIFICATION_LOAD_STATE,
         /* All notifications below must result in the vehicle not being on the net
          * (onLeaveLane sets amOnNet=false if reason>=NOTIFICATION_TELEPORT) */
         /// @brief The vehicle is being teleported
@@ -179,6 +181,12 @@ public:
         return true;
     }
 
+    /// @brief called to update state for parking vehicles
+    virtual void notifyParking() {}
+
+    /// @brief called to update state for stopped vehicles
+    virtual void notifyStopEnded() {}
+
     /** @brief Called if the vehicle leaves the reminder's lane
      *
      * Informs if vehicle leaves reminder lane (due to lane change, removal
@@ -232,14 +240,14 @@ public:
                                     const double travelledDistanceFrontOnLane,
                                     const double travelledDistanceVehicleOnLane,
                                     const double meanLengthOnLane) {
-        UNUSED_PARAMETER(meanLengthOnLane);
-        UNUSED_PARAMETER(travelledDistanceFrontOnLane);
-        UNUSED_PARAMETER(travelledDistanceVehicleOnLane);
-        UNUSED_PARAMETER(meanSpeedVehicleOnLane);
-        UNUSED_PARAMETER(meanSpeedFrontOnLane);
+        UNUSED_PARAMETER(&veh);
         UNUSED_PARAMETER(frontOnLane);
         UNUSED_PARAMETER(timeOnLane);
-        UNUSED_PARAMETER(&veh);
+        UNUSED_PARAMETER(meanSpeedFrontOnLane);
+        UNUSED_PARAMETER(meanSpeedVehicleOnLane);
+        UNUSED_PARAMETER(travelledDistanceFrontOnLane);
+        UNUSED_PARAMETER(travelledDistanceVehicleOnLane);
+        UNUSED_PARAMETER(meanLengthOnLane);
     }
 
     void setDescription(const std::string& description) {

@@ -1,6 +1,6 @@
 /****************************************************************************/
 // Eclipse SUMO, Simulation of Urban MObility; see https://eclipse.org/sumo
-// Copyright (C) 2017-2020 German Aerospace Center (DLR) and others.
+// Copyright (C) 2017-2023 German Aerospace Center (DLR) and others.
 // TraaS module
 // Copyright (C) 2013-2017 Dresden University of Technology
 // This program and the accompanying materials are made available under the
@@ -32,14 +32,14 @@ import de.tudresden.sumo.cmd.Polygon;
 import de.tudresden.sumo.cmd.Person;
 import de.tudresden.sumo.cmd.Inductionloop;
 import de.tudresden.sumo.cmd.Trafficlight;
-import de.tudresden.ws.container.SumoVehicleData;
-import de.tudresden.ws.container.SumoStopFlags;
-import de.tudresden.ws.container.SumoStringList;
-import de.tudresden.ws.container.SumoStage;
-import de.tudresden.ws.container.SumoPosition2D;
-import de.tudresden.ws.container.SumoRoadPosition;
-import de.tudresden.ws.container.SumoTLSController;
-import de.tudresden.ws.container.SumoTLSProgram;
+import de.tudresden.sumo.objects.SumoVehicleData;
+import de.tudresden.sumo.objects.SumoStopFlags;
+import de.tudresden.sumo.objects.SumoStringList;
+import de.tudresden.sumo.objects.SumoStage;
+import de.tudresden.sumo.objects.SumoPosition2D;
+import de.tudresden.sumo.objects.SumoRoadPosition;
+import de.tudresden.sumo.objects.SumoTLSController;
+import de.tudresden.sumo.objects.SumoTLSProgram;
 
 public class APITest {
     public static void main(String[] args) {

@@ -1,6 +1,5 @@
 ---
-title: Demand/Further Ways to import VISUM Demand Definitions
-permalink: /Demand/Further_Ways_to_import_VISUM_Demand_Definitions/
+title: Further Ways to import VISUM Demand Definitions
 ---
 
 VISUM stores its demand in [OD-matrices which can be

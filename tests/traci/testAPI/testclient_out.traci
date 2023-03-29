@@ -1,4 +1,4 @@
-TraCITestClient output file. Date: Wed Aug 12 15:59:14 2020
+TraCITestClient output file. Date: Sun Feb 19 21:12:20 2023
 
 
 -> Command sent: <SetOrder>:
@@ -7,7 +7,7 @@ TraCITestClient output file. Date: Wed Aug 12 15:59:14 2020
 -> Command sent: <SimulationStep>:
 .. Command acknowledged (2), [description: ]
 testAPI:
-  getVersion: 20, SUMO v1_6_0+1531-1eb0ee76d1
+  getVersion: 20, SUMO v1_16_0+0415-a857f4abbfa
   setOrder:
   edge:
     getIDList: :n_m1_0 :n_m2_0 :n_m3_0 :n_m4_0 :n_m4_2 :n_m4_4 :n_m4_7 :n_m5_0 :n_m5_2 :n_m5_4 :n_m6_0 :n_m6_2 :n_m6_4 :n_m7_0 :n_m7_3 :n_o0_0 :n_o1_0 :n_o1_3 :n_o2_0 :n_o2_3 :n_u0_0 :n_u1_0 :n_u1_2 :n_u2_0 :n_u2_2 :n_x1_0 e_m0 e_m1 e_m2 e_m3 e_m4 e_m5 e_m6 e_o0 e_o1 e_shape0 e_shape1 e_u0 e_u1 e_vo0 e_vo1 e_vo2 e_vu0 e_vu1 e_vu2 e_x0 e_x1
@@ -41,13 +41,13 @@ testAPI:
     getIDList: poly0
     getIDCount: 1
     getLineWidth: 0.60
-    getShape: TraCIPosition(800,1000,0) TraCIPosition(1200,1000,0) TraCIPosition(1200,900,0) TraCIPosition(800,900,0) 
+    getShape: [(800,1000,0)(1200,1000,0)(1200,900,0)(800,900,0)]
     getColor: TraCIColor(0,255,255,255)
-    getShape after modification: TraCIPosition(42,1000,0) TraCIPosition(1200,1000,0) TraCIPosition(1200,900,0) TraCIPosition(800,900,0) 
+    getShape after modification: [(42,1000,0)(1200,1000,0)(1200,900,0)(800,900,0)]
   junction:
     getIDList: :n_m4_7_0 n_m0 n_m1 n_m2 n_m3 n_m4 n_m5 n_m6 n_m7 n_o0 n_o1 n_o2 n_u0 n_u1 n_u2 n_x0 n_x1 n_x2
     getIDCount: 18
-    getShape: TraCIPosition(1993.45,501.45,0) TraCIPosition(1999.95,501.45,0) TraCIPosition(2008.05,499.95,0) TraCIPosition(2008.05,490.15,0) TraCIPosition(2006.55,488.65,0) TraCIPosition(2000.05,488.65,0) TraCIPosition(1991.95,490.15,0) TraCIPosition(1991.95,499.95,0) TraCIPosition(1993.45,501.45,0) 
+    getShape: [(1993.45,501.45,0)(1999.95,501.45,0)(2008.05,499.95,0)(2008.05,490.15,0)(2006.55,488.65,0)(2000.05,488.65,0)(1991.95,490.15,0)(1991.95,499.95,0)(1993.45,501.45,0)]
   route:
     add:
     getIDList: e_m4 e_u1 r1
@@ -117,14 +117,15 @@ testAPI:
     getIDList: det1
     getVehicleData:
   simulation:
-    convert2D: TraCIPosition(2508.05,491.75,-1.07374e+09)
-    convert2DGeo: TraCIPosition(12.0501,48.0917,-1.07374e+09)
+    getOption: net.net.xml
+    convert2D: TraCIPosition(2508.05,491.75)
+    convert2DGeo: TraCIPosition(12.0501,48.0917)
     convert3D: TraCIPosition(2508.05,491.75,0)
     convert3DGeo: TraCIPosition(12.0501,48.0917,0)
     convertRoad: TraCIRoadPosition(:n_m5_0_1,3.02524)
     convertRoadBus: TraCIRoadPosition(:n_m5_0_1,3.02524)
-    convertGeo: TraCIPosition(12.05,48.0917,-1.07374e+09)
-    convertCartesian: TraCIPosition(16227.4,435082,-1.07374e+09)
+    convertGeo: TraCIPosition(12.05,48.0917)
+    convertCartesian: TraCIPosition(16227.4,435082)
     getDistance2D_air: 500.00
     getDistance2D_driving: 3367.88
     getDistanceRoad_air: 500.00
@@ -144,6 +145,7 @@ testAPI:
       vehicle=2 pos=16.3564
     subscribe to vehicles around vehicle '1':
     context subscription results:
+      vehicle=1
       vehicle=2
   person:
     getIDList: p0 pWaiting
@@ -203,14 +205,14 @@ testAPI:
          phase=ggggggg dur=10.00 minDur=5.00 maxDur=15.00
          phase=GGGGGGG dur=3.00 minDur=3.00 maxDur=3.00
          phase=yyyyyyy dur=3.00 minDur=3.00 maxDur=3.00
-    state=ggggggg
+    state=yyyyyyy
     stateSet=gGyruoO
     program: online
-  load:
-    getCurrentTime: 1000
   gui:
     setScheme: 
     no support for gui commands
+  load:
+    getCurrentTime: 1000
 
 -> Command sent: <SimulationStep>:
 .. Command acknowledged (2), [description: ]

@@ -1,6 +1,6 @@
 /****************************************************************************/
 // Eclipse SUMO, Simulation of Urban MObility; see https://eclipse.org/sumo
-// Copyright (C) 2005-2020 German Aerospace Center (DLR) and others.
+// Copyright (C) 2005-2023 German Aerospace Center (DLR) and others.
 // This program and the accompanying materials are made available under the
 // terms of the Eclipse Public License 2.0 which is available at
 // https://www.eclipse.org/legal/epl-2.0/
@@ -43,7 +43,7 @@ public:
 
     /// @brief Returns the model's id
     LaneChangeModel getModelID() const {
-        return LCM_DK2008;
+        return LaneChangeModel::DK2008;
     }
 
     /** @brief Called to examine whether the vehicle wants to change
@@ -54,6 +54,7 @@ public:
         int laneOffset,
         MSAbstractLaneChangeModel::MSLCMessager& msgPass, int blocked,
         const std::pair<MSVehicle*, double>& leader,
+        const std::pair<MSVehicle*, double>& follower,
         const std::pair<MSVehicle*, double>& neighLead,
         const std::pair<MSVehicle*, double>& neighFollow,
         const MSLane& neighLane,

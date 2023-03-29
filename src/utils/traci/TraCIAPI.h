@@ -1,6 +1,6 @@
 /****************************************************************************/
 // Eclipse SUMO, Simulation of Urban MObility; see https://eclipse.org/sumo
-// Copyright (C) 2012-2020 German Aerospace Center (DLR) and others.
+// Copyright (C) 2012-2023 German Aerospace Center (DLR) and others.
 // This program and the accompanying materials are made available under the
 // terms of the Eclipse Public License 2.0 which is available at
 // https://www.eclipse.org/legal/epl-2.0/
@@ -20,6 +20,7 @@
 // C++ TraCI client API implementation
 /****************************************************************************/
 #pragma once
+#include <config.h>
 #include <vector>
 #include <limits>
 #include <string>
@@ -136,6 +137,7 @@ public:
         libsumo::TraCIPosition getPos3D(int var, const std::string& id, tcpip::Storage* add = 0) const;
         std::string getString(int var, const std::string& id, tcpip::Storage* add = 0) const;
         std::vector<std::string> getStringVector(int var, const std::string& id, tcpip::Storage* add = 0) const;
+        std::vector<double> getDoubleVector(int var, const std::string& id, tcpip::Storage* add = 0) const;
         libsumo::TraCIColor getCol(int var, const std::string& id, tcpip::Storage* add = 0) const;
         libsumo::TraCIStage getTraCIStage(int var, const std::string& id, tcpip::Storage* add = 0) const;
 
@@ -315,6 +317,10 @@ public:
         double getLastStepMeanSpeed(const std::string& detID) const;
         std::vector<std::string> getLastStepVehicleIDs(const std::string& detID) const;
         int getLastStepHaltingNumber(const std::string& detID) const;
+        std::vector<std::string> getEntryLanes(const std::string& detID) const;
+        std::vector<std::string> getExitLanes(const std::string& detID) const;
+        std::vector<double> getEntryPositions(const std::string& detID) const;
+        std::vector<double> getExitPositions(const std::string& detID) const;
     };
 
 
@@ -355,6 +361,7 @@ public:
         virtual ~PolygonScope() {}
 
         double getLineWidth(const std::string& polygonID) const;
+        bool getFilled(const std::string& polygonID) const;
         std::string getType(const std::string& polygonID) const;
         libsumo::TraCIPositionVector getShape(const std::string& polygonID) const;
         libsumo::TraCIColor getColor(const std::string& polygonID) const;
@@ -424,6 +431,12 @@ public:
         double getDeltaT() const;
         libsumo::TraCIPositionVector getNetBoundary() const;
         int getMinExpectedNumber() const;
+        std::string getOption(const std::string& option) const;
+
+        int getDepartedPersonNumber() const;
+        std::vector<std::string> getDepartedPersonIDList() const;
+        int getArrivedPersonNumber() const;
+        std::vector<std::string> getArrivedPersonIDList() const;
 
         int getBusStopWaiting(const std::string& stopID) const;
         std::vector<std::string> getBusStopWaitingIDList(const std::string& stopID) const;
@@ -436,6 +449,8 @@ public:
         double getDistance2D(double x1, double y1, double x2, double y2, bool isGeo = false, bool isDriving = false);
         double getDistanceRoad(const std::string& edgeID1, double pos1, const std::string& edgeID2, double pos2, bool isDriving = false);
         libsumo::TraCIStage findRoute(const std::string& fromEdge, const std::string& toEdge, const std::string& vType = "", double pos = -1., int routingMode = 0) const;
+        void loadState(const std::string& path) const;
+        void saveState(const std::string& destination) const;
         void writeMessage(const std::string msg);
     };
 
@@ -664,7 +679,8 @@ public:
         void slowDown(const std::string& vehicleID, double speed, double duration) const;
         void openGap(const std::string& vehicleID, double newTau, double duration, double changeRate, double maxDecel) const;
         void setSpeed(const std::string& vehicleID, double speed) const;
-        void setPreviousSpeed(const std::string& vehicleID, double prevspeed) const;
+        void setAcceleration(const std::string& vehicleID, double accel, double duration) const;
+        void setPreviousSpeed(const std::string& vehicleID, double prevSpeed, double prevAcceleration = std::numeric_limits<int>::min()) const;
         void setLaneChangeMode(const std::string& vehicleID, int mode) const;
         void setSpeedMode(const std::string& vehicleID, int mode) const;
         void setStop(const std::string vehicleID, const std::string edgeID, const double endPos = 1.,
@@ -737,7 +753,7 @@ public:
         void addSubscriptionFilterFieldOfVision(double angle) const;
 
         /* @brief Restricts returned vehicles to the given lateral distance */
-        void addSubscriptionFilterLateralDistance(double lateralDist, double downstreamDist = -1, double upstreamDist = -1) const;
+        void addSubscriptionFilterLateralDistance(double lateralDist, double downstreamDist = -1, double foeDistToJunction = -1) const;
 
         /// @}
 
@@ -763,6 +779,7 @@ public:
         std::string getRoadID(const std::string& personID) const;
         std::string getLaneID(const std::string& personID) const;
         std::string getTypeID(const std::string& personID) const;
+        double getSpeedFactor(const std::string& personID) const;
         double getWaitingTime(const std::string& personID) const;
         std::string getNextEdge(const std::string& personID) const;
         std::string getVehicle(const std::string& personID) const;
@@ -788,8 +805,11 @@ public:
         void appendDrivingStage(const std::string& personID, const std::string& toEdge, const std::string& lines, const std::string& stopID = "");
         void removeStage(const std::string& personID, int nextStageIndex) const;
         void rerouteTraveltime(const std::string& personID) const;
+        void moveTo(const std::string& personID, const std::string& edgeID, double position) const;
+        void moveToXY(const std::string& personID, const std::string& edgeID, const double x, const double y, double angle, const int keepRoute) const;
         void setSpeed(const std::string& personID, double speed) const;
         void setType(const std::string& personID, const std::string& typeID) const;
+        void setSpeedFactor(const std::string& personID, double factor) const;
         void setLength(const std::string& personID, double length) const;
         void setWidth(const std::string& personID, double width) const;
         void setHeight(const std::string& personID, double height) const;

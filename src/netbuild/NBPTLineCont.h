@@ -1,6 +1,6 @@
 /****************************************************************************/
 // Eclipse SUMO, Simulation of Urban MObility; see https://eclipse.org/sumo
-// Copyright (C) 2001-2020 German Aerospace Center (DLR) and others.
+// Copyright (C) 2001-2023 German Aerospace Center (DLR) and others.
 // This program and the accompanying materials are made available under the
 // terms of the Eclipse Public License 2.0 which is available at
 // https://www.eclipse.org/legal/epl-2.0/
@@ -17,41 +17,44 @@
 ///
 // Container for NBPTLine during netbuild
 /****************************************************************************/
-
 #pragma once
-
+#include <config.h>
 
 #include <vector>
 #include "utils/router/SUMOAbstractRouter.h"
-#include "NBPTLine.h"
 #include "NBEdgeCont.h"
+#include "NBPTLine.h"
+#include "NBVehicle.h"
 
+
+// ===========================================================================
+// class definitions
+// ===========================================================================
 class NBPTLineCont {
-
 public:
-    /// @brief constructor
-    NBPTLineCont();
-
     /// @brief destructor
     ~NBPTLineCont();
 
     /// @brief insert new line
-    void insert(NBPTLine* ptLine);
+    bool insert(NBPTLine* ptLine);
 
     const std::map<std::string, NBPTLine*>& getLines() const {
         return myPTLines;
     }
 
-    void process(NBEdgeCont& ec, NBPTStopCont& sc);
-
-    /// @brief add edges that must be kept
-    void addEdges2Keep(const OptionsCont& oc, std::set<std::string>& into);
+    void process(NBEdgeCont& ec, NBPTStopCont& sc, bool routeOnly = false);
 
     /// @brief replace the edge with the given edge list in all lines
     void replaceEdge(const std::string& edgeID, const EdgeVector& replacement);
 
     /// @brief select the correct stop on superposed rail edges
     void fixBidiStops(const NBEdgeCont& ec);
+
+    /// @brief filter out edges that were removed due to --geometry.remove
+    void removeInvalidEdges(const NBEdgeCont& ec);
+
+    /// @brief ensure that all turn lanes have sufficient permissions
+    void fixPermissions();
 
     std::set<std::string>& getServedPTStops();
 private:
@@ -69,16 +72,19 @@ private:
 
     /* @brief find way element corresponding to the stop
      * @note: if the edge id is updated, the stop extent is recomputed */
-    NBPTStop* findWay(NBPTLine* line, NBPTStop* stop, const NBEdgeCont& ec, NBPTStopCont& sc) const;
+    std::shared_ptr<NBPTStop> findWay(NBPTLine* line, std::shared_ptr<NBPTStop> stop, const NBEdgeCont& ec, NBPTStopCont& sc) const;
 
-    void constructRoute(NBPTLine* myPTLine, NBEdgeCont& cont);
+    void constructRoute(NBPTLine* myPTLine, const NBEdgeCont& cont);
 
     std::set<std::string> myServedPTStops;
 
     static double getCost(const NBEdgeCont& ec, SUMOAbstractRouter<NBRouterEdge, NBVehicle>& router,
-                          const NBPTStop* from, const NBPTStop* to, const NBVehicle* veh);
+                          const std::shared_ptr<NBPTStop> from, const std::shared_ptr<NBPTStop> to, const NBVehicle* veh);
 
     static std::string getWayID(const std::string& edgeID);
+
+    /// @brief The map of edge ids to lines that use this edge in their route
+    std::map<std::string, std::set<NBPTLine*> > myPTLineLookup;
 };
 
 

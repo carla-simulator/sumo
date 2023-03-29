@@ -1,6 +1,6 @@
 /****************************************************************************/
 // Eclipse SUMO, Simulation of Urban MObility; see https://eclipse.org/sumo
-// Copyright (C) 2001-2020 German Aerospace Center (DLR) and others.
+// Copyright (C) 2001-2023 German Aerospace Center (DLR) and others.
 // This program and the accompanying materials are made available under the
 // terms of the Eclipse Public License 2.0 which is available at
 // https://www.eclipse.org/legal/epl-2.0/
@@ -194,14 +194,24 @@ private:
         double visibility;
         /// @brief custom permissions for connection
         SVCPermissions permissions;
+        /// @brief custom lane changing permissions for connection
+        SVCPermissions changeLeft;
+        /// @brief custom lane changing permissions for connection
+        SVCPermissions changeRight;
         /// @brief custom speed for connection
         double speed;
+        /// @brief custom friction for connection
+        double friction;
         /// @brief custom length for connection
         double customLength;
         /// @brief custom shape connection
         PositionVector customShape;
         /// @brief if set to true, This connection will not be TLS-controlled despite its node being controlled.
         bool uncontrolled;
+        /// @brief Whether this connection is an indirect left turn
+        bool indirectLeft;
+        /// @brief optional edge type
+        std::string edgeType;
     };
 
 
@@ -212,6 +222,8 @@ private:
     public:
         /// @brief The maximum velocity allowed on this lane
         double maxSpeed;
+        /// @brief The friction on this lane
+        double friction;
         /// @brief This lane's shape (may be custom)
         PositionVector shape;
         /// @brief This lane's connections
@@ -220,12 +232,16 @@ private:
         std::string allow;
         /// @brief This lane's disallowed vehicle classes
         std::string disallow;
+        /// @brief This lane's vehicle classes allowed to change left
+        std::string changeLeft;
+        /// @brief This lane's vehicle classes allowed to change right
+        std::string changeRight;
         /// @brief The width of this lane
         double width;
         /// @brief This lane's offset from the intersection
         double endOffset;
         /// @brief This lane's vehicle specific stop offsets
-        std::map<SVCPermissions, double> stopOffsets;
+        StopOffset laneStopOffset;
         /// @brief Whether this lane is an acceleration lane
         bool accelRamp;
         /// @brief This lane's opposite lane
@@ -262,6 +278,8 @@ private:
         int priority;
         /// @brief The maximum velocity allowed on this edge (!!!)
         double maxSpeed;
+        /// @brief The friction on this edge
+        //double friction;
         /// @brief This edge's lanes
         std::vector<LaneAttrs*> lanes;
         /// @brief The built edge
@@ -269,9 +287,11 @@ private:
         /// @brief The lane spread function
         LaneSpreadFunction lsf;
         /// @brief This edge's vehicle specific stop offsets (used for lanes, that do not have a specified stopOffset)
-        std::map<SVCPermissions, double> stopOffsets;
+        StopOffset edgeStopOffset;
         /// @brief The position at the start of this edge (kilometrage/mileage)
         double distance;
+        /// @brief the bidi edge
+        std::string bidi;
     };
 
 
@@ -310,6 +330,7 @@ private:
         std::vector<std::string> toEdges;
         std::vector<std::string> fromCrossed;
         std::vector<std::string> toCrossed;
+        double width;
     };
 
     /** @struct JunctionAttrs
@@ -366,13 +387,16 @@ private:
     std::vector<Parameterised*> myLastParameterised;
 
     /// @brief the loaded network version
-    double myNetworkVersion;
+    MMVersion myNetworkVersion;
 
     /// @brief whether the loaded network contains internal lanes
     bool myHaveSeenInternalEdge;
 
     /// @brief whether the loaded network was built for lefthand traffic
     bool myAmLefthand;
+
+    /// @brief whether the the written network should have a different "handedness" (LHT/RHT) than the loaded network
+    bool myChangeLefthand;
 
     /// @brief the level of corner detail in the loaded network
     int myCornerDetail;
@@ -398,6 +422,10 @@ private:
     std::string myDefaultSpreadType;
     /// @brief overlap option for loaded network
     bool myGeomAvoidOverlap;
+    /// @brief higherSpeed  option for loaded network
+    bool myJunctionsHigherSpeed;
+    /// @brief custom settings for internal junction computation
+    double myInternalJunctionsVehicleWidth;
 
     /// @brief loaded roundabout edges
     std::vector<std::vector<std::string> > myRoundabouts;
@@ -409,11 +437,6 @@ private:
     std::set<std::string> myDiscardableParams;
 
 private:
-    /** @brief Parses lane index from lane ID an retrieve lane from EdgeAttrs
-     * @param[in] edge The EdgeAttrs* which should contain the lane
-     * @param[in] lane_id The ID of the lane
-     */
-    LaneAttrs* getLaneAttrsFromID(EdgeAttrs* edge, std::string lane_id);
 
     /// @brief read position from the given attributes, attribute errors to id
     static Position readPosition(const SUMOSAXAttributes& attrs, const std::string& id, bool& ok);

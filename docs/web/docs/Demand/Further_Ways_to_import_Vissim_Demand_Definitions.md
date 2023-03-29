@@ -1,6 +1,5 @@
 ---
-title: Demand/Further Ways to import Vissim Demand Definitions
-permalink: /Demand/Further_Ways_to_import_Vissim_Demand_Definitions/
+title: Further Ways to import Vissim Demand Definitions
 ---
 
 Besides using [OD-matrices which can be

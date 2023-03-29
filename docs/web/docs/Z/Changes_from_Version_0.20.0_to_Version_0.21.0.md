@@ -1,9 +1,8 @@
 ---
-title: Z/Changes from Version 0.20.0 to Version 0.21.0
-permalink: /Z/Changes_from_Version_0.20.0_to_Version_0.21.0/
+title: Changes from Version 0.20.0 to Version 0.21.0
 ---
 
-## Version 0.21.0 (11.06.2014)
+**Release date: 11.06.2014**
 
 ### Bugfixes
 
@@ -122,7 +121,7 @@ permalink: /Z/Changes_from_Version_0.20.0_to_Version_0.21.0/
     vehicles in this case
   - added [HBEFA3](../Models/Emissions/HBEFA3-based.md)
     emission model
-  - added [outputs](../Simulation/Output.md) conforming to the
+  - added [outputs](../Simulation/Output/index.md) conforming to the
     Amitran standards
 
 - sumo-gui

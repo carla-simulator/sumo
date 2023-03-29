@@ -1,6 +1,6 @@
 /****************************************************************************/
 // Eclipse SUMO, Simulation of Urban MObility; see https://eclipse.org/sumo
-// Copyright (C) 2002-2020 German Aerospace Center (DLR) and others.
+// Copyright (C) 2002-2023 German Aerospace Center (DLR) and others.
 // This program and the accompanying materials are made available under the
 // terms of the Eclipse Public License 2.0 which is available at
 // https://www.eclipse.org/legal/epl-2.0/
@@ -20,6 +20,7 @@
 // reimplementation inspired by https://marc.info/?l=xerces-dev&m=86952133511623
 /****************************************************************************/
 #pragma once
+#include <config.h>
 #include <iostream>
 #include <xercesc/util/BinInputStream.hpp>
 #include <xercesc/sax/InputSource.hpp>

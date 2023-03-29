@@ -1,6 +1,6 @@
 /****************************************************************************/
 // Eclipse SUMO, Simulation of Urban MObility; see https://eclipse.org/sumo
-// Copyright (C) 2001-2020 German Aerospace Center (DLR) and others.
+// Copyright (C) 2001-2023 German Aerospace Center (DLR) and others.
 // This program and the accompanying materials are made available under the
 // terms of the Eclipse Public License 2.0 which is available at
 // https://www.eclipse.org/legal/epl-2.0/
@@ -40,12 +40,12 @@
 // ===========================================================================
 
 GUIPointOfInterest::GUIPointOfInterest(const std::string& id, const std::string& type,
-                                       const RGBColor& color, const Position& pos, bool geo,
-                                       const std::string& lane, double posOverLane, double posLat,
-                                       double layer, double angle, const std::string& imgFile,
-                                       bool relativePath, double width, double height) :
-    PointOfInterest(id, type, color, pos, geo, lane, posOverLane, posLat, layer, angle, imgFile, relativePath, width, height),
-    GUIGlObject_AbstractAdd(GLO_POI, id) {
+                                       const RGBColor& color, const Position& pos, bool geo, const std::string& lane,
+                                       double posOverLane, bool friendlyPos, double posLat, double layer, double angle,
+                                       const std::string& imgFile, bool relativePath, double width, double height) :
+    PointOfInterest(id, type, color, pos, geo, lane, posOverLane, friendlyPos, posLat, layer, angle, imgFile, relativePath, width, height),
+    GUIGlObject_AbstractAdd(GLO_POI, id,
+                            (lane.size() > 0) ? GUIIconSubSys::getIcon(GUIIcon::POILANE) : geo ? GUIIconSubSys::getIcon(GUIIcon::POIGEO) : GUIIconSubSys::getIcon(GUIIcon::POI)) {
 }
 
 
@@ -72,6 +72,12 @@ GUIPointOfInterest::getParameterWindow(GUIMainWindow& app, GUISUMOAbstractView&)
 }
 
 
+double
+GUIPointOfInterest::getExaggeration(const GUIVisualizationSettings& s) const {
+    return s.poiSize.getExaggeration(s, this);
+}
+
+
 Boundary
 GUIPointOfInterest::getCenteringBoundary() const {
     Boundary b;
@@ -91,11 +97,11 @@ GUIPointOfInterest::drawGL(const GUIVisualizationSettings& s) const {
     // check if POI can be drawn
     if (checkDraw(s, this)) {
         // push name (needed for getGUIGlObjectsUnderCursor(...)
-        glPushName(getGlID());
+        GLHelper::pushName(getGlID());
         // draw inner polygon
-        drawInnerPOI(s, this, this, false, getShapeLayer());
+        drawInnerPOI(s, this, this, false, s.altKeyPressed? 0 : getShapeLayer(), getWidth(), getHeight());
         // pop name
-        glPopName();
+        GLHelper::popName();
     }
 }
 
@@ -103,7 +109,7 @@ GUIPointOfInterest::drawGL(const GUIVisualizationSettings& s) const {
 bool
 GUIPointOfInterest::checkDraw(const GUIVisualizationSettings& s, const GUIGlObject* o) {
     // only continue if scale is valid
-    if (s.scale * (1.3 / 3.0) *s.poiSize.getExaggeration(s, o) < s.poiSize.minSize) {
+    if (s.scale * (1.3 / 3.0) * o->getExaggeration(s) < s.poiSize.minSize) {
         return false;
     }
     return true;
@@ -129,9 +135,9 @@ GUIPointOfInterest::setColor(const GUIVisualizationSettings& s, const PointOfInt
 
 void
 GUIPointOfInterest::drawInnerPOI(const GUIVisualizationSettings& s, const PointOfInterest* POI, const GUIGlObject* o,
-                                 const bool disableSelectionColor, const double layer) {
-    const double exaggeration = s.poiSize.getExaggeration(s, o);
-    glPushMatrix();
+                                 const bool disableSelectionColor, const double layer, const double width, const double height) {
+    const double exaggeration = o->getExaggeration(s);
+    GLHelper::pushMatrix();
     setColor(s, POI, o, disableSelectionColor);
     glTranslated(POI->x(), POI->y(), layer);
     glRotated(-POI->getShapeNaviDegree(), 0, 0, 1);
@@ -140,34 +146,34 @@ GUIPointOfInterest::drawInnerPOI(const GUIVisualizationSettings& s, const PointO
         int textureID = GUITexturesHelper::getTextureID(POI->getShapeImgFile());
         if (textureID > 0) {
             GUITexturesHelper::drawTexturedBox(textureID,
-                                               POI->getWidth() * -0.5 * exaggeration, POI->getHeight() * -0.5 * exaggeration,
-                                               POI->getWidth() * 0.5 * exaggeration,  POI->getHeight() * 0.5 * exaggeration);
+                                               width * -0.5 * exaggeration, height * -0.5 * exaggeration,
+                                               width * 0.5 * exaggeration,  height * 0.5 * exaggeration);
         }
     } else {
         // fallback if no image is defined
-        if (s.drawForRectangleSelection) {
-            GLHelper::drawFilledCircle((double) 1.3 * exaggeration, 8);
+        if (s.drawForPositionSelection) {
+            GLHelper::drawFilledCircle((double) 1.3 * exaggeration, MIN2(8, s.poiDetail));
         } else {
             // draw filled circle saving vertices
-            GLHelper::drawFilledCircle((double) 1.3 * exaggeration, 16);
+            GLHelper::drawFilledCircle((double) 1.3 * exaggeration, s.poiDetail);
         }
     }
-    glPopMatrix();
+    GLHelper::popMatrix();
     if (!s.drawForRectangleSelection) {
         const Position namePos = *POI;
         o->drawName(namePos, s.scale, s.poiName, s.angle);
-        if (s.poiType.show) {
+        if (s.poiType.show(o)) {
             const Position p = namePos + Position(0, -0.6 * s.poiType.size / s.scale);
             GLHelper::drawTextSettings(s.poiType, POI->getShapeType(), p, s.scale, s.angle);
         }
-        if (s.poiText.show) {
-            glPushMatrix();
+        if (s.poiText.show(o)) {
+            GLHelper::pushMatrix();
             glTranslated(POI->x(), POI->y(), 0);
             std::string value = POI->getParameter(s.poiTextParam, "");
             if (value != "") {
                 auto lines = StringTokenizer(value, StringTokenizer::NEWLINE).getVector();
                 glRotated(-s.angle, 0, 0, 1);
-                glTranslated(0, 0.7 * s.poiText.scaledSize(s.scale) * lines.size(), 0);
+                glTranslated(0, 0.7 * s.poiText.scaledSize(s.scale) * (double)lines.size(), 0);
                 glRotated(s.angle, 0, 0, 1);
                 // FONS_ALIGN_LEFT = 1
                 // FONS_ALIGN_CENTER = 2
@@ -180,7 +186,7 @@ GUIPointOfInterest::drawInnerPOI(const GUIVisualizationSettings& s, const PointO
                     glRotated(s.angle, 0, 0, 1);
                 }
             }
-            glPopMatrix();
+            GLHelper::popMatrix();
         }
     }
 }

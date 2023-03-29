@@ -1,6 +1,5 @@
 ---
-title: Simulation/Intersections
-permalink: /Simulation/Intersections/
+title: Intersections
 ---
 
 The vehicle dynamics at intersection are governed by the intersection
@@ -13,22 +12,24 @@ governing the intersection model.
 # Internal links
 
 The most important configuration aspect is whether the dynamics within
-an intersection shall be modelled or not. This is configured using the
-following options. When simulating without internal links, 
-Vehicles  be subject to right-of-way rules (waiting at traffic lights and at minor roads)
+an intersection shall be modelled or not. This is configured while building the network or alterantively when launching the simulation.
+When simulating without internal links, Vehicles are still subject to right-of-way rules (waiting at traffic lights and at minor roads)
 but they will appear instantly on the other side of the intersection after passing the stop line.
 They cannot block the intersection, wait within the intersection for left turns nor collide on the intersection.
 
 ## [netconvert](../netconvert.md)-option **--no-internal-links**
 
 When set to **true**, the network will not contain *internal lanes*,
-that is lanes within an intersection. Instead, vehicles will *jump*
+(lanes within an intersection). Instead, vehicles will *jump*
 across the intersection. To avoid a systematic shortening of route lengths,
 the length of all edges is [set artificially to the length](Distances.md)
 between junction centers without changing their appearance. When set to
 **false** (the default), The network will contain lanes within
 intersections on which vehicles will drive just as on normal lanes,
 albeit subject to some blocking constraints.
+
+!!! note
+    The presence of internal links in a network can be changed by reprocessing the network with `netconvert -s old.net.xml -o new.net.xml --no-internal-links BOOL` or by setting the corresponding option in the [netedit option dialog (F10)](../Netedit/index.md#processing_menu_options)
 
 ## [sumo](../sumo.md)-option **--no-internal-links**
 
@@ -67,8 +68,8 @@ several factors explained below.
 ## Lane Shape
 
 Usually the lane ends exactly where the intersection shape starts. One
-way to customize the exact position for each lane is to [edit the intersection shape](../netedit.md#junction). An alternative method
-is to [set a custom endpoint for an edge](../netedit.md#specifying_the_complete_geometry_of_an_edge_including_endpoints).
+way to customize the exact position for each lane is to [edit the intersection shape](../Netedit/index.md#junction). An alternative method
+is to [set a custom endpoint for an edge](../Netedit/index.md#specifying_the_complete_geometry_of_an_edge_including_endpoints).
 
 Another possibility is the set the *endOffset* attribute for either the `<edge>`
 or `<lane>` element. This will shorten the edge/lane by a set amount.
@@ -85,8 +86,9 @@ offset of 1m ahead of the lane end.
 
 ## Vehicle Class
 
-!!! caution
-    Vehicle class specific offsets can be created by using the `<stopOffset>` element but this is still experimental.
+Each edge or lane may carry a `stopOffset` child element to specify an additional
+stopping offset for vehicles of certain classes. This can be used to define a [bike box](https://en.wikipedia.org/wiki/Advanced_stop_line).
+The exact syntax is explained at [stopOffset](../Networks/PlainXML.md#stop_offsets).
 
 # Waiting Within the Intersection
 
@@ -114,7 +116,7 @@ Since version 0.25.0 the user also has the option for [customizing the presence 
 # Speed while passing the Intersection
 
 All the [rules for vehicle speed](VehicleSpeed.md)
-are applicable but there is an additioal feature to model speed
+are applicable but there is an additional feature to model speed
 reductions while turning. Since SUMO version 1.0, lane speeds within the
 intersection are reduced in accordance to their turning radius. This
 means, that vehicles will reduce their speed while turning according to
@@ -133,7 +135,7 @@ Additionally, the computed speed will never be higher than the average
 speed of source and destination lane for that particular connection.
 
 The speed can be overruled by [setting the connection speed explicitly in the XML input](../Networks/PlainXML.md#explicitly_setting_which_edge_lane_is_connected_to_which)
-or via [netedit](../netedit.md#inspect).
+or via [netedit](../Netedit/index.md#inspect).
 
 # Junction Blocking
 

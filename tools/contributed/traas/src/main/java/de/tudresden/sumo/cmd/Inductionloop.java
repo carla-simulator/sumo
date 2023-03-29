@@ -1,6 +1,6 @@
 /****************************************************************************/
 // Eclipse SUMO, Simulation of Urban MObility; see https://eclipse.org/sumo
-// Copyright (C) 2017-2020 German Aerospace Center (DLR) and others.
+// Copyright (C) 2017-2023 German Aerospace Center (DLR) and others.
 // TraaS module
 // Copyright (C) 2016-2017 Dresden University of Technology
 // This program and the accompanying materials are made available under the
@@ -25,10 +25,10 @@ import de.tudresden.sumo.config.Constants;
 import de.tudresden.sumo.util.SumoCommand;
 
 /**
+ * The Class Inductionloop.
  *
  * @author Mario Krumnow
  * @author Evamarie Wiessner
- *
  */
 
 public class Inductionloop {
@@ -56,11 +56,10 @@ public class Inductionloop {
     }
 
     /**
-     * Returns the chosen parameter
+     * Returns the chosen parameter.
      *
-     * @param personID a string personIDentifying the person
-     *  @param param a string personIDentifying the parameter
-     *
+     * @param loopID the loop ID
+     * @param param a string personIDentifying the parameter
      * @return the specific parameter
      */
 

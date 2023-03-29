@@ -1,6 +1,6 @@
 /****************************************************************************/
 // Eclipse SUMO, Simulation of Urban MObility; see https://eclipse.org/sumo
-// Copyright (C) 2001-2020 German Aerospace Center (DLR) and others.
+// Copyright (C) 2001-2023 German Aerospace Center (DLR) and others.
 // This program and the accompanying materials are made available under the
 // terms of the Eclipse Public License 2.0 which is available at
 // https://www.eclipse.org/legal/epl-2.0/
@@ -42,6 +42,16 @@ public:
      */
     static bool processGet(TraCIServer& server, tcpip::Storage& inputStorage,
                            tcpip::Storage& outputStorage);
+
+    /** @brief Processes a set value command (Command 0xc0: Set Induction Loop Variable)
+     *
+     * @param[in] server The TraCI-server-instance which schedules this request
+     * @param[in] inputStorage The storage to read the command from
+     * @param[out] outputStorage The storage to write the result to
+     */
+    static bool processSet(TraCIServer& server, tcpip::Storage& inputStorage,
+                           tcpip::Storage& outputStorage);
+
 
 
 private:

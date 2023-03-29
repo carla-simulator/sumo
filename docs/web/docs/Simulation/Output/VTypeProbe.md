@@ -1,35 +1,34 @@
 ---
-title: Simulation/Output/VTypeProbe
-permalink: /Simulation/Output/VTypeProbe/
+title: VTypeProbe
 ---
 
 ## Instantiating within the Simulation
 
 A "vehicle-type probe" is defined the following way within an {{AdditionalFile}}:
-`<vTypeProbe id="<ID>" [ type="<VEHICLE_TYPE>" ] freq="<OUTPUT_FREQUENCY>" file="<OUTPUT_FILE>"/>`
+`<vTypeProbe id="<ID>" [ type="<VEHICLE_TYPE>" ] period="<OUTPUT_PERIOD>" file="<OUTPUT_FILE>"/>`
 
 `type` names the vehicle type to observe. Only
 the values of vehicles of this type will be written into the output. If
 `type` is empty, the information about all
 vehicles are included. In contrary to the detectors described above, the
-values are not aggregated. This means that frequency does not describe
-an aggregation interval but the frequency with which the values shall be
-collected and written.
+values are not aggregated. This means that period does not describe
+an aggregation interval but the time period between two consecutive times
+at which the values shall be collected and written.
 
 The following table shows the attributes:
 
 | Attribute Name | Value Type        | Description                                               |
 | -------------- | ----------------- | --------------------------------------------------------- |
 | **id**         | id (string)       | A string holding the id of the detector                   |
-| **freq**       | int (time in s)   | The frequency with which information shall be written.    |
+| period (alias freq) | int (time in s) | The period with which information shall be written (*default: whole simulation time*). |
 | **file**       | <FILE\>            | The path to the output file. The path may be relative.    |
 | type           | (vehicle type) id | The type the vehicles must be of in order to be reported. |
 
 Example:
 
-```
+```xml
 <additional>
-    <vTypeProbe id="probe1" type="DEFAULT_VEHTYPE" freq="10" file="output.xml"/>
+    <vTypeProbe id="probe1" type="DEFAULT_VEHTYPE" period="10" file="output.xml"/>
 </additional>
 ```
 
@@ -39,7 +38,7 @@ This file is then loaded in [sumo](../../sumo.md) using the option **--additiona
 
 The output is divided into timestep-sections:
 
-```
+```xml
 <timestep time="<COLLECTION_TIME>" id="<DETECTOR_ID>" vtype="<OBSERVED_TYPE>">
     <vehicle id="<VEHICLE_ID>" lane="<LANE_ID>" pos="<POSITION_ON_LANE>" \
         x="<X-COORDINATE>" y="<Y-COORDINATE>" \

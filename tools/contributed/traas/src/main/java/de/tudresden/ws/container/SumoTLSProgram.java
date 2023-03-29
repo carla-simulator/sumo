@@ -1,6 +1,6 @@
 /****************************************************************************/
 // Eclipse SUMO, Simulation of Urban MObility; see https://eclipse.org/sumo
-// Copyright (C) 2017-2020 German Aerospace Center (DLR) and others.
+// Copyright (C) 2017-2023 German Aerospace Center (DLR) and others.
 // TraaS module
 // Copyright (C) 2016-2017 Dresden University of Technology
 // This program and the accompanying materials are made available under the
@@ -22,59 +22,17 @@
 /****************************************************************************/
 package de.tudresden.ws.container;
 
-import java.util.ArrayList;
-import java.util.HashMap;
 
 /**
  *
  * @author Mario Krumnow
- *
+ * @deprecated use package {@link de.tudresden.sumo.objects} instead.
  */
 
-public class SumoTLSProgram implements SumoObject {
-
-    public String subID;
-    public int type;
-    public int currentPhaseIndex;
-    public ArrayList<SumoTLSPhase> phases;
-    public HashMap<String, String> params;
-
-    public SumoTLSProgram() {
-
-        this.subID = "unknown";
-        this.type = SumoTrafficLightType.STATIC.getIndex();
-        this.currentPhaseIndex = 0;
-        this.phases = new ArrayList<SumoTLSPhase>();
-        this.params = new HashMap<String, String>();
-    }
-
-    public SumoTLSProgram(String subID, int type, int currentPhaseIndex) {
-
-        this.subID = subID;
-        this.type = type;
-        this.currentPhaseIndex = currentPhaseIndex;
-        this.phases = new ArrayList<SumoTLSPhase>();
-        this.params = new HashMap<String, String>();
-
-    }
-
-    public void add(SumoTLSPhase phase) {
-        this.phases.add(phase);
-    }
-
-    public void addParam(String key, String value) {
-        this.params.put(key, value);
-    }
-
-    public String toString() {
-        StringBuilder sb = new StringBuilder();
-        sb.append(this.subID + "#");
-        sb.append(this.type + "#");
-        sb.append(this.currentPhaseIndex + "#");
-        for (SumoTLSPhase sp : this.phases) {
-            sb.append(sp.toString() + "#");
-        }
-        return sb.toString();
-    }
-
+public class SumoTLSProgram extends de.tudresden.sumo.objects.SumoTLSProgram {
+	
+	 public SumoTLSProgram(String subID, int type, int currentPhaseIndex) {
+		 super(subID, type, currentPhaseIndex);
+	 }
+	
 }

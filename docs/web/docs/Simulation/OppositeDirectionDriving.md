@@ -1,6 +1,5 @@
 ---
-title: Simulation/OppositeDirectionDriving
-permalink: /Simulation/OppositeDirectionDriving/
+title: Opposite Direction Driving
 ---
 
 # Opposite-Direction-Driving
@@ -21,12 +20,16 @@ options for including this information are described below.
 By setting the [netconvert](../netconvert.md) option **--opposites.guess** {{DT_BOOL}}, opposite
 edges are identified heuristically.
 
+## Visually
+
+Lane attribute 'opposite' can be set directly in [netedit](../Netedit/elementsNetwork.md#lanes)
+
 ## Explicitly
 
 Adjacency can be declared explicitly in an *.edg.xml* file [as described
 here](../Networks/PlainXML.md#neighboring_opposite-direction_lanes).
-Explicity definitions take precedence over heuristic computation of
-adjacency.
+Explicit definitions take precedence over heuristic computation of
+adjacency. To modify an existing network, an *.edg.xml* file can be [loaded as a patch](../Tutorials/ScenarioGuide.md#modifying_the_network)
 
 # Model Description
 
@@ -45,13 +48,15 @@ to additional checks in regard to
 - The required safety-buffers can be calibrated using the vehicle type
   attribute *lcOpposite*
 
+Vehicles may also stop on the opposite side by defining a `<stop>` with a lane index that lies to the left of the leftmost forward direction lane (i.e. index 3  if the forward lane has lane indices 0,1,2.
+
 # Limitations
 
-- Opposite-direction-driving is not yet compatible with the [sublane
-  model](../Simulation/SublaneModel.md).
 - Visibility of oncoming traffic and the preceding vehicles due to
   road topology and occluding vehicles is not taken into account.
 - Neighboring lane information can only be set if both edges have the
   same length. As a workaround the length of the edges may be set to a
   custom value (which may be different from the geometrical length).
   This can be automated by setting the option **--opposites.guess.fix-lengths**.
+- Opposite-direction-driving is not compatible with the [sublane
+  model](../Simulation/SublaneModel.md). before version 1.9.0

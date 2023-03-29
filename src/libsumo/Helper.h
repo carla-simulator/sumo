@@ -1,6 +1,6 @@
 /****************************************************************************/
 // Eclipse SUMO, Simulation of Urban MObility; see https://eclipse.org/sumo
-// Copyright (C) 2012-2020 German Aerospace Center (DLR) and others.
+// Copyright (C) 2012-2023 German Aerospace Center (DLR) and others.
 // This program and the accompanying materials are made available under the
 // terms of the Eclipse Public License 2.0 which is available at
 // https://www.eclipse.org/legal/epl-2.0/
@@ -19,12 +19,14 @@
 // C++ TraCI client API implementation
 /****************************************************************************/
 #pragma once
-#include <config.h>
-
 #include <vector>
 #include <memory>
 #include <libsumo/Subscription.h>
+#include <microsim/MSLane.h>
 #include <microsim/MSNet.h>
+#include <microsim/traffic_lights/MSTLLogicControl.h>
+#include <microsim/trigger/MSCalibrator.h>
+#include <utils/vehicle/SUMOVehicleParameter.h>
 
 
 // ===========================================================================
@@ -39,64 +41,12 @@ class MSPerson;
 class MSVehicle;
 class MSBaseVehicle;
 class MSVehicleType;
+class MSStoppingPlace;
 
-
-// ===========================================================================
-// type definitions
-// ===========================================================================
-typedef std::map<const MSLane*, std::pair<double, double> >  LaneCoverageInfo; // also declared in MSLane.h!
 
 // ===========================================================================
 // class definitions
 // ===========================================================================
-
-class LaneStoringVisitor {
-public:
-    /// @brief Constructor
-    LaneStoringVisitor(std::set<const Named*>& objects, const PositionVector& shape,
-                       const double range, const int domain)
-        : myObjects(objects), myShape(shape), myRange(range), myDomain(domain) {}
-
-    /// @brief Destructor
-    ~LaneStoringVisitor() {}
-
-    /// @brief Adds the given object to the container
-    void add(const MSLane* const l) const;
-
-    /// @brief The container
-    std::set<const Named*>& myObjects;
-    const PositionVector& myShape;
-    const double myRange;
-    const int myDomain;
-
-private:
-    /// @brief invalidated copy constructor
-    LaneStoringVisitor(const LaneStoringVisitor& src);
-
-    /// @brief invalidated assignment operator
-    LaneStoringVisitor& operator=(const LaneStoringVisitor& src);
-};
-
-#define LANE_RTREE_QUAL RTree<MSLane*, MSLane, float, 2, LaneStoringVisitor>
-template<>
-inline float LANE_RTREE_QUAL::RectSphericalVolume(Rect* a_rect) {
-    ASSERT(a_rect);
-    const float extent0 = a_rect->m_max[0] - a_rect->m_min[0];
-    const float extent1 = a_rect->m_max[1] - a_rect->m_min[1];
-    return .78539816f * (extent0 * extent0 + extent1 * extent1);
-}
-
-template<>
-inline LANE_RTREE_QUAL::Rect LANE_RTREE_QUAL::CombineRect(Rect* a_rectA, Rect* a_rectB) {
-    ASSERT(a_rectA && a_rectB);
-    Rect newRect;
-    newRect.m_min[0] = rtree_min(a_rectA->m_min[0], a_rectB->m_min[0]);
-    newRect.m_max[0] = rtree_max(a_rectA->m_max[0], a_rectB->m_max[0]);
-    newRect.m_min[1] = rtree_min(a_rectA->m_min[1], a_rectB->m_min[1]);
-    newRect.m_max[1] = rtree_max(a_rectA->m_max[1], a_rectB->m_max[1]);
-    return newRect;
-}
-
 namespace libsumo {
 
 /**
@@ -108,10 +58,6 @@ public:
     static void subscribe(const int commandId, const std::string& id, const std::vector<int>& variables,
                           const double beginTime, const double endTime, const libsumo::TraCIResults& params,
                           const int contextDomain = 0, const double range = 0.);
-
-    static void addSubscriptionParam(double param);
-
-    static void addSubscriptionParam(const std::string& param);
 
     static void handleSubscriptions(const SUMOTime t);
 
@@ -139,6 +85,13 @@ public:
     static MSPerson* getPerson(const std::string& id);
     static SUMOTrafficObject* getTrafficObject(int domain, const std::string& id);
     static const MSVehicleType& getVehicleType(const std::string& vehicleID);
+    static MSTLLogicControl::TLSLogicVariants& getTLS(const std::string& id);
+    static MSStoppingPlace* getStoppingPlace(const std::string& id, const SumoXMLTag type);
+
+    static SUMOVehicleParameter::Stop buildStopParameters(const std::string& edgeOrStoppingPlaceID,
+            double pos, int laneIndex, double startPos, int flags, double duration, double until);
+
+    static TraCINextStopData buildStopData(const SUMOVehicleParameter::Stop& stopPar);
 
     static void findObjectShape(int domain, const std::string& id, PositionVector& shape);
 
@@ -155,7 +108,42 @@ public:
      */
     static void applySubscriptionFilters(const Subscription& s, std::set<std::string>& objIDs);
 
+    /**
+     * @brief Apply the subscription filter "lanes": Only return vehicles on list of lanes relative to ego vehicle.
+     *        Search all predecessor and successor lanes along the road network up until upstreamDist and downstreamDist,
+     *        respectively,
+     * @param[in] s Subscription which holds the filter specification to be applied.
+     * @param[in/out] vehs Set of SUMO traffic objects into which the result is inserted.
+     * @param[in] filterLanes Lane offsets to consider.
+     * @param[in] downstreamDist Downstream distance.
+     * @param[in] upstreamDist Upstream distance.
+     * @param[in] disregardOppositeDirection Whether vehicles on opposite lanes shall be taken into account.
+     */
+    static void applySubscriptionFilterLanes(const Subscription& s, std::set<const SUMOTrafficObject*>& vehs, std::vector<int>& filterLanes,
+            double downstreamDist, double upstreamDist, bool disregardOppositeDirection);
+
+    /**
+     * @brief Apply the subscription filter "turn": Gather upcoming junctions and vialanes within downstream
+     *        distance and find approaching foes within foeDistToJunction.
+     * @param[in] s Subscription which holds the filter specification to be applied.
+     * @param[in/out] vehs Set of SUMO traffic objects into which the result is inserted.
+     */
+    static void applySubscriptionFilterTurn(const Subscription& s, std::set<const SUMOTrafficObject*>& vehs);
+
     static void applySubscriptionFilterFieldOfVision(const Subscription& s, std::set<std::string>& objIDs);
+
+    /**
+     * @brief Apply the subscription filter "lateral distance": Only return vehicles within the given lateral distance.
+     *        Search myRoute (right-most lane) upstream and bestLanesCont downstream up until upstreamDist and
+     *        downstreamDist, respectively.
+     * @param[in] s Subscription which holds the filter specification to be applied.
+     * @param[in/out] vehs Set of SUMO traffic objects into which the result is inserted.
+     * @param[in] downstreamDist Downstream distance.
+     * @param[in] upstreamDist Upstream distance.
+     * @param[in] lateralDist Lateral distance.
+     */
+    static void applySubscriptionFilterLateralDistance(const Subscription& s, std::set<const SUMOTrafficObject*>& vehs, double downstreamDist,
+            double upstreamDist, double lateralDist);
 
     static void applySubscriptionFilterLateralDistanceSinglePass(const Subscription& s,
             std::set<std::string>& objIDs,
@@ -169,15 +157,20 @@ public:
     static void setRemoteControlled(MSPerson* p, Position xyPos, MSLane* l, double pos, double posLat, double angle,
                                     int edgeOffset, ConstMSEdgeVector route, SUMOTime t);
 
-    static void postProcessRemoteControl();
+    /// @brief return number of remote-controlled entities
+    static int postProcessRemoteControl();
 
     static void cleanup();
 
-    static void registerVehicleStateListener();
+    static void registerStateListener();
 
     static const std::vector<std::string>& getVehicleStateChanges(const MSNet::VehicleState state);
 
-    static void clearVehicleStates();
+    static const std::vector<std::string>& getTransportableStateChanges(const MSNet::TransportableState state);
+
+    static void clearStateChanges();
+
+    static MSCalibrator::AspiredState getCalibratorState(const MSCalibrator* c);
 
     /// @name functions for moveToXY
     /// @{
@@ -216,24 +209,23 @@ public:
     class SubscriptionWrapper final : public VariableWrapper {
     public:
         SubscriptionWrapper(VariableWrapper::SubscriptionHandler handler, SubscriptionResults& into, ContextSubscriptionResults& context);
-        void setContext(const std::string& refID);
-        void setParams(const std::vector<unsigned char>* params);
-        const std::vector<unsigned char>* getParams() const {
-            return myParams;
-        }
+        void setContext(const std::string* const refID);
         void clear();
         bool wrapDouble(const std::string& objID, const int variable, const double value);
         bool wrapInt(const std::string& objID, const int variable, const int value);
         bool wrapString(const std::string& objID, const int variable, const std::string& value);
         bool wrapStringList(const std::string& objID, const int variable, const std::vector<std::string>& value);
+        bool wrapDoubleList(const std::string& objID, const int variable, const std::vector<double>& value);
         bool wrapPosition(const std::string& objID, const int variable, const TraCIPosition& value);
+        bool wrapPositionVector(const std::string& objID, const int variable, const TraCIPositionVector& value);
         bool wrapColor(const std::string& objID, const int variable, const TraCIColor& value);
-        bool wrapRoadPosition(const std::string& objID, const int variable, const TraCIRoadPosition& value);
+        bool wrapStringDoublePair(const std::string& objID, const int variable, const std::pair<std::string, double>& value);
+        bool wrapStringPair(const std::string& objID, const int variable, const std::pair<std::string, std::string>& value);
+        void empty(const std::string& objID);
     private:
         SubscriptionResults& myResults;
         ContextSubscriptionResults& myContextResults;
         SubscriptionResults* myActiveResults;
-        const std::vector<unsigned char>* myParams = nullptr;
     private:
         /// @brief Invalidated assignment operator
         SubscriptionWrapper& operator=(const SubscriptionWrapper& s) = delete;
@@ -259,6 +251,13 @@ private:
         std::map<MSNet::VehicleState, std::vector<std::string> > myVehicleStateChanges;
     };
 
+    class TransportableStateListener : public MSNet::TransportableStateListener {
+    public:
+        void transportableStateChanged(const MSTransportable* const transportable, MSNet::TransportableState to, const std::string& info = "");
+        /// @brief Changes in the states of simulated transportables
+        std::map<MSNet::TransportableState, std::vector<std::string> > myTransportableStateChanges;
+    };
+
     /// @brief The list of known, still valid subscriptions
     static std::vector<Subscription> mySubscriptions;
 
@@ -271,7 +270,10 @@ private:
     /// @brief Changes in the states of simulated vehicles
     static VehicleStateListener myVehicleStateListener;
 
-    /// @brief A storage of lanes
+    /// @brief Changes in the states of simulated transportables
+    static TransportableStateListener myTransportableStateListener;
+
+    /// @brief A lookup tree of lanes
     static LANE_RTREE_QUAL* myLaneTree;
 
     static std::map<std::string, MSVehicle*> myRemoteControlledVehicles;

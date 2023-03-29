@@ -1,6 +1,6 @@
 /****************************************************************************/
 // Eclipse SUMO, Simulation of Urban MObility; see https://eclipse.org/sumo
-// Copyright (C) 2017-2020 German Aerospace Center (DLR) and others.
+// Copyright (C) 2017-2023 German Aerospace Center (DLR) and others.
 // This program and the accompanying materials are made available under the
 // terms of the Eclipse Public License 2.0 which is available at
 // https://www.eclipse.org/legal/epl-2.0/
@@ -51,7 +51,7 @@ Route::getIDList() {
 
 std::vector<std::string>
 Route::getEdges(const std::string& routeID) {
-    const MSRoute* r = getRoute(routeID);
+    ConstMSRoutePtr r = getRoute(routeID);
     std::vector<std::string> ids;
     for (ConstMSEdgeVector::const_iterator i = r->getEdges().begin(); i != r->getEdges().end(); ++i) {
         ids.push_back((*i)->getID());
@@ -68,7 +68,7 @@ Route::getIDCount() {
 
 std::string
 Route::getParameter(const std::string& routeID, const std::string& param) {
-    const MSRoute* r = getRoute(routeID);
+    ConstMSRoutePtr r = getRoute(routeID);
     return r->getParameter(param, "");
 }
 
@@ -78,7 +78,7 @@ LIBSUMO_GET_PARAMETER_WITH_KEY_IMPLEMENTATION(Route)
 
 void
 Route::setParameter(const std::string& routeID, const std::string& key, const std::string& value) {
-    MSRoute* r = const_cast<MSRoute*>(getRoute(routeID));
+    MSRoute* r = const_cast<MSRoute*>(getRoute(routeID).get());
     r->setParameter(key, value);
 }
 
@@ -97,8 +97,9 @@ Route::add(const std::string& routeID, const std::vector<std::string>& edgeIDs) 
         edges.push_back(edge);
     }
     const std::vector<SUMOVehicleParameter::Stop> stops;
-    if (!MSRoute::dictionary(routeID, new MSRoute(routeID, edges, true, nullptr, stops))) {
-        throw TraCIException("Could not add route.");
+    ConstMSRoutePtr route = std::make_shared<MSRoute>(routeID, edges, true, nullptr, stops);
+    if (!MSRoute::dictionary(routeID, route)) {
+        throw TraCIException("Could not add route '" + routeID + "'.");
     }
 }
 
@@ -106,9 +107,9 @@ Route::add(const std::string& routeID, const std::vector<std::string>& edgeIDs) 
 LIBSUMO_SUBSCRIPTION_IMPLEMENTATION(Route, ROUTE)
 
 
-const MSRoute*
+ConstMSRoutePtr
 Route::getRoute(const std::string& id) {
-    const MSRoute* r = MSRoute::dictionary(id);
+    ConstMSRoutePtr r = MSRoute::dictionary(id);
     if (r == nullptr) {
         throw TraCIException("Route '" + id + "' is not known");
     }
@@ -123,7 +124,7 @@ Route::makeWrapper() {
 
 
 bool
-Route::handleVariable(const std::string& objID, const int variable, VariableWrapper* wrapper) {
+Route::handleVariable(const std::string& objID, const int variable, VariableWrapper* wrapper, tcpip::Storage* paramData) {
     switch (variable) {
         case TRACI_ID_LIST:
             return wrapper->wrapStringList(objID, variable, getIDList());
@@ -131,6 +132,12 @@ Route::handleVariable(const std::string& objID, const int variable, VariableWrap
             return wrapper->wrapInt(objID, variable, getIDCount());
         case VAR_EDGES:
             return wrapper->wrapStringList(objID, variable, getEdges(objID));
+        case libsumo::VAR_PARAMETER:
+            paramData->readUnsignedByte();
+            return wrapper->wrapString(objID, variable, getParameter(objID, paramData->readString()));
+        case libsumo::VAR_PARAMETER_WITH_KEY:
+            paramData->readUnsignedByte();
+            return wrapper->wrapStringPair(objID, variable, getParameterWithKey(objID, paramData->readString()));
         default:
             return false;
     }

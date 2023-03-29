@@ -1,6 +1,7 @@
 <hTitles >SUMO User Documentation<hr style="border: 0.5px solid #338033;"></hTitles>
 
-"**S**imulation of **U**rban **MO**bility" (SUMO) is an open source, highly portable, microscopic and continuous traffic simulation package designed to handle large networks. It allows for intermodal simulation including pedestrians and comes with a large set of tools for scenario creation. It is mainly developed by employees of the [Institute of Transportation Systems](https://www.dlr.de/ts) at the [German Aerospace Center](https://www.dlr.de). SUMO is licensed under the [EPL 2.0](https://eclipse.org/legal/epl-v20.html).
+"**S**imulation of **U**rban **MO**bility" (SUMO) is an open source, highly portable, microscopic and continuous traffic simulation package designed to handle large networks. It allows for intermodal simulation including pedestrians and comes with a large set of tools for scenario creation. It is mainly developed by employees of the [Institute of Transportation Systems](https://www.dlr.de/ts) at the [German Aerospace Center](https://www.dlr.de). SUMO is licensed under the [EPL 2.0](https://eclipse.org/legal/epl-v20.html). The source code may also be made available under the following Secondary
+Licenses when the conditions for such availability set forth in the EPL 2.0 are satisfied: [GPL2 or later](https://www.gnu.org/licenses/old-licenses/gpl-2.0-standalone.html).
 
 Please use the [mailing lists](Contact.md) for sharing your results or for asking questions. Answers to some common questions may also be found in the [FAQ](FAQ.md).
 
@@ -10,10 +11,10 @@ If You use SUMO, please tell us about your
 !!! note
     When citing SUMO in general please use our current reference publication: ["Microscopic Traffic Simulation using SUMO"](https://elib.dlr.de/127994/); Pablo Alvarez Lopez, Michael Behrisch, Laura Bieker-Walz, Jakob Erdmann, Yun-Pang Flötteröd, Robert Hilbrich, Leonhard Lücken, Johannes Rummel, Peter Wagner, and Evamarie Wießner. IEEE Intelligent Transportation Systems Conference (ITSC), 2018.
 
-The content of this Documentation is freely editable according to the [wiki style](https://en.wikipedia.org/wiki/Wiki). In order to edit this Documentation, click on the "Edit on GitHub" button on the upper right corner and submit a Pull Request.
-Here is a short help on [editing articles](Editing_Articles.md).
+The content of this Documentation is freely editable. In order to edit a certain page, click on the "Edit on GitHub" button on the upper right corner and submit a Pull Request.
+Here is a short help on [editing articles](Editing_Articles.md). You can also [Build](Developer/Documentation_Build.md) the documentation locally, or [Download](https://sumo.dlr.de/sumo_documentation.zip) a copy.
 
-This Documentation is continuously updated and always refers to the latest development version. Documentation for a specific release version of SUMO is included in the download of that version.
+This Documentation is continuously updated and always refers to the latest development version. Documentation for a specific release version of SUMO is included in the download of that version and can be viewed by opening {{SUMO}}/docs/userdoc/index.html.
 
 # Introduction
 
@@ -24,9 +25,9 @@ This Documentation is continuously updated and always refers to the latest devel
 - [Notation in this Documentation](Basics/Notation.md)
 - [Needed, basic Computer
   Skills](Basics/Basic_Computer_Skills.md)
-- [Installing SUMO](Installing.md)
+- [Installing SUMO](Installing/index.md)
 - [Using SUMO Command Line Applications](Basics/Using_the_Command_Line_Applications.md)
-- [Tutorials](Tutorials.md)
+- [Tutorials](Tutorials/index.md)
 - [Validating application inputs](XMLValidation.md)
 
 # Network Building
@@ -45,12 +46,12 @@ This Documentation is continuously updated and always refers to the latest devel
     - [from ArcView (shapefiles)](Networks/Import/ArcView.md)
     - [from DlrNavTeq](Networks/Import/DlrNavteq.md)
     - [from Robocup Simulation League](Networks/Import/RoboCup.md)
-  - [Importing SUMO networks](Networks/Import/SUMO_Road_Networks.md)
+  - [Importing SUMO networks and Patching](Networks/Import/SUMO_Road_Networks.md)
   - [Building networks for motorway simulation](Simulation/Motorways.md#building_a_network_for_motorway_simulation)
   - [Building networks for pedestrian simulation](Simulation/Pedestrians.md#building_a_network_for_pedestrian_simulation)
   - [Further netconvert options](Networks/Further_Options.md)
   - [Additional output](Networks/Further_Outputs.md)
-- [Creating and modifying networks with netedit](netedit.md)
+- [Creating and modifying networks with netedit](Netedit/index.md)
 - [Including elevation data](Networks/Elevation.md)
 - [Geo-Coordinates](Geo-Coordinates.md)
 
@@ -58,6 +59,7 @@ This Documentation is continuously updated and always refers to the latest devel
 
 - [Introduction to SUMO Demand Modelling](Demand/Introduction_to_demand_modelling_in_SUMO.md)
 - [Definition of Vehicles, Vehicle Types, and Routes](Definition_of_Vehicles,_Vehicle_Types,_and_Routes.md)
+- [Defining Traffic Demand with netedit](Netedit/elementsDemand.md)
 - [Simulation of public transport](Simulation/Public_Transport.md)
 - [Simulation of individual persons and trip chains](Specification/Persons.md)
 - [Simulation of logistics](Specification/Logistics.md)
@@ -78,6 +80,7 @@ This Documentation is continuously updated and always refers to the latest devel
 - [Activity-based Demand Generation](Demand/Activity-based_Demand_Generation.md)
 - [Random Trips](Tools/Trip.md#randomtripspy)
 - [Multi-modal random traffic](Tools/Import/OSM.md#osmwebwizardpy)
+- [GTFS data](Tools/Import/GTFS.md)
 
 # Simulation
 
@@ -85,10 +88,11 @@ This Documentation is continuously updated and always refers to the latest devel
 - [Saving and Loading Simulation State](Simulation/SaveAndLoad.md)
 
 ## Output
-- [Simulation output overview](Simulation/Output.md)
+- [Simulation output overview](Simulation/Output/index.md)
 
 ## TraCI (On-line Interaction)
-- [TraCI overview](TraCI.md)
+- [TraCI overview](TraCI.md) - The **Tra**ffic **C**ontrol **I**nterface
+- [Libsumo](Libsumo.md) - Using sumo as a library
 
 ## Traffic Management and Other Structures
 
@@ -96,9 +100,10 @@ This Documentation is continuously updated and always refers to the latest devel
 - [Public Transport](Simulation/Public_Transport.md)
 - [Variable Speed Signs](Simulation/Variable_Speed_Signs.md)
 - [Rerouter / Alternative Route Signage](Simulation/Rerouter.md)
-- [Vaporizer](Simulation/Vaporizer.md) (deprecated, use Calibrator instead)
+- [Vaporizer](Simulation/Vaporizer.md) (deprecated, use [Calibrator](Simulation/Calibrator.md) instead)
 - [Dynamic calibration of flow and speed and type](Simulation/Calibrator.md)
 - [Parking areas](Simulation/ParkingArea.md)
+- [Turnarounds](Simulation/Turnarounds.md)
 
 ## Traffic Modes
 
@@ -114,17 +119,19 @@ This Documentation is continuously updated and always refers to the latest devel
 - [Electric Hybrid Vehicles, overhead lines, power substations](Models/ElectricHybrid.md)
 - [Logistics](Specification/Logistics.md)
 - [Generic Parameters](Simulation/GenericParameters.md)
-- [Shapes Visualisation](Simulation/Shapes.md)
+- [Shape Visualization](Simulation/Shapes.md)
 - [Wireless Device Detection](Simulation/Bluetooth.md)
 - [Emergency Vehicles](Simulation/Emergency.md)
 - [Simple Platooning (Simpla)](Simpla.md)
-- [Demand Responsive Transport (Taxis)](Simulation/Taxi.md)
+- [Demand Responsive Transport (DRT) / Taxis](Simulation/Taxi.md)
+- [Green Light Optimal Speed Advisory (GLOSA)](Simulation/GLOSA.md)
 
 ## Model details
 
 - [Vehicle speed](Simulation/VehicleSpeed.md)
 - [Vehicle insertion](Simulation/VehicleInsertion.md)
 - [Vehicle permissions (access restrictions)](Simulation/VehiclePermissions.md)
+- [Road capacity](Simulation/RoadCapacity.md)
 - [Intersection dynamics](Simulation/Intersections.md)
 - [Randomness](Simulation/Randomness.md)
 - [Routing and Re-routing](Simulation/Routing.md)
@@ -144,25 +151,25 @@ This Documentation is continuously updated and always refers to the latest devel
 
 # Additional Tools
 
-For an index of all tools see
-
-- [Tool index](Tools.md)
-
 In addition to the [main applications (sumo, sumo-gui, netedit, netconvert, etc.)](SUMO_at_a_Glance.md#included_applications), there are
 over 150 additional tools. They cover topics from traffic network
 analysis, demand generation, demand modification to output analysis.
 Most of them are written in [python](https://www.python.org/). All tools
 can be found in the SUMO-distribution under {{SUMO}}/tools.
 
-Below are links to some of the most important tools:
+For an index of all tools see:
 
-- [osmWebWizard](Tools/Import/OSM.md#osmwebwizardpy)
-- [TraCI/Interfacing TraCI from Python](TraCI/Interfacing_TraCI_from_Python.md)
-- [Reading SUMO networks and outputs with Python (sumolib)](Tools/Sumolib.md)
-- [Tools for converting SUMO outputs to CSV/Spreadsheet](Tools/Xml.md)
-- [Exporting mobility Traces (traceExporter)](Tools/TraceExporter.md)
-- [Determining the differences between two networks](Tools/Net.md#netdiffpy)
-- [Tools/Visualization](Tools/Visualization.md)
+- [Tool index](Tools/index.md)
+
+Below are links to some of the most important/used tools:
+
+- [osmWebWizard](Tools/Import/OSM.md#osmwebwizardpy) - create a simple scenario, in just a few clicks and using your web browser
+- [Interfacing TraCI from Python](TraCI/Interfacing_TraCI_from_Python.md) - access a running SUMO simulation using Python
+- [sumolib](Tools/Sumolib.md) - Python modules for working with SUMO networks and sumo xml files in general
+- [Xml Tools](Tools/Xml.md) - tools for converting SUMO outputs to CSV/Spreadsheet, and vice versa
+- [traceExporter.py](Tools/TraceExporter.md) - export mobility traces (FCD output) into different "trace file" formats
+- [netdiff.py](Tools/Net.md#netdiffpy) - determine the differences between two networks
+- [Visualization Tools](Tools/Visualization.md) - visualize a wide range of simulation outputs in a graphical and friendly way
 
 # Theory
 
@@ -173,7 +180,7 @@ Below are links to some of the most important tools:
 - [sumo](sumo.md)
 - [sumo-gui](sumo-gui.md)
 - [netconvert](netconvert.md)
-- [netedit](netedit.md)
+- [netedit](Netedit/index.md)
 - [netgenerate](netgenerate.md)
 - [od2trips](od2trips.md)
 - [duarouter](duarouter.md)
@@ -185,9 +192,16 @@ Below are links to some of the most important tools:
 - [emissionsMap](Tools/Emissions.md#emissionsmap)
 - [emissionsDrivingCycle](Tools/Emissions.md#emissionsdrivingcycle)
 
+# Software Contributions
+Some people extended SUMO or built tools to make it more usable. Not all of these extensions are part of the "SUMO core".
+
+- [Included in the distribution](Contributed/index.md#included_in_the_distribution)
+- [External](Contributed/index.md#external_extensions)
+
 # Appendices
 
 - [ChangeLog](ChangeLog.md)
 - [Glossary](Other/Glossary.md)
 - [FAQ](FAQ.md)
 - [Known File Extensions](Other/File_Extensions.md)
+

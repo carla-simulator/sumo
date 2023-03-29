@@ -1,6 +1,5 @@
 ---
-title: Topics/Environmental Issues
-permalink: /Topics/Environmental_Issues/
+title: Environmental Issues
 ---
 
 One of the major burdens traffic poses to society is its impact on the
@@ -60,7 +59,7 @@ SUMO includes the following emission models:
   v2.1 emissions data base;
 - [PHEMlight](../Models/Emissions/PHEMlight.md), a derivation of
   the original
-  [PHEM](http://www.ivt.tugraz.at/de/forschung/emissionen.html)[\[2\]](#references)
+  [PHEM](https://www.ivt.tugraz.at/en/research/areas/em/)[\[2\]](#references)
   emission model.
 
 Both models implement different vehicle emission classes. These classes
@@ -126,7 +125,7 @@ of the [iTETRIS](http://www.ict-itetris.eu/)[\[4\]](#references) project. The
 development of [PHEMlight](../Models/Emissions/PHEMlight.md) is
 described in the deliverable "*Deliverable 4.1 - Extended Simulation
 Tool PHEM coupled to SUMO with User Guide* (Draft)"[\[5\]](#references) of the
-[COLOMBO](http://colombo-fp7.eu/)[\[6\]](#references) project.
+[COLOMBO](https://verkehrsforschung.dlr.de/en/projects/colombo)[\[6\]](#references) project.
 
 ## Emission-optimal Routing
 
@@ -148,7 +147,7 @@ European Parliament and of the Council"[\[12\]](#references) to assure certain a
 quality. Traffic management, usually operated by local authorities, has
 the duty to perform corrective actions that reduce road traffic's
 impact, if needed.
-[MARLIS](http://www.bast.de/nn_42544/DE/Publikationen/Datenbanken/MARLIS/MARLIS.html)[\[13\]](#references)
+[MARLIS](https://web.archive.org/web/20070123154331/http://www.bast.de/nn_42544/DE/Publikationen/Datenbanken/MARLIS/MARLIS.html)[\[13\]](#references)
 is a database that lists such actions performed by traffic management
 authorities. A proof-of-concept for simulating such actions using SUMO
 is presented in [\[14\]](#references). Tomàs Josep Vergés used this approach to
@@ -161,7 +160,7 @@ simulate and evaluate some of such actions in his Master thesis[\[15\]](#referen
 - The tool [traceExporter.py](../Tools/TraceExporter.md) converts
   SUMO's [fcd-output](../Simulation/Output/FCDOutput.md) into
   files that can be directly read by the
-  [PHEM](http://www.ivt.tugraz.at/de/forschung/emissionen.html)[\[2\]](#references)
+  [PHEM](https://www.ivt.tugraz.at/en/research/areas/em/)[\[2\]](#references)
   application. A [tutorial on generating trace files (including PHEM
   input files)](../Tutorials/Trace_File_Generation.md) using this
   tool is available.
@@ -184,7 +183,7 @@ simulate and evaluate some of such actions in his Master thesis[\[15\]](#referen
     8th of January 2014.
 
 2.  [*Emissionen und Energieverbrauch von
-    Antriebskonzepten*](http://www.ivt.tugraz.at/de/forschung/emissionen.html)
+    Antriebskonzepten*](https://www.ivt.tugraz.at/en/research/areas/em/)
     (German). Institute for Internal Combustion Engines and
     Thermodynamics at Graz University of Technology. Last visited on 8th
     of January 2014.
@@ -202,7 +201,7 @@ simulate and evaluate some of such actions in his Master thesis[\[15\]](#referen
     (Draft). COLOMBO consortium, 2013
 
 6.  [*COLOMBO* - Cooperative Self-Organizing System for low Carbon
-    Mobility at low Penetration Rates](http://colombo-fp7.eu/). COLOMBO
+    Mobility at low Penetration Rates](https://verkehrsforschung.dlr.de/en/projects/colombo). COLOMBO
     web site. COLOMBO consortium. Last visited on 8th of January 2014.
 
 7.  D. Krajzewicz and L. Bieker. *Investigating Ecological Impacts on
@@ -231,7 +230,7 @@ simulate and evaluate some of such actions in his Master thesis[\[15\]](#referen
 
 13. [*MARLIS* - Datenbank mit Maßnahmen zur Reinhaltung der Luft in
     Bezug auf Immissionen an Straßen, Version
-    3.1](http://www.bast.de/nn_42544/DE/Publikationen/Datenbanken/MARLIS/MARLIS.html)
+    3.1](https://web.archive.org/web/20070123154331/http://www.bast.de/nn_42544/DE/Publikationen/Datenbanken/MARLIS/MARLIS.html)
     (German). BASt database index. Last visited on 8th of January 2014.
 
 14. D. Krajzewicz and Y.-P. Flötteröd. *Simulative Untersuchung

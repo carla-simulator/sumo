@@ -1,6 +1,5 @@
 ---
-title: Tools/Trip
-permalink: /Tools/Trip/
+title: Trip
 ---
 
 # randomTrips.py
@@ -18,7 +17,7 @@ defined by begin (option **-b**, default 0) and end time (option **-e**, default
 prefix (option **--prefix**, default "") and a running number. Example call:
 
 ```
-<SUMO_HOME>/tools/randomTrips.py -n input_net.net.xml -e 50
+python tools/randomTrips.py -n <net-file> -e 50
 ```
 
 The script does not check whether the chosen destination may be reached
@@ -31,9 +30,10 @@ edge distribution until enough trips with sufficient distance are found.
 
 ## Randomization
 
-When running *randomTrips.py* twice with the same parameters, different
-output files will be created due to randomness. The option **--seed** {{DT_INT}} can be used
-to get repeatable pseudo-randomness.
+When running *randomTrips.py* twice with the same parameters, the same results will be created
+because the random number generator is initialized with the same value. To get "true" randomness
+(always a different output) use the option **--random**. The option **--seed** {{DT_INT}} can be used
+to set an initial value and get different but still repeatable pseudo-randomness.
 
 ## Edge Probabilities
 
@@ -51,19 +51,23 @@ The probabilities for selecting an edge may also be weighted by
 - edge speed (exponentially, by option **--speed-exponent**)
 - [generic edge parameter](../Simulation/GenericParameters.md) (option **--edge-param**)
 - direction of travel (option **--angle-factor** and **--angle**)
+- randomly (option **--random-factor**)
 
 For additional ways to influence edge probabilities call
 
 ```
-<SUMO_HOME>/tools/randomTrips.py --help
+python tools/randomTrips.py --help
 ```
 
-## Arrival rate
+## Traffic Volume / Arrival rate
 
-The arrival rate is controlled by option **--period** {{DT_FLOAT}} (*default 1*). By default this
+The arrival rate (also known as the departure rate or the insertion rate) is controlled by option **--period** {{DT_FLOAT}} (*default 1*). By default this
 generates vehicles with a constant period and arrival rate of (1/period)
 per second. By using values below 1, multiple arrivals per second can be
-achieved.
+achieved. If several {{DT_FLOAT}} numbers are passed, like in **--period 1.0 0.5** (or **--period="1.0,0.5"**) for example, the time interval will be divided equally into subintervals, and the arrival rate for each subinterval is controlled by the corresponding period (in the preceding example, a period of 1.0 will be used for the first subinterval and a period of 0.5 will be used for the second). There are two other ways to specify the insertion rate:
+
+- Either by using the **--insertion-rate** argument (with one or several values as explained before): this is the number of vehicles per hour that the user expects.
+- Or by using the **--insertion-density** argument (with one or several values): this is the number of vehicles per hour per kilometer of road that the user expects (the total length of the road is computed with respect to a certain vehicle class that can be changed with the option **--edge-permission**). 
 
 When adding option **--binomial** {{DT_INT}} the arrivals will be randomized using a binomial
 distribution where *n* (the maximum number of simultaneous arrivals) is
@@ -79,7 +83,17 @@ To let *n* vehicles depart between times *t0* and *t1* set the options
 ```
 
 !!! note
-    The actual number of departures may be lower if the road capacity is insufficient to accommodate that number of vehicles or if the network is not fully connected (in this case some of the generated trips will be invalid).
+    The actual number of departures may be lower if the road capacity is [insufficient to accommodate that number of vehicles](../Simulation/VehicleInsertion.md#delayed_departure) or if the network is not fully connected (in this case some of the generated trips will be invalid).
+
+## Insertion Distribution
+
+The number of inserted vehicles (if all trips are valid) is fixed for a given set of randomTrips option: `(end-begin)/period`.
+Randomness appears in the insertion pattern on any given edge.
+
+By default the departures of all vehicles are equally spaced in time. Since the inserted vehicle are spread randomly over the whole network, this comes out as a binomial distribution of inserted vehicles for each individual edge which gives a good approximation to the Poisson distribution if the network is large (and hence the insertion probability of each edge is small).
+
+By setting set option **--random-depart**, the (still fixed) number of departure times are drawn from a uniform distribution over `[begin, end]`.
+This leads to an exponential distribution of insertion time headways between vehicles on all edges (which is the headway pattern of the Poisson distribution). Hence, this is useful to have a more varied insertion time pattern for small networks.
 
 ## Validated routes and trips
 
@@ -106,15 +120,15 @@ With the option **--trip-attributes** {{DT_STR}}, additional parameters can be g
 vehicles (note, usage of the quoting characters).
 
 ```
-<SUMO_HOME>/tools/randomTrips.py -n input_net.net.xml 
+python tools/randomTrips.py -n <net-file> 
   --trip-attributes="departLane=\"best\" departSpeed=\"max\" departPos=\"random\""
 ```
 
 This would make the random vehicles be distributed randomly on their
 starting edges and inserted with high speed on a reasonable lane.
 
-!!! caution
-    Quoting of trip attributes on Linux must use the style **--trip-attributes 'departLane="best" departSpeed="max" departPos="random"'**
+!!! note
+    Quoting of trip attributes on Linux may also use the style **--trip-attributes 'departLane="best" departSpeed="max" departPos="random"'**
 
 ### Setting a vehicle type from an external file
 
@@ -131,7 +145,7 @@ Then load this file (assume it was saved as *type.add.xml*) with the
 option --additional-file
 
 ```
-<SUMO_HOME>/tools/randomTrips.py -n input_net.net.xml --trip-attributes="type=\"myType\"" --additional-file type.add.xml
+python tools/randomTrips.py -n <net-file> --trip-attributes="type=\"myType\"" --additional-file <add-file>
    --edge-permission passenger
 ```
 
@@ -154,7 +168,7 @@ By setting the option **--vehicle-class** a vehicle type definition that specifi
 class will be added to the output files. I.e.
 
 ```
-randomTrips.py --vehicle-class bus ...
+python tools/randomTrips.py --vehicle-class bus ...
 ```
 
 will add
@@ -167,7 +181,7 @@ Any **--trip-attributes** that are applicable to a vehicle type rather than a ve
 placed in the generated `vType` definition automatically:
 
 ```
-randomTrips.py --vehicle-class bus --trip-attributes="maxSpeed=\"27.8\""
+python tools/randomTrips.py --vehicle-class bus --trip-attributes="maxSpeed=\"27.8\""
 ```
 
 will add
@@ -199,6 +213,9 @@ To generate longer trips within a network, intermediate way points may
 be generated using the option **--intermediate** {{DT_INT}}. This will add the given number of
 [via-edges](../Definition_of_Vehicles,_Vehicle_Types,_and_Routes.md#incomplete_routes_trips_and_flows)
 to the trip definitions.
+
+!!! caution
+    If the network contains disconnected components, the probability of generating invalid trips grows with the number of intermediate waypoints (since a trip is invalid if any intermediate part is invalid). To avoid this, [make sure your network has only a single component](../netconvert.md#edge_removal).
 
 ## Customized Weights
 
@@ -242,7 +259,7 @@ To obtain trips from two specific locations (edges *a*, and *b*) to
 random destinations, use
 
 ```
-randomTrips.py --weights-prefix example  ...<other options>...
+python tools/randomTrips.py --weights-prefix example  ...<other options>...
 ```
 
 and define only the file *example.src.xml* as follows:
@@ -256,13 +273,6 @@ and define only the file *example.src.xml* as follows:
 </edgedata>
 ```
 
-# route2trips.py
+## Forwarding options to duarouter
 
-This script generates a trip file from a route file by stripping all
-route information except for start and end edge. It has a single
-parameter which is the route file and prints the trip file to stdout.
-Example:
-
-```
-<SUMO_HOME>/tools/route2trips.py input_routes.rou.xml
-```
+When generating the route *.rou.xml* file, duarouter is called. Some arguments are already passed to duarouter directly from arguments received by randomTrips. However, should you need so, you can directly pass an argument to duarouter with the syntax `--duarouter-option value`; for instance using `--duarouter-exit-times true` with randomTrips will forward the argument `--exit-times` to duarouter when it is called, and with the value `true`. Please note that it is compulsory to pass a value together with the option, for instance `--duarouter-exit-times` wouldn't be valid in this context.

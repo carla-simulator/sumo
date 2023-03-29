@@ -1,6 +1,6 @@
 /****************************************************************************/
 // Eclipse SUMO, Simulation of Urban MObility; see https://eclipse.org/sumo
-// Copyright (C) 2001-2020 German Aerospace Center (DLR) and others.
+// Copyright (C) 2001-2023 German Aerospace Center (DLR) and others.
 // This program and the accompanying materials are made available under the
 // terms of the Eclipse Public License 2.0 which is available at
 // https://www.eclipse.org/legal/epl-2.0/
@@ -269,7 +269,7 @@ GUICalibrator::GUICalibratorPopupMenu::onCmdOpenManip(FXObject*,
  * GUICalibrator - methods
  * ----------------------------------------------------------------------- */
 GUICalibrator::GUICalibrator(MSCalibrator* calibrator) :
-    GUIGlObject_AbstractAdd(GLO_CALIBRATOR, calibrator->getID()),
+    GUIGlObject_AbstractAdd(GLO_CALIBRATOR, calibrator->getID(), GUIIconSubSys::getIcon(GUIIcon::CALIBRATOR)),
     myCalibrator(calibrator),
     myShowAsKMH(true) {
     const std::vector<MSLane*>& destLanes = calibrator->myEdge->getLanes();
@@ -299,7 +299,7 @@ GUICalibrator::getPopUpMenu(GUIMainWindow& app,
     buildNameCopyPopupEntry(ret);
     buildSelectionPopupEntry(ret);
     buildShowParamsPopupEntry(ret);
-    buildPositionCopyEntry(ret, false);
+    buildPositionCopyEntry(ret, app);
     return ret;
 }
 
@@ -340,7 +340,8 @@ GUICalibrator::getParameterWindow(GUIMainWindow& app,
 
 void
 GUICalibrator::drawGL(const GUIVisualizationSettings& s) const {
-    glPushName(getGlID());
+    const double exaggeration = getExaggeration(s);
+    GLHelper::pushName(getGlID());
     std::string flow = "-";
     std::string speed = "-";
     if (myCalibrator->isActive()) {
@@ -352,11 +353,10 @@ GUICalibrator::drawGL(const GUIVisualizationSettings& s) const {
             flow = toString((int)myCurrentStateInterval->q) + "v/h";
         }
     }
-    const double exaggeration = s.addSize.getExaggeration(s, this);
     for (int i = 0; i < (int)myFGPositions.size(); ++i) {
         const Position& pos = myFGPositions[i];
         double rot = myFGRotations[i];
-        glPushMatrix();
+        GLHelper::pushMatrix();
         glTranslated(pos.x(), pos.y(), getType());
         glRotated(rot, 0, 0, 1);
         glTranslated(0, 0, getType());
@@ -381,10 +381,16 @@ GUICalibrator::drawGL(const GUIVisualizationSettings& s) const {
             GLHelper::drawText(flow, Position(0, 4), 0.1, 0.7, RGBColor::BLACK, 180);
             GLHelper::drawText(speed, Position(0, 5), 0.1, 0.7, RGBColor::BLACK, 180);
         }
-        glPopMatrix();
+        GLHelper::popMatrix();
     }
     drawName(getCenteringBoundary().getCenter(), s.scale, s.addName);
-    glPopName();
+    GLHelper::popName();
+}
+
+
+double
+GUICalibrator::getExaggeration(const GUIVisualizationSettings& s) const {
+    return s.addSize.getExaggeration(s, this);
 }
 
 

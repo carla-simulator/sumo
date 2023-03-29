@@ -1,6 +1,6 @@
 /****************************************************************************/
 // Eclipse SUMO, Simulation of Urban MObility; see https://eclipse.org/sumo
-// Copyright (C) 2012-2020 German Aerospace Center (DLR) and others.
+// Copyright (C) 2012-2023 German Aerospace Center (DLR) and others.
 // This program and the accompanying materials are made available under the
 // terms of the Eclipse Public License 2.0 which is available at
 // https://www.eclipse.org/legal/epl-2.0/
@@ -20,9 +20,12 @@
 ///
 // C++ TraCI client API implementation
 /****************************************************************************/
+#include <config.h>
+
 #include <thread>
 #include <chrono>
 #include <array>
+#include <libsumo/StorageHelper.h>
 #include <libsumo/TraCIDefs.h>
 #include "Connection.h"
 
@@ -38,20 +41,22 @@ std::map<const std::string, Connection*> Connection::myConnections;
 // ===========================================================================
 // member method definitions
 // ===========================================================================
-#ifdef _MSC_VER
-/* Disable "decorated name length exceeded, name was truncated" warnings for the whole file. */
-#pragma warning(disable: 4503)
-#endif
 Connection::Connection(const std::string& host, int port, int numRetries, const std::string& label, FILE* const pipe) :
-    myLabel(label), myProcessPipe(pipe), mySocket(host, port) {
+    myLabel(label), myProcessPipe(pipe), myProcessReader(nullptr), mySocket(host, port) {
+    if (pipe != nullptr) {
+        myProcessReader = new std::thread(&Connection::readOutput, this);
+    }
     for (int i = 0; i <= numRetries; i++) {
         try {
             mySocket.connect();
             break;
-        } catch (tcpip::SocketException&) {
+        } catch (tcpip::SocketException& e) {
             if (i == numRetries) {
+                close();
                 throw;
             }
+            std::cout << "Could not connect to TraCI server at " << host << ":" << port << " " << e.what() << std::endl;
+            std::cout << " Retrying in 1 second" << std::endl;
             std::this_thread::sleep_for(std::chrono::seconds(1));
         }
     }
@@ -59,46 +64,61 @@ Connection::Connection(const std::string& host, int port, int numRetries, const 
 
 
 void
-Connection::close() {
-    if (!mySocket.has_client_connection()) {
-        return;
-    }
-    tcpip::Storage outMsg;
-    // command length
-    outMsg.writeUnsignedByte(1 + 1);
-    // command id
-    outMsg.writeUnsignedByte(libsumo::CMD_CLOSE);
-    mySocket.sendExact(outMsg);
-
-    tcpip::Storage inMsg;
-    std::string acknowledgement;
-    check_resultState(inMsg, libsumo::CMD_CLOSE, false, &acknowledgement);
-    mySocket.close();
-    if (myProcessPipe != nullptr) {
-        std::array<char, 128> buffer;
+Connection::readOutput() {
+    std::array<char, 256> buffer;
+    bool errout = false;
+    while (fgets(buffer.data(), (int)buffer.size(), myProcessPipe) != nullptr) {
         std::stringstream result;
-        while (fgets(buffer.data(), (int)buffer.size(), myProcessPipe) != nullptr) {
-            result << buffer.data();
-        }
+        result << buffer.data();
         std::string line;
         while (std::getline(result, line)) {
-            if (line.compare(0, 6, "Error:") == 0) {
+            if ((errout && (line.empty() || line[0] == ' ')) || line.compare(0, 6, "Error:") == 0 || line.compare(0, 8, "Warning:") == 0) {
                 std::cerr << line << std::endl;
+                errout = true;
             } else {
                 std::cout << line << std::endl;
+                errout = false;
             }
         }
+    }
+}
+
+
+void
+Connection::close() {
+    if (mySocket.has_client_connection()) {
+        std::unique_lock<std::mutex> lock{ myMutex };
+        tcpip::Storage outMsg;
+        // command length
+        outMsg.writeUnsignedByte(1 + 1);
+        // command id
+        outMsg.writeUnsignedByte(libsumo::CMD_CLOSE);
+        mySocket.sendExact(outMsg);
+
+        tcpip::Storage inMsg;
+        std::string acknowledgement;
+        check_resultState(inMsg, libsumo::CMD_CLOSE, false, &acknowledgement);
+        mySocket.close();
+    }
+    if (myProcessReader != nullptr) {
+        myProcessReader->join();
+        delete myProcessReader;
+        myProcessReader = nullptr;
 #ifdef WIN32
         _pclose(myProcessPipe);
 #else
         pclose(myProcessPipe);
 #endif
     }
+    myConnections.erase(myLabel);
+    delete myActive;
+    myActive = nullptr;
 }
 
 
 void
 Connection::simulationStep(double time) {
+    std::unique_lock<std::mutex> lock{myMutex};
     tcpip::Storage outMsg;
     // command length
     outMsg.writeUnsignedByte(1 + 1 + 8);
@@ -113,7 +133,7 @@ Connection::simulationStep(double time) {
     mySubscriptionResults.clear();
     myContextSubscriptionResults.clear();
     int numSubs = inMsg.readInt();
-    while (numSubs > 0) {
+    while (numSubs-- > 0) {
         const int responseID = check_commandGetResult(inMsg, 0, -1, true);
         if ((responseID >= libsumo::RESPONSE_SUBSCRIBE_INDUCTIONLOOP_VARIABLE && responseID <= libsumo::RESPONSE_SUBSCRIBE_BUSSTOP_VARIABLE) ||
                 (responseID >= libsumo::RESPONSE_SUBSCRIBE_PARKINGAREA_VARIABLE && responseID <= libsumo::RESPONSE_SUBSCRIBE_OVERHEADWIRE_VARIABLE)) {
@@ -121,13 +141,13 @@ Connection::simulationStep(double time) {
         } else {
             readContextSubscription(responseID, inMsg);
         }
-        numSubs--;
     }
 }
 
 
 void
-Connection::send_commandSetOrder(int order) {
+Connection::setOrder(int order) {
+    std::unique_lock<std::mutex> lock{ myMutex };
     tcpip::Storage outMsg;
     // command length
     outMsg.writeUnsignedByte(1 + 1 + 4);
@@ -136,16 +156,25 @@ Connection::send_commandSetOrder(int order) {
     // client index
     outMsg.writeInt(order);
     mySocket.sendExact(outMsg);
+
+    tcpip::Storage inMsg;
+    check_resultState(inMsg, libsumo::CMD_SETORDER);
 }
 
 
 void
-Connection::createCommand(int cmdID, int varID, const std::string& objID, tcpip::Storage* add) const {
+Connection::createCommand(int cmdID, int varID, const std::string* const objID, tcpip::Storage* add) const {
+    if (!mySocket.has_client_connection()) {
+        throw libsumo::FatalTraCIError("Not connected.");
+    }
     myOutput.reset();
     // command length
     int length = 1 + 1;
     if (varID >= 0) {
-        length += 1 + 4 + (int) objID.length();
+        length += 1;
+        if (objID != nullptr) {
+            length += 4 + (int)objID->length();
+        }
     }
     if (add != nullptr) {
         length += (int)add->size();
@@ -159,7 +188,9 @@ Connection::createCommand(int cmdID, int varID, const std::string& objID, tcpip:
     myOutput.writeUnsignedByte(cmdID);
     if (varID >= 0) {
         myOutput.writeUnsignedByte(varID);
-        myOutput.writeString(objID);
+        if (objID != nullptr) {
+            myOutput.writeString(*objID);
+        }
     }
     // additional values
     if (add != nullptr) {
@@ -169,49 +200,23 @@ Connection::createCommand(int cmdID, int varID, const std::string& objID, tcpip:
 
 
 void
-Connection::createFilterCommand(int cmdID, int varID, tcpip::Storage* add) const {
-    myOutput.reset();
-    // command length
-    int length = 1 + 1 + 1;
-    if (add != nullptr) {
-        length += (int)add->size();
-    }
-    if (length <= 255) {
-        myOutput.writeUnsignedByte(length);
-    } else {
-        myOutput.writeUnsignedByte(0);
-        myOutput.writeInt(length + 4);
-    }
-    myOutput.writeUnsignedByte(cmdID);
-    myOutput.writeUnsignedByte(varID);
-    // additional values
-    if (add != nullptr) {
-        myOutput.writeStorage(*add);
-    }
-}
-
-
-void
-Connection::subscribeObjectVariable(int domID, const std::string& objID, double beginTime, double endTime,
-                                    const std::vector<int>& vars, const libsumo::TraCIResults& params) {
+Connection::subscribe(int domID, const std::string& objID, double beginTime, double endTime,
+                      int domain, double range, const std::vector<int>& vars, const libsumo::TraCIResults& params) {
     if (!mySocket.has_client_connection()) {
         throw tcpip::SocketException("Socket is not initialised");
     }
+    const bool isContext = domain != -1;
     tcpip::Storage outMsg;
-    // command length (domID, objID, beginTime, endTime, length, vars)
-    const int numVars = (int) vars.size();
-    outMsg.writeUnsignedByte(0);
-    outMsg.writeInt(5 + 1 + 8 + 8 + 4 + (int) objID.length() + 1 + numVars);
-    // command id
-    outMsg.writeUnsignedByte(domID);
-    // time
+    outMsg.writeUnsignedByte(domID); // command id
     outMsg.writeDouble(beginTime);
     outMsg.writeDouble(endTime);
-    // object id
     outMsg.writeString(objID);
-    // command id
-    if (numVars == 1 && vars.front() == -1) {
-        if (domID == libsumo::CMD_SUBSCRIBE_VEHICLE_VARIABLE) {
+    if (isContext) {
+        outMsg.writeUnsignedByte(domain);
+        outMsg.writeDouble(range);
+    }
+    if (vars.size() == 1 && vars.front() == -1) {
+        if (domID == libsumo::CMD_SUBSCRIBE_VEHICLE_VARIABLE && !isContext) {
             // default for vehicles is edge id and lane position
             outMsg.writeUnsignedByte(2);
             outMsg.writeUnsignedByte(libsumo::VAR_ROAD_ID);
@@ -219,70 +224,41 @@ Connection::subscribeObjectVariable(int domID, const std::string& objID, double 
         } else {
             // default for detectors is vehicle number, for all others (and contexts) id list
             outMsg.writeUnsignedByte(1);
-            const bool isDetector = domID == libsumo::CMD_SUBSCRIBE_INDUCTIONLOOP_VARIABLE || domID == libsumo::CMD_SUBSCRIBE_LANEAREA_VARIABLE || domID == libsumo::CMD_SUBSCRIBE_MULTIENTRYEXIT_VARIABLE;
+            const bool isDetector = domID == libsumo::CMD_SUBSCRIBE_INDUCTIONLOOP_VARIABLE
+                                    || domID == libsumo::CMD_SUBSCRIBE_LANEAREA_VARIABLE
+                                    || domID == libsumo::CMD_SUBSCRIBE_MULTIENTRYEXIT_VARIABLE
+                                    || domID == libsumo::CMD_SUBSCRIBE_LANE_VARIABLE
+                                    || domID == libsumo::CMD_SUBSCRIBE_EDGE_VARIABLE;
             outMsg.writeUnsignedByte(isDetector ? libsumo::LAST_STEP_VEHICLE_NUMBER : libsumo::TRACI_ID_LIST);
         }
     } else {
-        outMsg.writeUnsignedByte(numVars);
-        for (int i = 0; i < numVars; ++i) {
-            outMsg.writeUnsignedByte(vars[i]);
-            const auto& paramEntry = params.find(vars[i]);
+        outMsg.writeUnsignedByte((int)vars.size());
+        for (const int v : vars) {
+            outMsg.writeUnsignedByte(v);
+            const auto& paramEntry = params.find(v);
             if (paramEntry != params.end()) {
-                // TODO implement toPacket and adapt the message length above
-                outMsg.writePacket(paramEntry->second->toPacket());
+                outMsg.writeStorage(*libsumo::StorageHelper::toStorage(*paramEntry->second));
             }
         }
     }
+    tcpip::Storage complete;
+    complete.writeUnsignedByte(0);
+    complete.writeInt(5 + (int)outMsg.size());
+    complete.writeStorage(outMsg);
+    std::unique_lock<std::mutex> lock{ myMutex };
     // send message
-    mySocket.sendExact(outMsg);
+    mySocket.sendExact(complete);
 
     tcpip::Storage inMsg;
     check_resultState(inMsg, domID);
-    if (numVars > 0) {
+    if (!vars.empty()) {
         const int responseID = check_commandGetResult(inMsg, domID);
-        readVariableSubscription(responseID, inMsg);
-    }
-}
-
-
-void
-Connection::subscribeObjectContext(int domID, const std::string& objID, double beginTime, double endTime,
-                                   int domain, double range, const std::vector<int>& vars, const libsumo::TraCIResults& params) {
-    if (!mySocket.has_client_connection()) {
-        throw tcpip::SocketException("Socket is not initialised");
-    }
-    tcpip::Storage outMsg;
-    // command length (domID, objID, beginTime, endTime, length, vars)
-    int varNo = (int) vars.size();
-    outMsg.writeUnsignedByte(0);
-    outMsg.writeInt(5 + 1 + 8 + 8 + 4 + (int) objID.length() + 1 + 8 + 1 + varNo);
-    // command id
-    outMsg.writeUnsignedByte(domID);
-    // time
-    outMsg.writeDouble(beginTime);
-    outMsg.writeDouble(endTime);
-    // object id
-    outMsg.writeString(objID);
-    // domain and range
-    outMsg.writeUnsignedByte(domain);
-    outMsg.writeDouble(range);
-    // command id
-    outMsg.writeUnsignedByte((int)vars.size());
-    for (int i = 0; i < varNo; ++i) {
-        outMsg.writeUnsignedByte(vars[i]);
-        const auto& paramEntry = params.find(vars[i]);
-        if (paramEntry != params.end()) {
-            // TODO implement toPacket and adapt the message length above
-            outMsg.writePacket(paramEntry->second->toPacket());
+        if (isContext) {
+            readContextSubscription(responseID, inMsg);
+        } else {
+            readVariableSubscription(responseID, inMsg);
         }
     }
-    // send message
-    mySocket.sendExact(outMsg);
-
-    tcpip::Storage inMsg;
-    check_resultState(inMsg, domID);
-    check_commandGetResult(inMsg, domID);
-    readContextSubscription(domID, inMsg);
 }
 
 
@@ -298,9 +274,6 @@ Connection::check_resultState(tcpip::Storage& inMsg, int command, bool ignoreCom
         cmdStart = inMsg.position();
         cmdLength = inMsg.readUnsignedByte();
         cmdId = inMsg.readUnsignedByte();
-        if (command != cmdId && !ignoreCommandId) {
-            throw libsumo::TraCIException("#Error: received status response to command: " + toString(cmdId) + " but expected: " + toString(command));
-        }
         resultType = inMsg.readUnsignedByte();
         msg = inMsg.readString();
     } catch (std::invalid_argument&) {
@@ -308,26 +281,28 @@ Connection::check_resultState(tcpip::Storage& inMsg, int command, bool ignoreCom
     }
     switch (resultType) {
         case libsumo::RTYPE_ERR:
-            throw libsumo::TraCIException(".. Answered with error to command (" + toString(command) + "), [description: " + msg + "]");
+            throw libsumo::TraCIException(msg);
         case libsumo::RTYPE_NOTIMPLEMENTED:
-            throw libsumo::TraCIException(".. Sent command is not implemented (" + toString(command) + "), [description: " + msg + "]");
+            throw libsumo::TraCIException(".. Sent command is not implemented (" + toHex(command) + "), [description: " + msg + "]");
         case libsumo::RTYPE_OK:
             if (acknowledgement != nullptr) {
-                (*acknowledgement) = ".. Command acknowledged (" + toString(command) + "), [description: " + msg + "]";
+                (*acknowledgement) = ".. Command acknowledged (" + toHex(command) + "), [description: " + msg + "]";
             }
             break;
         default:
-            throw libsumo::TraCIException(".. Answered with unknown result code(" + toString(resultType) + ") to command(" + toString(command) + "), [description: " + msg + "]");
+            throw libsumo::TraCIException(".. Answered with unknown result code(" + toHex(resultType) + ") to command(" + toHex(command) + "), [description: " + msg + "]");
+    }
+    if (command != cmdId && !ignoreCommandId) {
+        throw libsumo::TraCIException("#Error: received status response to command: " + toHex(cmdId) + " but expected: " + toHex(command));
     }
     if ((cmdStart + cmdLength) != (int) inMsg.position()) {
-        throw libsumo::TraCIException("#Error: command at position " + toString(cmdStart) + " has wrong length");
+        throw libsumo::TraCIException("#Error: command at position " + toHex(cmdStart) + " has wrong length");
     }
 }
 
 
 int
 Connection::check_commandGetResult(tcpip::Storage& inMsg, int command, int expectedType, bool ignoreCommandId) const {
-    inMsg.position(); // respStart
     int length = inMsg.readUnsignedByte();
     if (length == 0) {
         length = inMsg.readInt();
@@ -349,28 +324,26 @@ Connection::check_commandGetResult(tcpip::Storage& inMsg, int command, int expec
 }
 
 
-bool
-Connection::processGet(int command, int expectedType, bool ignoreCommandId) {
-    if (mySocket.has_client_connection()) {
-        mySocket.sendExact(myOutput);
-        myInput.reset();
-        check_resultState(myInput, command, ignoreCommandId);
-        check_commandGetResult(myInput, command, expectedType, ignoreCommandId);
-        return true;
+tcpip::Storage&
+Connection::doCommand(int command, int var, const std::string& id, tcpip::Storage* add, int expectedType) {
+    createCommand(command, var, &id, add);
+    mySocket.sendExact(myOutput);
+    myInput.reset();
+    check_resultState(myInput, command);
+    if (expectedType >= 0) {
+        check_commandGetResult(myInput, command, expectedType);
     }
-    return false;
+    return myInput;
 }
 
 
-tcpip::Storage&
-Connection::doCommand(int command, int var, const std::string& id, tcpip::Storage* add) {
-    createCommand(command, var, id, add);
-    if (mySocket.has_client_connection()) {
-        mySocket.sendExact(myOutput);
-        myInput.reset();
-        check_resultState(myInput, command);
-    }
-    return myInput;
+void
+Connection::addFilter(int var, tcpip::Storage* add) {
+    std::unique_lock<std::mutex> lock{ myMutex };
+    createCommand(libsumo::CMD_ADD_SUBSCRIPTION_FILTER, var, nullptr, add);
+    mySocket.sendExact(myOutput);
+    myInput.reset();
+    check_resultState(myInput, libsumo::CMD_ADD_SUBSCRIPTION_FILTER);
 }
 
 
@@ -394,7 +367,6 @@ Connection::readVariables(tcpip::Storage& inMsg, const std::string& objectID, in
                     auto p = std::make_shared<libsumo::TraCIPosition>();
                     p->x = inMsg.readDouble();
                     p->y = inMsg.readDouble();
-                    p->z = 0.;
                     into[objectID][variableID] = p;
                     break;
                 }
@@ -427,6 +399,26 @@ Connection::readVariables(tcpip::Storage& inMsg, const std::string& objectID, in
                     into[objectID][variableID] = sl;
                 }
                 break;
+                case libsumo::TYPE_COMPOUND: {
+                    int n = inMsg.readInt();
+                    if (n == 2) {
+                        inMsg.readUnsignedByte();
+                        const std::string s = inMsg.readString();
+                        const int secondType = inMsg.readUnsignedByte();
+                        if (secondType == libsumo::TYPE_DOUBLE) {
+                            auto r = std::make_shared<libsumo::TraCIRoadPosition>();
+                            r->edgeID = s;
+                            r->pos = inMsg.readDouble();
+                            into[objectID][variableID] = r;
+                        } else if (secondType == libsumo::TYPE_STRING) {
+                            auto sl = std::make_shared<libsumo::TraCIStringList>();
+                            sl->value.push_back(s);
+                            sl->value.push_back(inMsg.readString());
+                            into[objectID][variableID] = sl;
+                        }
+                    }
+                }
+                break;
 
                 // TODO Other data types
 
@@ -456,11 +448,12 @@ Connection::readContextSubscription(int responseID, tcpip::Storage& inMsg) {
     inMsg.readUnsignedByte(); // context domain
     const int variableCount = inMsg.readUnsignedByte();
     int numObjects = inMsg.readInt();
-
-    while (numObjects > 0) {
+    // the following also instantiates the empty map to get comparable results with libsumo
+    // see also https://github.com/eclipse/sumo/issues/7288
+    libsumo::SubscriptionResults& results = myContextSubscriptionResults[responseID][contextID];
+    while (numObjects-- > 0) {
         std::string objectID = inMsg.readString();
-        readVariables(inMsg, objectID, variableCount, myContextSubscriptionResults[responseID][contextID]);
-        numObjects--;
+        readVariables(inMsg, objectID, variableCount, results);
     }
 }
 

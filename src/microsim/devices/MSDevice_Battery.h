@@ -1,6 +1,6 @@
 /****************************************************************************/
 // Eclipse SUMO, Simulation of Urban MObility; see https://eclipse.org/sumo
-// Copyright (C) 2013-2020 German Aerospace Center (DLR) and others.
+// Copyright (C) 2013-2023 German Aerospace Center (DLR) and others.
 // This program and the accompanying materials are made available under the
 // terms of the Eclipse Public License 2.0 which is available at
 // https://www.eclipse.org/legal/epl-2.0/
@@ -31,6 +31,7 @@
 // class declarations
 // ===========================================================================
 class SUMOVehicle;
+class MSDevice_Emissions;
 
 
 // ===========================================================================
@@ -100,15 +101,13 @@ private:
     * @param[in] preInsertionPeriod The route search period before insertion
     */
     MSDevice_Battery(SUMOVehicle& holder, const std::string& id, const double actualBatteryCapacity, const double maximumBatteryCapacity,
-                     const double powerMax, const double stoppingTreshold, const std::map<int, double>& param);
-
-    void checkParam(const SumoXMLAttr paramKey, const double lower = 0., const double upper = std::numeric_limits<double>::infinity());
+                     const double powerMax, const double stoppingThreshold);
 
 public:
-    /// @brief Get the actual vehicle's Battery Capacity in kWh
+    /// @brief Get the actual vehicle's Battery Capacity in Wh
     double getActualBatteryCapacity() const;
 
-    /// @brief Get the total vehicle's Battery Capacity in kWh
+    /// @brief Get the total vehicle's Battery Capacity in Wh
     double getMaximumBatteryCapacity() const;
 
     /// @brief Get the maximum power when accelerating
@@ -121,10 +120,16 @@ public:
     bool isChargingInTransit() const;
 
     /// @brief Get charging start time.
-    double getChargingStartTime() const;
+    SUMOTime getChargingStartTime() const;
 
     /// @brief Get consum
     double getConsum() const;
+
+    /// @brief Get total consumption
+    double getTotalConsumption() const;
+
+    /// @brief Get total regenerated
+    double getTotalRegenerated() const;
 
     /// @brief Get current Charging Station ID
     std::string getChargingStationID() const;
@@ -135,8 +140,8 @@ public:
     /// @brief Get number of timestep that vehicle is stopped
     int getVehicleStopped() const;
 
-    /// @brief Get stopping treshold
-    double getStoppingTreshold() const;
+    /// @brief Get stopping threshold
+    double getStoppingThreshold() const;
 
     /// @brief Set actual vehicle's Battery Capacity in kWh
     void setActualBatteryCapacity(const double actualBatteryCapacity);
@@ -147,8 +152,8 @@ public:
     /// @brief Set maximum power when accelerating
     void setPowerMax(const double new_Pmax);
 
-    /// @brief Set vehicle's stopping treshold
-    void setStoppingTreshold(const double stoppingTreshold);
+    /// @brief Set vehicle's stopping threshold
+    void setStoppingThreshold(const double stoppingThreshold);
 
     /// @brief Reset charging start time
     void resetChargingStartTime();
@@ -162,26 +167,18 @@ public:
     /// @brief Increase myVehicleStopped
     void increaseVehicleStoppedTimer();
 
-    /// @brief retrieve parameters for the energy consumption model
-    const std::map<int, double>& getEnergyParams() const {
-        return myParam;
-    }
-
 protected:
-    /// @brief Parameter, The actual vehicles's Battery Capacity in kWh, [myActualBatteryCapacity <= myMaximumBatteryCapacity]
+    /// @brief Parameter, The actual vehicles's Battery Capacity in Wh, [myActualBatteryCapacity <= myMaximumBatteryCapacity]
     double myActualBatteryCapacity;
 
-    /// @brief Parameter, The total vehicles's Battery Capacity in kWh, [myMaximumBatteryCapacity >= 0]
+    /// @brief Parameter, The total vehicles's Battery Capacity in Wh, [myMaximumBatteryCapacity >= 0]
     double myMaximumBatteryCapacity;
 
     /// @brief Parameter, The Maximum Power when accelerating, [myPowerMax >= 0]
     double myPowerMax;
 
-    /// @brief Parameter, stopping vehicle treshold [myStoppingTreshold >= 0]
-    double myStoppingTreshold;
-
-    /// @brief Parameter collection
-    std::map<int, double> myParam;
+    /// @brief Parameter, stopping vehicle threshold [myStoppingThreshold >= 0]
+    double myStoppingThreshold;
 
     /// @brief Parameter, Vehicle's last angle
     double myLastAngle;
@@ -193,10 +190,16 @@ protected:
     bool myChargingInTransit;
 
     /// @brief Parameter, Moment, wich the vehicle has beging to charging
-    double myChargingStartTime;
+    SUMOTime myChargingStartTime;
 
     /// @brief Parameter, Vehicle consum during a time step (by default is 0.)
     double myConsum;
+
+    /// @brief Parameter, total vehicle energy consumption
+    double myTotalConsumption;
+
+    /// @brief Parameter, total vehicle energy regeneration
+    double myTotalRegenerated;
 
     /// @brief Parameter, Pointer to current charging station in which vehicle is placed (by default is NULL)
     MSChargingStation* myActChargingStation;
@@ -209,6 +212,9 @@ protected:
 
     /// @brief Parameter, How many timestep the vehicle is stopped
     int myVehicleStopped;
+
+    /// @brief whether to track fuel consumption instead of electricity
+    bool myTrackFuel;
 
 private:
     /// @brief Invalidated copy constructor.

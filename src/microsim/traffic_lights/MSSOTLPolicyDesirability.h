@@ -1,6 +1,6 @@
 /****************************************************************************/
 // Eclipse SUMO, Simulation of Urban MObility; see https://eclipse.org/sumo
-// Copyright (C) 2013-2020 German Aerospace Center (DLR) and others.
+// Copyright (C) 2013-2023 German Aerospace Center (DLR) and others.
 // This program and the accompanying materials are made available under the
 // terms of the Eclipse Public License 2.0 which is available at
 // https://www.eclipse.org/legal/epl-2.0/
@@ -20,7 +20,6 @@
 #pragma once
 #include <config.h>
 
-#include <utils/common/SwarmDebug.h>
 #include <sstream>
 #include <utils/common/Parameterised.h>
 #include <utils/common/StringUtils.h>
@@ -38,7 +37,7 @@ private:
 public:
 
     MSSOTLPolicyDesirability(std::string keyPrefix,
-                             const std::map<std::string, std::string>& parameters);
+                             const Parameterised::Map& parameters);
     virtual ~MSSOTLPolicyDesirability();
 
     /**

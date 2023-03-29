@@ -1,6 +1,6 @@
 /****************************************************************************/
 // Eclipse SUMO, Simulation of Urban MObility; see https://eclipse.org/sumo
-// Copyright (C) 2001-2020 German Aerospace Center (DLR) and others.
+// Copyright (C) 2001-2023 German Aerospace Center (DLR) and others.
 // This program and the accompanying materials are made available under the
 // terms of the Eclipse Public License 2.0 which is available at
 // https://www.eclipse.org/legal/epl-2.0/
@@ -62,14 +62,22 @@ public:
      * @see GenericSAXHandler::myStartElement
      */
     void myStartElement(int element, const SUMOSAXAttributes& attrs);
+
+    /** @brief Called when a closing tag occurs
+     *
+     * @param[in] element ID of the currently opened element
+     * @exception ProcessError If something fails
+     * @see GenericSAXHandler::myEndElement
+     */
+    void myEndElement(int element);
     //@}
 
 
 
     /** @brief Adds the parsed settings to the global list of settings
-     * @return the name of the parsed settings
+     * @return the names of the parsed settings
      */
-    std::string addSettings(GUISUMOAbstractView* view = 0) const;
+    const std::vector<std::string>& addSettings(GUISUMOAbstractView* view = 0) const;
 
 
     /** @brief Sets the viewport which has been parsed
@@ -127,9 +135,16 @@ public:
         return myJamSoundTime;
     }
 
+    const std::string& getSettingName() const {
+        return mySettings.name;
+    }
+
 private:
     /// @brief The settings to fill
     GUIVisualizationSettings mySettings;
+
+    /// @brief names of all loaded settings
+    std::vector<std::string> myLoadedSettingNames;
 
     /// @brief The view type (osg, opengl, default) loaded
     std::string myViewType;
@@ -143,8 +158,14 @@ private:
     /// @brief The point to look at, only needed for osg view
     Position myLookAt;
 
+    /// @brief Whether the Z coordinate is set in 3D view
+    bool myZCoordSet;
+
     /// @brief View rotation
     double myRotation;
+
+    /// @brief Zoom level
+    double myZoom;
 
     /// @brief mappig of time steps to filenames for potential snapshots
     std::map<SUMOTime, std::vector<std::string> > mySnapshots;
@@ -169,6 +190,8 @@ private:
     double myJamSoundTime;
 
 private:
+    /// @brief parse color attribute
+    RGBColor parseColor(const SUMOSAXAttributes& attrs, const std::string attribute, const RGBColor& defaultValue) const;
 
     /// @brief parse attributes for textSettings
     GUIVisualizationTextSettings parseTextSettings(
@@ -179,5 +202,4 @@ private:
     GUIVisualizationSizeSettings parseSizeSettings(
         const std::string& prefix, const SUMOSAXAttributes& attrs,
         GUIVisualizationSizeSettings defaults);
-
 };

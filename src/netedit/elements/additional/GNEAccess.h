@@ -1,6 +1,6 @@
 /****************************************************************************/
 // Eclipse SUMO, Simulation of Urban MObility; see https://eclipse.org/sumo
-// Copyright (C) 2001-2020 German Aerospace Center (DLR) and others.
+// Copyright (C) 2001-2023 German Aerospace Center (DLR) and others.
 // This program and the accompanying materials are made available under the
 // terms of the Eclipse Public License 2.0 which is available at
 // https://www.eclipse.org/legal/epl-2.0/
@@ -18,6 +18,7 @@
 //
 /****************************************************************************/
 #pragma once
+#include <config.h>
 #include "GNEAdditional.h"
 
 // ===========================================================================
@@ -32,9 +33,12 @@ class GNEBusStop;
  * @class GNEAccess
  * class for busStop acces
  */
-class GNEAccess : public GNEAdditional {
+class GNEAccess : public GNEAdditional, public Parameterised {
 
 public:
+    /// @brief Default constructor
+    GNEAccess(GNENet* net);
+
     /**@brief Constructor
      * @param[in] id The storage of gl-ids to get the one for this lane representation from
      * @param[in] busStop GNEBusStop of this Access belongs
@@ -43,17 +47,18 @@ public:
      * @param[in] pos position of the Access on the lane
      * @param[in] length The length of the Access in meters.
      * @param[in] friendlyPos enable or disable friendly positions
-     * @param[in] block movement enable or disable additional movement
+     * @param[in] parameters generic parameters
      */
-    GNEAccess(GNEAdditional* busStop, GNELane* lane, GNENet* net, double pos, const std::string& length, bool friendlyPos, bool blockMovement);
+    GNEAccess(GNEAdditional* busStop, GNELane* lane, GNENet* net, double pos, const double length,
+              bool friendlyPos, const Parameterised::Map& parameters);
 
     /// @brief Destructor
     ~GNEAccess();
 
-    /**@brief get move operation for the given shapeOffset
+    /**@brief get move operation
     * @note returned GNEMoveOperation can be nullptr
     */
-    GNEMoveOperation* getMoveOperation(const double shapeOffset);
+    GNEMoveOperation* getMoveOperation();
 
     /// @brief check if Position of Access is fixed
     bool isAccessPositionFixed() const;
@@ -61,33 +66,59 @@ public:
     /// @brief get edge in which this Access is placed
     GNEEdge* getEdge() const;
 
+    /// @name members and functions relative to write additionals into XML
+    /// @{
+
+    /**@brief write additional element into a xml file
+    * @param[in] device device in which write parameters of additional element
+    */
+    void writeAdditional(OutputDevice& device) const;
+
+    /// @brief check if current additional is valid to be writed into XML (must be reimplemented in all detector children)
+    bool isAdditionalValid() const;
+
+    /// @brief return a string with the current additional problem (must be reimplemented in all detector children)
+    std::string getAdditionalProblem() const;
+
+    /// @brief fix additional problem (must be reimplemented in all detector children)
+    void fixAdditionalProblem();
+
+    /// @}
+
     /// @name Functions related with geometry of element
     /// @{
+
     /// @brief update pre-computed geometry information
     void updateGeometry();
+
+    /// @brief Returns position of additional in view
+    Position getPositionInView() const;
 
     /// @brief update centering boundary (implies change in RTREE)
     void updateCenteringBoundary(const bool updateGrid);
 
     /// @brief split geometry
     void splitEdgeGeometry(const double splitPosition, const GNENetworkElement* originalElement, const GNENetworkElement* newElement, GNEUndoList* undoList);
+    
     /// @}
 
     /// @name inherited from GUIGlObject
     /// @{
+
     /// @brief Returns the name (ID) of the parent object
     std::string getParentName() const;
 
-    /// @{
     /**@brief Draws the object
      * @param[in] s The settings for the current view (may influence drawing)
      * @see GUIGlObject::drawGL
      */
     void drawGL(const GUIVisualizationSettings& s) const;
+    
     /// @}
 
     /// @name inherited from GNEAttributeCarrier
     /// @{
+
     /* @brief method for getting the Attribute of an XML key
      * @param[in] key The attribute key
      * @return string with the value associated to key
@@ -100,6 +131,9 @@ public:
      */
     double getAttributeDouble(SumoXMLAttr key) const;
 
+    /// @brief get parameters map
+    const Parameterised::Map& getACParametersMap() const;
+
     /* @brief method for setting the attribute and letting the object perform additional changes
      * @param[in] key The attribute key
      * @param[in] value The new value
@@ -109,29 +143,25 @@ public:
 
     /* @brief method for checking if the key and their correspond attribute are valids
      * @param[in] key The attribute key
-     * @param[in] value The value asociated to key key
+     * @param[in] value The value associated to key key
      * @return true if the value is valid, false in other case
      */
     bool isValid(SumoXMLAttr key, const std::string& value);
-
-    /* @brief method for check if the value for certain attribute is set
-     * @param[in] key The attribute key
-     */
-    bool isAttributeEnabled(SumoXMLAttr key) const;
 
     /// @brief get PopPup ID (Used in AC Hierarchy)
     std::string getPopUpID() const;
 
     /// @brief get Hierarchy Name (Used in AC Hierarchy)
     std::string getHierarchyName() const;
+
     /// @}
 
 protected:
     /// @brief position over lane
     double myPositionOverLane;
 
-    /// @brief Acces length
-    std::string myLength;
+    /// @brief Access length
+    double myLength;
 
     /// @brief flag to check if friendly position is enabled
     bool myFriendlyPosition;

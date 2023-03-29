@@ -1,9 +1,8 @@
 ---
-title: Installing/macOS Build
-permalink: /Installing/MacOS_Build/
+title: macOS Build
 ---
 
-This document describes how to install and build SUMO on macOS from its source code. If you don't want to **extend** SUMO, but just **use** it, you may want to simply follow the [installation instructions for macOS](../Installing.md#macos) instead.
+This document describes how to install and build SUMO on macOS from its source code. If you don't want to **extend** SUMO, but just **use** it, you may want to simply follow the [installation instructions for macOS](index.md#macos) instead.
 
 You may use one of two ways to build and install SUMO on macOS: **Homebrew** (recommended) and **MacPorts**.
 
@@ -37,7 +36,7 @@ brew install cmake
 ## Dependencies
 In order to compile and execute SUMO, there are several libraries that need to be installed. You can install these dependencies with homebrew with the following commands:
 ```
-brew cask install xquartz
+brew install --cask xquartz
 brew install xerces-c fox proj gdal gl2ps
 ```
 Depending on the SUMO features you want to enable during compilation, you may want to additional libraries. Most libraries are available in homebrew and should be recognized with CMake. Here is what you need to prepare some more features such as libsumo and the testing environment:
@@ -45,21 +44,25 @@ Depending on the SUMO features you want to enable during compilation, you may wa
 brew install python swig eigen pygobject3 gtk+3 adwaita-icon-theme
 python3 -m pip install texttest
 ```
+You can optionally include OSG (OpenSceneGraph) to enable the experimental [3D-Visualization](../sumo-gui.md#3d_visualization):
+```
+brew install open-scene-graph
+```
 
 ### Troubleshooting the fox library on macOS Catalina
 If you encounter segmentation faults on macOS Catalina, please follow the following steps (see [Issue 6242](https://github.com/eclipse/sumo/issues/6242#issuecomment-553458710)).
 
 1. Uninstall Catalina bottle of fox:
-```$ brew uninstall --ignore-dependencies fox```
+```brew uninstall --ignore-dependencies fox```
 
 2. Edit brew Formula of fox:
-```$ brew edit fox```
+```brew edit fox```
 
 3. Comment out or delete the following line:
 ```sha256 "c6697be294c9a0458580564d59f8db32791beb5e67a05a6246e0b969ffc068bc" => :catalina```
 
 4. Install Mojave bottle of fox:
-```$ brew install fox```
+```brew install fox```
 
 ## Git Cloning and Building
 The source code of SUMO can be cloned with the following command to the directory `./sumo`. The environment variable `SUMO_HOME` should also be set to this directory.
@@ -200,8 +203,8 @@ If you want to build from a repository checkout you should additionally do
 sudo port install automake autoconf
 ```
 
-After obtaining the [required libraries](../Installing/Linux_Build.md#installing_required_tools_and_libraries)
-you can follow the build steps of [building under Linux](../Installing/Linux_Build.md#getting_the_source_code), you
+After obtaining the [required libraries](Linux_Build.md#installing_required_tools_and_libraries)
+you can follow the build steps of [building under Linux](Linux_Build.md#getting_the_source_code), you
 might want to add another --prefix=/opt/sumo to the configure line.
 
 If you wish to use clang rather than gcc for compilation do:

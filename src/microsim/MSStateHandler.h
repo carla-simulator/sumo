@@ -1,6 +1,6 @@
 /****************************************************************************/
 // Eclipse SUMO, Simulation of Urban MObility; see https://eclipse.org/sumo
-// Copyright (C) 2012-2020 German Aerospace Center (DLR) and others.
+// Copyright (C) 2012-2023 German Aerospace Center (DLR) and others.
 // This program and the accompanying materials are made available under the
 // terms of the Eclipse Public License 2.0 which is available at
 // https://www.eclipse.org/legal/epl-2.0/
@@ -30,6 +30,7 @@
 // class declarations
 // ===========================================================================
 class MESegment;
+class MSRailSignal;
 
 
 // ===========================================================================
@@ -42,7 +43,7 @@ class MESegment;
 class MSStateHandler : public MSRouteHandler {
 public:
     /// @brief standard constructor
-    MSStateHandler(const std::string& file, const SUMOTime offset, bool onlyReadTime = false);
+    MSStateHandler(const std::string& file, const SUMOTime offset);
 
     /// @brief standard destructor
     virtual ~MSStateHandler();
@@ -51,12 +52,23 @@ public:
      *
      * @param[in] file The file to write the state into
      */
-    static void saveState(const std::string& file, SUMOTime step);
+    static void saveState(const std::string& file, SUMOTime step, bool usePrefix = true);
 
     /// @brief get time
     SUMOTime getTime() const {
         return myTime;
     }
+
+    /// handler to read only the simulation time from a state
+    class MSStateTimeHandler : public SUMOSAXHandler {
+    public:
+        /// @brief parse time from state file
+        static SUMOTime getTime(const std::string& fileName);
+
+    protected:
+        void myStartElement(int element, const SUMOSAXAttributes& attrs);
+        SUMOTime myTime;
+    };
 
 protected:
     /// @name inherited from GenericSAXHandler
@@ -115,14 +127,14 @@ private:
     /// @brief the last object that potentially carries parameters
     Parameterised* myLastParameterised;
 
-    /// @brief whether the handler should abort parsing (via Exception) after parsing the time
-    bool myOnlyReadTime;
-
     /// @brief vehicles that shall be removed when loading state
     std::set<std::string> myVehiclesToRemove;
 
     /// @brief vehicles that were removed when loading state
     int myRemoved;
+
+    /// @brief rail signal for which constraints are being loaded
+    MSRailSignal* myConstrainedSignal;
 
 private:
     /// @brief save the state of random number generators

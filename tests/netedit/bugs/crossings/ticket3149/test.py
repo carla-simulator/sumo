@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 # Eclipse SUMO, Simulation of Urban MObility; see https://eclipse.org/sumo
-# Copyright (C) 2009-2020 German Aerospace Center (DLR) and others.
+# Copyright (C) 2009-2023 German Aerospace Center (DLR) and others.
 # This program and the accompanying materials are made available under the
 # terms of the Eclipse Public License 2.0 which is available at
 # https://www.eclipse.org/legal/epl-2.0/
@@ -36,22 +36,22 @@ netedit.inspectMode()
 
 # select first left edge and change their junction
 netedit.leftClick(referencePosition, 250, 205)
-netedit.modifyAttribute(1, "B", False)
+netedit.modifyAttribute(netedit.attrs.edge.inspect.fromEdge, "B", False)
 netedit.rebuildNetwork()
 
 # select second left edge and change their junction
 netedit.leftClick(referencePosition, 250, 255)
-netedit.modifyAttribute(2, "A", False)
+netedit.modifyAttribute(netedit.attrs.edge.inspect.toEdge, "A", False)
 netedit.rebuildNetwork()
 
 # select first right edge and change their junction
 netedit.leftClick(referencePosition, 500, 205)
-netedit.modifyAttribute(2, "B", False)
+netedit.modifyAttribute(netedit.attrs.edge.inspect.toEdge, "B", False)
 netedit.rebuildNetwork()
 
 # select second right edge and change their junction
 netedit.leftClick(referencePosition, 500, 255)
-netedit.modifyAttribute(1, "A", False)
+netedit.modifyAttribute(netedit.attrs.edge.inspect.fromEdge, "A", False)
 netedit.rebuildNetwork()
 
 # Check undo redo
@@ -62,11 +62,8 @@ netedit.rebuildNetwork()
 netedit.redo(referencePosition, 4)
 netedit.rebuildNetwork()
 
-# save additionals
-netedit.saveAdditionals(referencePosition)
-
-# save network
-netedit.saveNetwork(referencePosition)
+# save Netedit config
+netedit.saveNeteditConfig(referencePosition)
 
 # quit netedit
 netedit.quit(neteditProcess)

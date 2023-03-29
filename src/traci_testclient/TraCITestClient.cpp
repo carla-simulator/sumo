@@ -1,6 +1,6 @@
 /****************************************************************************/
 // Eclipse SUMO, Simulation of Urban MObility; see https://eclipse.org/sumo
-// Copyright (C) 2008-2020 German Aerospace Center (DLR) and others.
+// Copyright (C) 2008-2023 German Aerospace Center (DLR) and others.
 // This program and the accompanying materials are made available under the
 // terms of the Eclipse Public License 2.0 which is available at
 // https://www.eclipse.org/legal/epl-2.0/
@@ -27,6 +27,8 @@
  * ======================================================================= */
 #ifdef _MSC_VER
 #define _CRT_SECURE_NO_WARNINGS
+// Avoid some noisy warnings with Visual Studio
+#pragma warning(disable:4820 4514 5045 4710)
 #endif
 #include <vector>
 #include <iostream>
@@ -75,7 +77,6 @@ TraCITestClient::run(std::string fileName, int port, std::string host) {
     try {
         TraCIAPI::connect(host, port);
     } catch (tcpip::SocketException& e) {
-        std::stringstream msg;
         msg << "#Error while connecting: " << e.what();
         errorMsg(msg);
         return 2;
@@ -123,7 +124,6 @@ TraCITestClient::run(std::string fileName, int port, std::string host) {
             int domID, varID;
             std::string objID;
             defFile >> domID >> varID >> objID;
-            std::stringstream msg;
             tcpip::Storage tmp;
             setValueTypeDependant(tmp, defFile, msg);
             std::string msgS = msg.str();
@@ -711,33 +711,20 @@ TraCITestClient::testAPI() {
     answerLog << "  polygon:\n";
     answerLog << "    getIDList: " << joinToString(polygon.getIDList(), " ") << "\n";
     answerLog << "    getIDCount: " << polygon.getIDCount() << "\n";
-    std::vector<libsumo::TraCIPosition> shape = polygon.getShape("poly0");
-    std::string shapeStr;
-    for (auto pos : shape) {
-        shapeStr += pos.getString() + " ";
-    }
+    libsumo::TraCIPositionVector shape = polygon.getShape("poly0");
     polygon.setLineWidth("poly0", 0.6);
     answerLog << "    getLineWidth: " << polygon.getLineWidth("poly0") << "\n";
-    answerLog << "    getShape: " << shapeStr << "\n";
+    answerLog << "    getShape: " << shape.getString() << "\n";
     answerLog << "    getColor: " << polygon.getColor("poly0").getString() << "\n";
-    shape[0].x = 42;
+    shape.value[0].x = 42;
     polygon.setShape("poly0", shape);
-    std::string shapeStr2;
-    for (auto pos : polygon.getShape("poly0")) {
-        shapeStr2 += pos.getString() + " ";
-    }
-    answerLog << "    getShape after modification: " << shapeStr2 << "\n";
+    answerLog << "    getShape after modification: " << polygon.getShape("poly0").getString() << "\n";
 
     // junction
     answerLog << "  junction:\n";
     answerLog << "    getIDList: " << joinToString(junction.getIDList(), " ") << "\n";
     answerLog << "    getIDCount: " << junction.getIDCount() << "\n";
-    std::vector<libsumo::TraCIPosition> junctionShape = junction.getShape("n_m4");
-    std::string junctionShapeStr;
-    for (auto pos : junctionShape) {
-        junctionShapeStr += pos.getString() + " ";
-    }
-    answerLog << "    getShape: " << junctionShapeStr << "\n";
+    answerLog << "    getShape: " << junction.getShape("n_m4").getString() << "\n";
 
     // route
     answerLog << "  route:\n";
@@ -881,8 +868,17 @@ TraCITestClient::testAPI() {
         answerLog << "      veh=" << vd.id << " length=" << vd.length << " entered=" << vd.entryTime << " left=" << vd.leaveTime << " type=" << vd.typeID << "\n";
     }
 
+    // multi-entry/-exit detector
+    // answerLog << "  multi-entry/-exit detector:\n";
+    // answerLog << "    getLastStepVehicleIDs: " << joinToString(multientryexit.getLastStepVehicleIDs("det2"), " ") << "\n";
+    // answerLog << "    getEntryLanes: " << joinToString(multientryexit.getEntryLanes("det2"), " ") << "\n";
+    // answerLog << "    getExitLanes: " << joinToString(multientryexit.getExitLanes("det2"), " ") << "\n";
+    // answerLog << "    getEntryPositions: " << joinToString(multientryexit.getEntryPositions("det2"), " ") << "\n";
+    // answerLog << "    getExitPositions: " << joinToString(multientryexit.getExitPositions("det2"), " ") << "\n";
+
     // simulation
     answerLog << "  simulation:\n";
+    answerLog << "    getOption: " << simulation.getOption("net-file") << "\n";
     answerLog << "    convert2D: " << simulation.convert2D("e_m5", 0).getString() << "\n";
     answerLog << "    convert2DGeo: " << simulation.convert2D("e_m5", 0, 0, true).getString() << "\n";
     answerLog << "    convert3D: " << simulation.convert3D("e_m5", 0).getString() << "\n";
@@ -935,7 +931,7 @@ TraCITestClient::testAPI() {
     vehicle.addSubscriptionFilterLeadFollow(std::vector<int>({0, 1, 2}));
     vehicle.addSubscriptionFilterTurn();
     vehicle.addSubscriptionFilterVClass(std::vector<std::string>({"passenger"}));
-    vehicle.addSubscriptionFilterVType(std::vector<std::string>({"passenger"}));
+    vehicle.addSubscriptionFilterVType(std::vector<std::string>({"DEFAULT_VEHTYPE"}));
     vehicle.addSubscriptionFilterLCManeuver(1);
 
     vehicle.subscribeContext("3", libsumo::CMD_GET_VEHICLE_VARIABLE, 200, vars3, 0, 100);
@@ -1029,11 +1025,10 @@ TraCITestClient::testAPI() {
         }
     }
     libsumo::TraCILogic logic("custom", 0, 3);
-    logic.phases = std::vector<libsumo::TraCIPhase*>({ new libsumo::TraCIPhase(5, "rrrrrrr", 5, 5),
-                     new libsumo::TraCIPhase(10, "ggggggg", 5, 15),
-                     new libsumo::TraCIPhase(3, "GGGGGGG", 3, 3),
-                     new libsumo::TraCIPhase(3, "yyyyyyy", 3, 3)
-    });
+    logic.phases.push_back(std::make_shared<libsumo::TraCIPhase>(5, "rrrrrrr", 5, 5));
+    logic.phases.push_back(std::make_shared<libsumo::TraCIPhase>(10, "ggggggg", 5, 15));
+    logic.phases.push_back(std::make_shared<libsumo::TraCIPhase>(3, "GGGGGGG", 3, 3));
+    logic.phases.push_back(std::make_shared<libsumo::TraCIPhase>(3, "yyyyyyy", 3, 3));
     trafficlights.setProgramLogic("n_m4", logic);
 
     std::vector<libsumo::TraCILogic> logics = trafficlights.getAllProgramLogics("n_m4");
@@ -1055,6 +1050,19 @@ TraCITestClient::testAPI() {
     answerLog << "    stateSet=" << trafficlights.getRedYellowGreenState("n_m4") << "\n";
     answerLog << "    program: " << trafficlights.getProgram("n_m4") << "\n";
 
+    answerLog << "  gui:\n";
+    try {
+        answerLog << "    setScheme: \n";
+        gui.setSchema("View #0", "real world");
+        answerLog << "    getScheme: " << gui.getSchema("View #0") << "\n";
+        gui.setZoom("View #0", 50);
+        answerLog << "    getZoom: " << gui.getZoom() << "\n";
+        answerLog << "    take screenshot: \n";
+        gui.screenshot("View #0", "image.png", 500, 500);
+    } catch (libsumo::TraCIException&) {
+        answerLog << "    no support for gui commands\n";
+    }
+
     answerLog << "  load:\n";
     std::vector<std::string> args;
     args.push_back("-n");
@@ -1069,17 +1077,4 @@ TraCITestClient::testAPI() {
     answerLog << "    getCurrentTime: " << simulation.getCurrentTime() << "\n";
     vehicle.subscribe("0", vars, 0, 100);
     edge.subscribeContext("e_u1", libsumo::CMD_GET_VEHICLE_VARIABLE, 100, vars2, 0, 100);
-
-    answerLog << "  gui:\n";
-    try {
-        answerLog << "    setScheme: \n";
-        gui.setSchema("View #0", "real world");
-        answerLog << "    getScheme: " << gui.getSchema("View #0") << "\n";
-        gui.setZoom("View #0", 50);
-        answerLog << "    getZoom: " << gui.getZoom() << "\n";
-        answerLog << "    take screenshot: \n";
-        gui.screenshot("View #0", "image.png", 500, 500);
-    } catch (libsumo::TraCIException&) {
-        answerLog << "    no support for gui commands\n";
-    }
 }

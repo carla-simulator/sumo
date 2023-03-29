@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 
-<!-- generated on Wed Nov 18 10:23:10 2020 by Eclipse SUMO netconvert Version v1_7_0+1088-46b7762484
+<!-- generated on 2023-02-06 12:10:37 by Eclipse SUMO netconvert Version v1_15_0+2198-1709483215c
 -->
 
 <xsd:schema elementFormDefault="qualified" xmlns:xsd="http://www.w3.org/2001/XMLSchema">
@@ -63,6 +63,7 @@
             <xsd:element name="human-readable-time" type="boolOptionType" minOccurs="0"/>
             <xsd:element name="output-file" type="fileOptionType" minOccurs="0"/>
             <xsd:element name="plain-output-prefix" type="fileOptionType" minOccurs="0"/>
+            <xsd:element name="plain-output.lanes" type="boolOptionType" minOccurs="0"/>
             <xsd:element name="junctions.join-output" type="fileOptionType" minOccurs="0"/>
             <xsd:element name="prefix" type="strOptionType" minOccurs="0"/>
             <xsd:element name="amitran-output" type="fileOptionType" minOccurs="0"/>
@@ -80,6 +81,8 @@
             <xsd:element name="railway.topology.output" type="fileOptionType" minOccurs="0"/>
             <xsd:element name="polygon-output" type="fileOptionType" minOccurs="0"/>
             <xsd:element name="opendrive-output.straight-threshold" type="floatOptionType" minOccurs="0"/>
+            <xsd:element name="opendrive-output.lefthand-left" type="boolOptionType" minOccurs="0"/>
+            <xsd:element name="opendrive-output.shape-match-dist" type="floatOptionType" minOccurs="0"/>
         </xsd:all>
     </xsd:complexType>
 
@@ -112,6 +115,7 @@
             <xsd:element name="geometry.remove" type="boolOptionType" minOccurs="0"/>
             <xsd:element name="geometry.remove.keep-edges.explicit" type="strArrayOptionType" minOccurs="0"/>
             <xsd:element name="geometry.remove.keep-edges.input-file" type="fileOptionType" minOccurs="0"/>
+            <xsd:element name="geometry.remove.keep-ptstops" type="boolOptionType" minOccurs="0"/>
             <xsd:element name="geometry.remove.min-length" type="floatOptionType" minOccurs="0"/>
             <xsd:element name="geometry.remove.width-tolerance" type="floatOptionType" minOccurs="0"/>
             <xsd:element name="geometry.max-segment-length" type="floatOptionType" minOccurs="0"/>
@@ -139,6 +143,7 @@
             <xsd:element name="opposites.guess" type="boolOptionType" minOccurs="0"/>
             <xsd:element name="opposites.guess.fix-lengths" type="boolOptionType" minOccurs="0"/>
             <xsd:element name="fringe.guess" type="boolOptionType" minOccurs="0"/>
+            <xsd:element name="fringe.guess.speed-threshold" type="floatOptionType" minOccurs="0"/>
             <xsd:element name="lefthand" type="boolOptionType" minOccurs="0"/>
             <xsd:element name="edges.join" type="boolOptionType" minOccurs="0"/>
             <xsd:element name="speed.offset" type="floatOptionType" minOccurs="0"/>
@@ -154,11 +159,15 @@
             <xsd:element name="default.lanewidth" type="floatOptionType" minOccurs="0"/>
             <xsd:element name="default.spreadtype" type="strOptionType" minOccurs="0"/>
             <xsd:element name="default.speed" type="floatOptionType" minOccurs="0"/>
+            <xsd:element name="default.friction" type="floatOptionType" minOccurs="0"/>
             <xsd:element name="default.priority" type="intOptionType" minOccurs="0"/>
             <xsd:element name="default.type" type="strOptionType" minOccurs="0"/>
             <xsd:element name="default.sidewalk-width" type="floatOptionType" minOccurs="0"/>
             <xsd:element name="default.bikelane-width" type="floatOptionType" minOccurs="0"/>
             <xsd:element name="default.crossing-width" type="floatOptionType" minOccurs="0"/>
+            <xsd:element name="default.crossing-speed" type="floatOptionType" minOccurs="0"/>
+            <xsd:element name="default.walkingarea-speed" type="floatOptionType" minOccurs="0"/>
+            <xsd:element name="default.allow" type="strOptionType" minOccurs="0"/>
             <xsd:element name="default.disallow" type="strOptionType" minOccurs="0"/>
             <xsd:element name="default.junctions.keep-clear" type="boolOptionType" minOccurs="0"/>
             <xsd:element name="default.junctions.radius" type="floatOptionType" minOccurs="0"/>
@@ -183,6 +192,7 @@
             <xsd:element name="tls.ignore-internal-junction-jam" type="boolOptionType" minOccurs="0"/>
             <xsd:element name="tls.guess-signals" type="boolOptionType" minOccurs="0"/>
             <xsd:element name="tls.guess-signals.dist" type="floatOptionType" minOccurs="0"/>
+            <xsd:element name="tls.guess-signals.slack" type="intOptionType" minOccurs="0"/>
             <xsd:element name="tls.cycle.time" type="intOptionType" minOccurs="0"/>
             <xsd:element name="tls.green.time" type="intOptionType" minOccurs="0"/>
             <xsd:element name="tls.yellow.min-decel" type="floatOptionType" minOccurs="0"/>
@@ -192,6 +202,9 @@
             <xsd:element name="tls.allred.time" type="intOptionType" minOccurs="0"/>
             <xsd:element name="tls.minor-left.max-speed" type="floatOptionType" minOccurs="0"/>
             <xsd:element name="tls.left-green.time" type="intOptionType" minOccurs="0"/>
+            <xsd:element name="tls.nema.vehExt" type="intOptionType" minOccurs="0"/>
+            <xsd:element name="tls.nema.yellow" type="intOptionType" minOccurs="0"/>
+            <xsd:element name="tls.nema.red" type="intOptionType" minOccurs="0"/>
             <xsd:element name="tls.crossing-min.time" type="intOptionType" minOccurs="0"/>
             <xsd:element name="tls.crossing-clearance.time" type="intOptionType" minOccurs="0"/>
             <xsd:element name="tls.scramble.time" type="intOptionType" minOccurs="0"/>
@@ -199,10 +212,12 @@
             <xsd:element name="tls.quarter-offset" type="strArrayOptionType" minOccurs="0"/>
             <xsd:element name="tls.default-type" type="strOptionType" minOccurs="0"/>
             <xsd:element name="tls.layout" type="strOptionType" minOccurs="0"/>
+            <xsd:element name="tls.no-mixed" type="boolOptionType" minOccurs="0"/>
             <xsd:element name="tls.min-dur" type="intOptionType" minOccurs="0"/>
             <xsd:element name="tls.max-dur" type="intOptionType" minOccurs="0"/>
             <xsd:element name="tls.group-signals" type="boolOptionType" minOccurs="0"/>
             <xsd:element name="tls.ungroup-signals" type="boolOptionType" minOccurs="0"/>
+            <xsd:element name="tls.rebuild" type="boolOptionType" minOccurs="0"/>
         </xsd:all>
     </xsd:complexType>
 
@@ -250,6 +265,7 @@
     <xsd:complexType name="junctionsTopicType">
         <xsd:all>
             <xsd:element name="junctions.right-before-left.speed-threshold" type="floatOptionType" minOccurs="0"/>
+            <xsd:element name="junctions.left-before-right" type="boolOptionType" minOccurs="0"/>
             <xsd:element name="no-internal-links" type="boolOptionType" minOccurs="0"/>
             <xsd:element name="no-turnarounds" type="boolOptionType" minOccurs="0"/>
             <xsd:element name="no-turnarounds.tls" type="boolOptionType" minOccurs="0"/>
@@ -262,6 +278,7 @@
             <xsd:element name="junctions.join-dist" type="floatOptionType" minOccurs="0"/>
             <xsd:element name="junctions.join-exclude" type="strArrayOptionType" minOccurs="0"/>
             <xsd:element name="junctions.join-same" type="boolOptionType" minOccurs="0"/>
+            <xsd:element name="max-join-ids" type="intOptionType" minOccurs="0"/>
             <xsd:element name="junctions.corner-detail" type="intOptionType" minOccurs="0"/>
             <xsd:element name="junctions.internal-link-detail" type="intOptionType" minOccurs="0"/>
             <xsd:element name="junctions.scurve-stretch" type="floatOptionType" minOccurs="0"/>
@@ -272,6 +289,8 @@
             <xsd:element name="junctions.limit-turn-speed.warn.straight" type="floatOptionType" minOccurs="0"/>
             <xsd:element name="junctions.limit-turn-speed.warn.turn" type="floatOptionType" minOccurs="0"/>
             <xsd:element name="junctions.small-radius" type="floatOptionType" minOccurs="0"/>
+            <xsd:element name="junctions.higher-speed" type="boolOptionType" minOccurs="0"/>
+            <xsd:element name="internal-junctions.vehicle-width" type="floatOptionType" minOccurs="0"/>
             <xsd:element name="rectangular-lane-cut" type="boolOptionType" minOccurs="0"/>
             <xsd:element name="check-lane-foes.roundabout" type="boolOptionType" minOccurs="0"/>
             <xsd:element name="check-lane-foes.all" type="boolOptionType" minOccurs="0"/>
@@ -306,11 +325,13 @@
         <xsd:all>
             <xsd:element name="railway.signals.discard" type="boolOptionType" minOccurs="0"/>
             <xsd:element name="railway.topology.repair" type="boolOptionType" minOccurs="0"/>
+            <xsd:element name="railway.topology.repair.minimal" type="boolOptionType" minOccurs="0"/>
             <xsd:element name="railway.topology.repair.connect-straight" type="boolOptionType" minOccurs="0"/>
             <xsd:element name="railway.topology.repair.stop-turn" type="boolOptionType" minOccurs="0"/>
             <xsd:element name="railway.topology.all-bidi" type="boolOptionType" minOccurs="0"/>
             <xsd:element name="railway.topology.all-bidi.input-file" type="fileOptionType" minOccurs="0"/>
             <xsd:element name="railway.topology.direction-priority" type="boolOptionType" minOccurs="0"/>
+            <xsd:element name="railway.topology.extend-priority" type="boolOptionType" minOccurs="0"/>
             <xsd:element name="railway.access-distance" type="floatOptionType" minOccurs="0"/>
             <xsd:element name="railway.max-accesses" type="intOptionType" minOccurs="0"/>
             <xsd:element name="railway.access-factor" type="floatOptionType" minOccurs="0"/>
@@ -320,16 +341,24 @@
     <xsd:complexType name="formatsTopicType">
         <xsd:all>
             <xsd:element name="discard-params" type="strArrayOptionType" minOccurs="0"/>
+            <xsd:element name="ignore-change-restrictions" type="strArrayOptionType" minOccurs="0"/>
             <xsd:element name="osm.skip-duplicates-check" type="boolOptionType" minOccurs="0"/>
             <xsd:element name="osm.elevation" type="boolOptionType" minOccurs="0"/>
             <xsd:element name="osm.layer-elevation" type="floatOptionType" minOccurs="0"/>
             <xsd:element name="osm.layer-elevation.max-grade" type="floatOptionType" minOccurs="0"/>
             <xsd:element name="osm.oneway-spread-right" type="boolOptionType" minOccurs="0"/>
+            <xsd:element name="osm.lane-access" type="boolOptionType" minOccurs="0"/>
+            <xsd:element name="osm.bike-access" type="boolOptionType" minOccurs="0"/>
+            <xsd:element name="osm.sidewalks" type="boolOptionType" minOccurs="0"/>
+            <xsd:element name="osm.crossings" type="boolOptionType" minOccurs="0"/>
+            <xsd:element name="osm.turn-lanes" type="boolOptionType" minOccurs="0"/>
             <xsd:element name="osm.stop-output.length" type="floatOptionType" minOccurs="0"/>
             <xsd:element name="osm.stop-output.length.bus" type="floatOptionType" minOccurs="0"/>
             <xsd:element name="osm.stop-output.length.tram" type="floatOptionType" minOccurs="0"/>
             <xsd:element name="osm.stop-output.length.train" type="floatOptionType" minOccurs="0"/>
             <xsd:element name="osm.all-attributes" type="boolOptionType" minOccurs="0"/>
+            <xsd:element name="osm.extra-attributes" type="strArrayOptionType" minOccurs="0"/>
+            <xsd:element name="osm.speedlimit-none" type="floatOptionType" minOccurs="0"/>
             <xsd:element name="matsim.keep-length" type="boolOptionType" minOccurs="0"/>
             <xsd:element name="matsim.lanes-from-capacity" type="boolOptionType" minOccurs="0"/>
             <xsd:element name="shapefile.street-id" type="strOptionType" minOccurs="0"/>
@@ -367,6 +396,8 @@
             <xsd:element name="opendrive.advance-stopline" type="floatOptionType" minOccurs="0"/>
             <xsd:element name="opendrive.min-width" type="floatOptionType" minOccurs="0"/>
             <xsd:element name="opendrive.internal-shapes" type="boolOptionType" minOccurs="0"/>
+            <xsd:element name="opendrive.position-ids" type="boolOptionType" minOccurs="0"/>
+            <xsd:element name="opendrive.lane-shapes" type="boolOptionType" minOccurs="0"/>
         </xsd:all>
     </xsd:complexType>
 
@@ -383,6 +414,7 @@
             <xsd:element name="log" type="fileOptionType" minOccurs="0"/>
             <xsd:element name="message-log" type="fileOptionType" minOccurs="0"/>
             <xsd:element name="error-log" type="fileOptionType" minOccurs="0"/>
+            <xsd:element name="language" type="strOptionType" minOccurs="0"/>
             <xsd:element name="ignore-errors" type="boolOptionType" minOccurs="0"/>
             <xsd:element name="ignore-errors.connections" type="boolOptionType" minOccurs="0"/>
             <xsd:element name="show-errors.connections-first-try" type="boolOptionType" minOccurs="0"/>

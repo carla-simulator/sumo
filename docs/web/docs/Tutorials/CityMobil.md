@@ -1,6 +1,5 @@
 ---
-title: Tutorials/CityMobil
-permalink: /Tutorials/CityMobil/
+title: CityMobil
 ---
 
 The *city_mobil* subdirectory in {{SUMO}}/docs/tutorial contains the setup for
@@ -11,11 +10,11 @@ for the new version only `createNetTaxi.py` is relevant.
 
 This tutorial explains how to build such a scenario programmatically by generating
 all input files with a (python) script we call `createNetTaxi.py`. The easiest way
-of following it is probably to read the existing code side by side with this tutorial
+to follow it, is probably to read the existing code side by side with this tutorial
 since not every line wil be covered here. Some basic knowledge of Python is assumed.
 
 Most parameters for the application (including the paths to the
-executables) are in constants.py and can be easily adapted there to modify the scenario.
+executables) are in `constants.py` and can be easily adapted there to modify the scenario.
 These parameters are written in ALL_CAPS below.
 
 At the start of our script we will import those constants as well as modifying the 
@@ -33,11 +32,11 @@ import sumolib
 
 ## The Scenario
 
-![](../images/citymobil.png)
+![](../images/citymobil.png "CityMobil scenario")
 
 The setup consists of a parking lot with access streets in several rows and parking
 areas on both sides of the road. Vehicles with passengers arrive on the main street
-in the lower left corner, drive to a parking lot where the passengers exit and walk
+in the lower left corner, drive to a parking lot where the passengers exit, and walk
 to a bus stop on the top road where an automated shuttle service brings them to their
 final destination in the upper right corner. The shuttle service will be demand driven,
 so it will only stop when passengers want to enter or leave.
@@ -49,7 +48,7 @@ The main parameters of the network are the number of (double) rows the parking l
 (ROW_DIST). They define the layout assuming a fixed width of each slot.
 
 We generate a node file defining the positions of the junctions and an edge file
-specifiying the connections between the nodes together with parameters such as the 
+specifying the connections between the nodes together with parameters such as the 
 number of lanes and the allowed vehicle classes.
 
 We open the files as standard text files and use a helper function from the sumolib to 
@@ -68,7 +67,7 @@ This results in a header like this in our node file:
 ```
 This gives complete information on how and when this file has been generated as well
 as a schema reference which allows for validating the input. This makes it easier to find mistakes 
-such as typing errors in attribute names which could go unnoticed otherwise.
+such as typing errors in attribute names which could otherwise go unnoticed.
 
 After opening the edges file in the same way we can start writing the node and edge definitions.
 We first define a starting point for the insertion edge which is located 100m to the
@@ -119,7 +118,7 @@ Note that the back leading streets do not have a side walk because the passenger
 only allowed to enter and leave on the side of the parking lot.
 
 Now we only need the vertical running streets and we are done with the basic network.
-Here we do not need further nodes, we only connect the existing parts, but we need
+Here we do not need further nodes - we only connect the existing parts - but we need
 sidewalks again on both sides for the people to walk to the bus.
 ```
 for row in range(DOUBLE_ROWS):
@@ -147,7 +146,7 @@ bus stops which we add next.
 
 For the bus stops and the parking areas we use a so called additional file 
 which we open and write a header like above. The definition of the parking areas
-looks like that:
+looks like this:
 ```
 for row in range(DOUBLE_ROWS):
     print("""
@@ -162,7 +161,7 @@ would block (only visually but still) the sidewalk, so we enlarge the slots a li
 angle which lets all vehicles park forward leaving some space for the pedestrians.
 
 For the bus stops the only small surprise is that we need one less than parking lots because they are only 
-inbetween the parking roads.
+in between the parking roads.
 ```
 for row in range(DOUBLE_ROWS-1):
     edgeID = "cyber%sto%s" % (row, row + 1)
@@ -171,7 +170,7 @@ for row in range(DOUBLE_ROWS-1):
 Now we could close the additional file and already load it to the see the infrastructure.
 
 We will however reuse the additional file to start defining the vehicles (at least the vehicle types).
-Most of the vehicle type definiton is for the look (the color) and the vehicle class such that
+Most of the vehicle type definition is for the look (the color) and the vehicle class such that
 it will only use the right roads. The cyber car also has a taxi device to react to passenger requests.
 We will also define a regular bus to allow for comparisons with a regular bus service in further iterations
 of this tutorial.
@@ -190,13 +189,13 @@ Now we are ready to define the traffic demand.
 
 ## Traffic Demand
 
-We define the cybercars and the passenger vehicles in different route files. For the cybercars a simple flow is enough:
+We define the cybercars and the passenger vehicles in different route files. For the cybercars, a simple flow is enough:
 ```
 print("""    <flow id="c" type="cybercar" begin="50" period="100" number="%s" line="taxi">
         <route edges="cyberin cyber0to1"/>
     </flow>""" % (TOTAL_CAPACITY // CYBER_CAPACITY), file=routes)
 ```
-The only special thing here is line which uses the reserved string "taxi" to denote that this will be a demand driven 
+The only special thing here is the line which uses the reserved string "taxi" to denote that this will be a demand driven 
 transport system answering to special transportation requests. This specialty will also take care of the fact that 
 the vehicle should not leave the scenario after it reached the end of its initial route but wait for new requests.
 
@@ -254,8 +253,8 @@ which you can open and run with sumo-gui (again double click or from the console
 sumo-gui park05_cyber.sumocfg
 ```
 Feel free to change the layout of the parking lot and the behavior
-(speed, capacity etc.) of the vehicles. Whenever you edit constants.py
-or createNetTaxi.py remember to re-execute createNetTaxi.py before running the scenario.
+(speed, capacity etc.) of the vehicles. Whenever you edit `constants.py`
+or `createNetTaxi.py`, remember to re-execute `createNetTaxi.py` before running the scenario.
 
 ## Description of the dispatching algorithm
 TBD

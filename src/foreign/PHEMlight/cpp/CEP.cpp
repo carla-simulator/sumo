@@ -1,6 +1,6 @@
 /****************************************************************************/
 // Eclipse SUMO, Simulation of Urban MObility; see https://eclipse.org/sumo
-// Copyright (C) 2016-2020 German Aerospace Center (DLR) and others.
+// Copyright (C) 2016-2023 German Aerospace Center (DLR) and others.
 // PHEMlight module
 // Copyright (C) 2016-2017 Technische Universitaet Graz, https://www.tugraz.at/
 // This program and the accompanying materials are made available under the
@@ -20,7 +20,7 @@
 ///
 //
 /****************************************************************************/
-
+#include <config.h>
 
 #include "CEP.h"
 #include "Constants.h"
@@ -198,21 +198,21 @@ namespace PHEMlightdll {
     }
 
     double CEP::CalcPower(double speed, double acc, double gradient) {
-        //Declaration
+        // Declaration
         double power = 0;
         double rotFactor = GetRotationalCoeffecient(speed);
         double powerAux = (_auxPower * _ratedPower);
 
-        //Calculate the power
+        // Calculate the power
         power += (_massVehicle + _vehicleLoading) * Constants::GRAVITY_CONST * (_resistanceF0 + _resistanceF1 * speed + _resistanceF4 * std::pow(speed, 4)) * speed;
         power += (_crossSectionalArea * _cWValue * Constants::AIR_DENSITY_CONST / 2) * std::pow(speed, 3);
         power += (_massVehicle * rotFactor + _vehicleMassRot + _vehicleLoading) * acc * speed;
         power += (_massVehicle + _vehicleLoading) * Constants::GRAVITY_CONST * gradient * 0.01 * speed;
         power /= 1000;
-        power /= Constants::_DRIVE_TRAIN_EFFICIENCY;
+        power /= Constants::getDRIVE_TRAIN_EFFICIENCY();
         power += powerAux;
 
-        //Return result
+        // Return result
         return power;
     }
 

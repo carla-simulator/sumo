@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 # Eclipse SUMO, Simulation of Urban MObility; see https://eclipse.org/sumo
-# Copyright (C) 2013-2020 German Aerospace Center (DLR) and others.
+# Copyright (C) 2013-2023 German Aerospace Center (DLR) and others.
 # This program and the accompanying materials are made available under the
 # terms of the Eclipse Public License 2.0 which is available at
 # https://www.eclipse.org/legal/epl-2.0/
@@ -144,14 +144,15 @@ class CSVWriter(NestingHandler):
         self.outfiles = {}
         self.rootDepth = 1 if options.split else 0
         for root in sorted(attrFinder.depthTags):
-            if not options.output:
-                if isinstance(options.source, str):
-                    options.output = os.path.splitext(options.source)[0]
-                else:
-                    options.output = options.source.name
-            if len(attrFinder.depthTags) == 1:
+            if options.output:
                 if not options.output.isdigit() and not options.output.endswith(".csv"):
                     options.output += ".csv"
+            else:
+                if isinstance(options.source, str):
+                    options.output = os.path.splitext(options.source)[0] + ".csv"
+                else:
+                    options.output = options.source.name + ".csv"
+            if len(attrFinder.depthTags) == 1:
                 self.outfiles[root] = getOutStream(options.output)
             else:
                 outfilename = options.output + "%s.csv" % root
@@ -202,6 +203,9 @@ class CSVWriter(NestingHandler):
                 for a in self.attrFinder.tagAttrs[name]:
                     a2 = self.attrFinder.renamedAttrs.get((name, a), a)
                     del self.currentValues[a2]
+        if self.depth() == 0:
+            for f in self.outfiles.values():
+                f.close()
         NestingHandler.endElement(self, name)
 
 
@@ -264,7 +268,7 @@ def main(args=None):
     handler = CSVWriter(attrFinder, options)
     if options.validation:
         schema = lxml.etree.XMLSchema(file=options.xsd)
-        parser = lxml.etree.XMLParser(schema=schema)
+        parser = lxml.etree.XMLParser(schema=schema, resolve_entities=False, no_network=True)
         tree = lxml.etree.parse(options.source, parser)
         lxml.sax.saxify(tree, handler)
     else:

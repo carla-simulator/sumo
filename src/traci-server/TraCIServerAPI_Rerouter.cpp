@@ -1,6 +1,6 @@
 /****************************************************************************/
 // Eclipse SUMO, Simulation of Urban MObility; see https://eclipse.org/sumo
-// Copyright (C) 2001-2020 German Aerospace Center (DLR) and others.
+// Copyright (C) 2001-2023 German Aerospace Center (DLR) and others.
 // This program and the accompanying materials are made available under the
 // terms of the Eclipse Public License 2.0 which is available at
 // https://www.eclipse.org/legal/epl-2.0/
@@ -15,7 +15,7 @@
 /// @author  Jakob Erdmann
 /// @date    16.03.2020
 ///
-// APIs for getting/setting busstop values via TraCI
+// APIs for getting/setting rerouter values via TraCI
 /****************************************************************************/
 #include <config.h>
 
@@ -37,33 +37,8 @@ TraCIServerAPI_Rerouter::processGet(TraCIServer& server, tcpip::Storage& inputSt
     const std::string id = inputStorage.readString();
     server.initWrapper(libsumo::RESPONSE_GET_REROUTER_VARIABLE, variable, id);
     try {
-        if (!libsumo::Rerouter::handleVariable(id, variable, &server)) {
-            switch (variable) {
-                case libsumo::VAR_PARAMETER: {
-                    std::string paramName = "";
-                    if (!server.readTypeCheckingString(inputStorage, paramName)) {
-                        return server.writeErrorStatusCmd(libsumo::CMD_GET_REROUTER_VARIABLE, "Retrieval of a parameter requires its name.", outputStorage);
-                    }
-                    server.getWrapperStorage().writeUnsignedByte(libsumo::TYPE_STRING);
-                    server.getWrapperStorage().writeString(libsumo::Rerouter::getParameter(id, paramName));
-                    break;
-                }
-                case libsumo::VAR_PARAMETER_WITH_KEY: {
-                    std::string paramName = "";
-                    if (!server.readTypeCheckingString(inputStorage, paramName)) {
-                        return server.writeErrorStatusCmd(libsumo::CMD_GET_REROUTER_VARIABLE, "Retrieval of a parameter requires its name.", outputStorage);
-                    }
-                    server.getWrapperStorage().writeUnsignedByte(libsumo::TYPE_COMPOUND);
-                    server.getWrapperStorage().writeInt(2);  /// length
-                    server.getWrapperStorage().writeUnsignedByte(libsumo::TYPE_STRING);
-                    server.getWrapperStorage().writeString(paramName);
-                    server.getWrapperStorage().writeUnsignedByte(libsumo::TYPE_STRING);
-                    server.getWrapperStorage().writeString(libsumo::Rerouter::getParameter(id, paramName));
-                    break;
-                }
-                default:
-                    return server.writeErrorStatusCmd(libsumo::CMD_GET_REROUTER_VARIABLE, "Get Rerouter Variable: unsupported variable " + toHex(variable, 2) + " specified", outputStorage);
-            }
+        if (!libsumo::Rerouter::handleVariable(id, variable, &server, &inputStorage)) {
+            return server.writeErrorStatusCmd(libsumo::CMD_GET_REROUTER_VARIABLE, "Get Rerouter Variable: unsupported variable " + toHex(variable, 2) + " specified", outputStorage);
         }
     } catch (libsumo::TraCIException& e) {
         return server.writeErrorStatusCmd(libsumo::CMD_GET_REROUTER_VARIABLE, e.what(), outputStorage);

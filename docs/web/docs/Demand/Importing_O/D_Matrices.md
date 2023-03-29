@@ -1,6 +1,5 @@
 ---
-title: Demand/Importing O/D Matrices
-permalink: /Demand/Importing_O/D_Matrices/
+title: Importing O/D Matrices
 ---
 
 [od2trips](../../od2trips.md) computes trip tables from O/D
@@ -17,7 +16,7 @@ The format is given in
 [\#Describing_the_TAZ](#describing_the_taz) below. You have
 to pass the file containing the TAZ definitions to
 [od2trips](../../od2trips.md) using the **--net-file** {{DT_FILE}} (**--net** {{DT_FILE}} or **-n** {{DT_FILE}} for short) option. TAZ
-can be created by drawing polygons in [netedit](../../netedit.md) and
+can be created by drawing polygons in [netedit](../../Netedit/index.md) and
 processing them with the tool
 [Tools/District\#edgesInDistricts.py](../../Tools/District.md#edgesindistrictspy).
 
@@ -105,9 +104,9 @@ destination lists are normalized after loading.
 ## Creating TAZ files
 
 - TAZ definitions can be created directly in
-  [netedit](../../netedit.md#taz_traffic_analysis_zones)
+  [netedit](../../Netedit/editModesNetwork.md#taz_traffic_analysis_zones)
 - TAZ definitions can be created by drawing polygons in
-  [netedit](../../netedit.md#pois_and_polygons), then using the tool
+  [netedit](../../Netedit/editModesNetwork.md#shapes), then using the tool
   [edgesInDistricts.py](../../Tools/District.md#edgesindistrictspy)
   for converting polygons to TAZ.
 
@@ -138,6 +137,36 @@ are the same). The values stored within the matrix are amounts of
 vehicles driving from the according origin district to the according
 destination district within the described time period.
 
+## tazRelation format
+
+The tazRelation format defines the demand per OD pair in time slices for
+every a given vehicle type as follows:
+
+```
+<data xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="http://sumo.dlr.de/xsd/datamode_file.xsd">
+    <interval id="car" begin="0" end="1:0:0">
+      <tazRelation count="2000" from="1" to="2"/>
+      <tazRelation count="500" from="1" to="3"/>
+      ...
+    </interval>
+    <interval ...>
+    ...
+</data>
+```
+
+Files in tazRelation format can be created and modified with [netedit](../../Netedit/index.md).
+They can also be created from route and taz files with [route2OD.py](../../Tools/Routes.md#route2odpy) (reversing the action of [od2trips](../../od2trips.md)).
+
+For details on the types and units see the schema at
+<https://sumo.dlr.de/xsd/datamode_file.xsd>
+
+!!! note
+    The "id" value of "interval" is used as the vehicle type but the type may be overruled by [od2trips](../../od2trips.md) option **--vtype**.
+
+
+## PTV formats
+
+
 The formats used by PTV are described in the VISUM-documentation more
 detailed. All start with a line where the type of the O/D-matrix is
 given, appended to a '$'. The first following character tells in which
@@ -159,7 +188,7 @@ exclusive; for example, if
 is given, the generated vehicles' depart times will be second 0 to
 second 3599.
 
-## The V format (VISUM/VISSIM)
+### The V format (VISUM/VISSIM)
 
 The V-format stores the O/D matrix by giving the number of districts
 (TAZ) first and then naming them. After this, for each of the named
@@ -202,7 +231,7 @@ left-aligned to a boundary of 11 characters (possibly 10 for the name
 and one space character). Both constraints are not mandatory for the
 importer used in od2trips.
 
-## The O-format (VISUM/VISSIM)
+### The O-format (VISUM/VISSIM)
 
 The O-format instead simply lists each origin and each destination
 together with the amount in one line (please remark that we currently
@@ -379,7 +408,7 @@ od2trips -n <NET> -d <MATRIX> -o <OUTPUT> --scale <SKALIERUNG> \
 # Generated traffic modes
 
 By default [od2trips](../../od2trips.md) generates vehicular traffic.
-Different types of traffic (passanger cars, trucks,...) can be created by using the option
+Different types of traffic (passenger cars, trucks,...) can be created by using the option
 **--vtype** and **--prefix** (the latter is needed so that different types use distinct vehicle ids).
 
 By setting one of the options **--pedestrians** or **--persontrips**, other modes can be generated.

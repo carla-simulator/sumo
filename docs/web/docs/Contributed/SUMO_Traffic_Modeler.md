@@ -1,6 +1,5 @@
 ---
-title: Contributed/SUMO Traffic Modeler
-permalink: /Contributed/SUMO_Traffic_Modeler/
+title: SUMO Traffic Modeler
 ---
 
 !!! caution

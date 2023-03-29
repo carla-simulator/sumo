@@ -1,6 +1,6 @@
 /****************************************************************************/
 // Eclipse SUMO, Simulation of Urban MObility; see https://eclipse.org/sumo
-// Copyright (C) 2017-2020 German Aerospace Center (DLR) and others.
+// Copyright (C) 2017-2023 German Aerospace Center (DLR) and others.
 // TraaS module
 // Copyright (C) 2016-2017 Dresden University of Technology
 // This program and the accompanying materials are made available under the
@@ -22,39 +22,10 @@
 /****************************************************************************/
 package de.tudresden.ws.container;
 
-import java.util.HashMap;
-
 /**
  *
  * @author Mario Krumnow
- *
+ * @deprecated use package {@link de.tudresden.sumo.objects} instead.
  */
 
-public class SumoTLSController implements SumoObject {
-
-    public HashMap<String, SumoTLSProgram> programs;
-
-    public SumoTLSController() {
-        this.programs = new HashMap<String, SumoTLSProgram>();
-    }
-
-    public void addProgram(SumoTLSProgram logic) {
-        this.programs.put(logic.subID, logic);
-    }
-
-    public SumoTLSProgram get(String prog_name) {
-
-        SumoTLSProgram tl = null;
-        if (this.programs.containsKey(prog_name)) {
-            tl = this.programs.get(prog_name);
-        }
-
-        return tl;
-
-    }
-
-    public String toString() {
-        return "";
-    }
-
-}
+public class SumoTLSController extends de.tudresden.sumo.objects.SumoTLSController {}

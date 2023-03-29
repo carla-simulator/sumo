@@ -1,6 +1,6 @@
 /****************************************************************************/
 // Eclipse SUMO, Simulation of Urban MObility; see https://eclipse.org/sumo
-// Copyright (C) 2017-2020 German Aerospace Center (DLR) and others.
+// Copyright (C) 2017-2023 German Aerospace Center (DLR) and others.
 // This program and the accompanying materials are made available under the
 // terms of the Eclipse Public License 2.0 which is available at
 // https://www.eclipse.org/legal/epl-2.0/
@@ -18,8 +18,6 @@
 // C++ TraCI client API implementation
 /****************************************************************************/
 #pragma once
-#include <config.h>
-
 #include <vector>
 #include <libsumo/TraCIDefs.h>
 
@@ -29,9 +27,6 @@
 // ===========================================================================
 #ifndef LIBTRACI
 class MSE3Collector;
-namespace libsumo {
-class VariableWrapper;
-}
 #endif
 
 
@@ -45,25 +40,36 @@ class VariableWrapper;
 namespace LIBSUMO_NAMESPACE {
 class MultiEntryExit {
 public:
+    static std::vector<std::string> getEntryLanes(const std::string& detID);
+    static std::vector<std::string> getExitLanes(const std::string& detID);
+    static std::vector<double> getEntryPositions(const std::string& detID);
+    static std::vector<double> getExitPositions(const std::string& detID);
+
     static int getLastStepVehicleNumber(const std::string& detID);
     static double getLastStepMeanSpeed(const std::string& detID);
     static std::vector<std::string> getLastStepVehicleIDs(const std::string& detID);
     static int getLastStepHaltingNumber(const std::string& detID);
 
+    static double getLastIntervalMeanTravelTime(const std::string& detID);
+    static double getLastIntervalMeanHaltsPerVehicle(const std::string& detID);
+    static double getLastIntervalMeanTimeLoss(const std::string& detID);
+    static int getLastIntervalVehicleSum(const std::string& detID);
+
     LIBSUMO_ID_PARAMETER_API
     LIBSUMO_SUBSCRIPTION_API
 
 #ifndef LIBTRACI
+#ifndef SWIG
     static std::shared_ptr<VariableWrapper> makeWrapper();
 
-    static bool handleVariable(const std::string& objID, const int variable, VariableWrapper* wrapper);
+    static bool handleVariable(const std::string& objID, const int variable, VariableWrapper* wrapper, tcpip::Storage* paramData);
 
-private:
     static MSE3Collector* getDetector(const std::string& detID);
 
 private:
     static SubscriptionResults mySubscriptionResults;
     static ContextSubscriptionResults myContextSubscriptionResults;
+#endif
 #endif
 
 private:

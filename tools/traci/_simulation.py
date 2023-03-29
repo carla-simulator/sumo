@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 # Eclipse SUMO, Simulation of Urban MObility; see https://eclipse.org/sumo
-# Copyright (C) 2011-2020 German Aerospace Center (DLR) and others.
+# Copyright (C) 2011-2023 German Aerospace Center (DLR) and others.
 # This program and the accompanying materials are made available under the
 # terms of the Eclipse Public License 2.0 which is available at
 # https://www.eclipse.org/legal/epl-2.0/
@@ -80,6 +80,69 @@ class Stage(object):
             self.__attr_repr__("description"),
         ] if v != ""])
 
+    def toXML(self, firstStage=True, isPerson=True, extra=[]):
+        """write stage as xml element.
+        If firstStage=False, the from-attribute is omitted since sumo derives it from the prior stage.
+        If extra is a list of (attrname, value) these will be added to the xml element
+        """
+        if self.type == tc.STAGE_WAITING:
+            to = ' edge="%s" endPos="%.2f"' % (self.edges[-1], self.arrivalPos)
+            if self.destStop:
+                to = ' busStop="%s"' % self.destStop
+            other = ''
+            if self.travelTime >= 0:
+                other += ' duration="%s"' % self.travelTime
+            other += ''.join([' %s="%s"' % i for i in extra])
+            return '<stop%s%s/>' % (to, other)
+
+        elif self.type == tc.STAGE_DRIVING:
+            fro = ' from="%s"' % self.edges[0] if firstStage else ''
+            to = ' to="%s" arrivalPos="%.2f"' % (self.edges[-1], self.arrivalPos)
+            if self.destStop:
+                to = ' busStop="%s"' % self.destStop
+            elem = "ride" if isPerson else "transport"
+            other = ''
+            if self.line:
+                other += ' lines="%s"' % self.line
+            if self.intended:
+                other += ' intended="%s"' % self.intended
+            if self.depart != tc.INVALID_DOUBLE_VALUE:
+                other += ' depart="%s"' % self.depart
+            other += ''.join([' %s="%s"' % i for i in extra])
+            return '<%s%s%s%s/>' % (elem, fro, to, other)
+
+        elif self.type == tc.STAGE_WALKING:
+            to = ' arrivalPos="%.2f"' % self.arrivalPos
+            if self.destStop:
+                to = ' busStop="%s"' % self.destStop
+            edges = ' edges="%s"' % ' '.join(self.edges)
+            other = ''.join([' %s="%s"' % i for i in extra])
+            return '<walk%s%s%s/>' % (edges, to, other)
+
+        elif self.type == tc.STAGE_TRIP:
+            fro = ' from="%s"' % self.edges[0] if firstStage else ''
+            to = ' to="%s" arrivalPos="%.2f"' % (self.edges[-1], self.arrivalPos)
+            if self.destStop:
+                to = ' busStop="%s"' % self.destStop
+            other = ''
+            if self.vType:
+                other += ' vTypes="%s"' % self.vType
+            other += ''.join([' %s="%s"' % i for i in extra])
+            return '<personTrip%s%s%s/>' % (fro, to, other)
+
+        elif self.type == tc.STAGE_TRANSHIP:
+            fro = ' from="%s"' % self.edges[0] if firstStage else ''
+            to = ' to="%s" arrivalPos="%.2f"' % (self.edges[-1], self.arrivalPos)
+            if self.destStop:
+                to = ' busStop="%s"' % self.destStop
+            other = ''.join([' %s="%s"' % i for i in extra])
+            return '<tranship%s%s%s/>' % (fro, to, other)
+
+        else:
+            # STAGE_ACCESS and STAGE_WAITING_FOR_DEPART are never read from xml
+            # print("unwritten stage: ", self.type)
+            return ""
+
 
 def _readStage(result):
     # compound size and type
@@ -109,7 +172,67 @@ def _writeStage(stage):
     return format, values
 
 
-_RETURN_VALUE_FUNC = {tc.FIND_ROUTE: _readStage}
+class Collision(object):
+
+    def __init__(self, collider, victim, colliderType, victimType,
+                 colliderSpeed, victimSpeed, collisionType, lane, pos):
+        self.collider = collider
+        self.victim = victim
+        self.colliderType = colliderType
+        self.victimType = victimType
+        self.colliderSpeed = colliderSpeed
+        self.victimSpeed = victimSpeed
+        self.type = collisionType
+        self.lane = lane
+        self.pos = pos
+
+    def __attr_repr__(self, attrname, default=""):
+        if getattr(self, attrname) == default:
+            return ""
+        else:
+            val = getattr(self, attrname)
+            if val == tc.INVALID_DOUBLE_VALUE:
+                val = "INVALID"
+            return "%s=%s" % (attrname, val)
+
+    def __repr__(self):
+        return "Collision(%s)" % ', '.join([v for v in [
+            self.__attr_repr__("collider"),
+            self.__attr_repr__("victim"),
+            self.__attr_repr__("colliderType"),
+            self.__attr_repr__("victimType"),
+            self.__attr_repr__("colliderSpeed"),
+            self.__attr_repr__("victimSpeed"),
+            self.__attr_repr__("type"),
+            self.__attr_repr__("lane"),
+            self.__attr_repr__("pos"),
+        ] if v != ""])
+
+
+def _readCollisions(result):
+    result.read("!iB")  # numCompounds, TYPE_INT
+    n = result.read("!i")[0]
+    values = []
+    for _ in range(n):
+        collider = result.readTypedString()
+        victim = result.readTypedString()
+        colliderType = result.readTypedString()
+        victimType = result.readTypedString()
+        colliderSpeed = result.readTypedDouble()
+        victimSpeed = result.readTypedDouble()
+        collisionType = result.readTypedString()
+        lane = result.readTypedString()
+        pos = result.readTypedDouble()
+        values.append(Collision(collider, victim, colliderType, victimType,
+                                colliderSpeed, victimSpeed, collisionType, lane, pos))
+
+    return tuple(values)
+
+
+_RETURN_VALUE_FUNC = {
+    tc.FIND_ROUTE: _readStage,
+    tc.VAR_COLLISIONS: _readCollisions
+}
 
 
 class SimulationDomain(Domain):
@@ -133,6 +256,13 @@ class SimulationDomain(Domain):
         """
         return self._getUniversal(tc.VAR_TIME)
 
+    def getEndTime(self):
+        """getEndTime() -> double
+
+        Returns the configured end time of the simulation in s or -1
+        """
+        return self._getUniversal(tc.VAR_END)
+
     def step(self, time=0.):
         """step(double) -> None
         Make a simulation step and simulate up to the given sim time (in seconds).
@@ -142,6 +272,14 @@ class SimulationDomain(Domain):
         if self._connection is None:
             raise FatalTraCIError("Not connected.")
         return self._connection.simulationStep(time)
+
+    def executeMove(self):
+        """executeMove() -> None
+        Make "half" a simulation step.
+        """
+        if self._connection is None:
+            raise FatalTraCIError("Not connected.")
+        self._connection._sendCmd(tc.CMD_EXECUTEMOVE, None, None)
 
     def getCurrentTime(self):
         """getCurrentTime() -> integer
@@ -195,6 +333,36 @@ class SimulationDomain(Domain):
         network) in this time step.
         """
         return self._getUniversal(tc.VAR_ARRIVED_VEHICLES_IDS)
+
+    def getDepartedPersonNumber(self):
+        """getDepartedPersonNumber() -> integer
+
+        Returns the number of persons which departed (were inserted into the road network) in this time step.
+        """
+        return self._getUniversal(tc.VAR_DEPARTED_PERSONS_NUMBER)
+
+    def getDepartedPersonIDList(self):
+        """getDepartedPersonIDList() -> list(string)
+
+        Returns a list of ids of persons which departed (were inserted into the road network) in this time step.
+        """
+        return self._getUniversal(tc.VAR_DEPARTED_PERSONS_IDS)
+
+    def getArrivedPersonNumber(self):
+        """getArrivedPersonNumber() -> integer
+
+        Returns the number of persons which arrived (have reached their destination and are removed from the road
+        network) in this time step.
+        """
+        return self._getUniversal(tc.VAR_ARRIVED_PERSONS_NUMBER)
+
+    def getArrivedPersonIDList(self):
+        """getArrivedPersonIDList() -> list(string)
+
+        Returns a list of ids of persons which arrived (have reached their destination and are removed from the road
+        network) in this time step.
+        """
+        return self._getUniversal(tc.VAR_ARRIVED_PERSONS_IDS)
 
     def getParkingStartingVehiclesNumber(self):
         """getParkingStartingVehiclesNumber() -> integer
@@ -280,13 +448,15 @@ class SimulationDomain(Domain):
 
     def getMinExpectedNumber(self):
         """getMinExpectedNumber() -> integer
-
-        Returns the number of vehicles which are in the net plus the
-        ones still waiting to start. This number may be smaller than
+        Returns the number of all active vehicles and persons which are in the net plus the
+        ones still waiting to start. Vehicles and persons currently stopped with a
+        'trigger' are excluded from this number (if only triggered objects
+        remain, the trigger condition cannot be fulfilled and all objects remain
+        stopped without user intervention).
+        The returned number may also be smaller than
         the actual number of vehicles still to come because of delayed
         route file parsing. If the number is 0 however, it is
-        guaranteed that all route files have been parsed completely
-        and all vehicles have left the network.
+        guaranteed that all route files have been parsed completely.
         """
         return self._getUniversal(tc.VAR_MIN_EXPECTED_VEHICLES)
 
@@ -332,6 +502,32 @@ class SimulationDomain(Domain):
         Returns a list of ids of vehicles which ended to be teleported in this time step.
         """
         return self._getUniversal(tc.VAR_TELEPORT_ENDING_VEHICLES_IDS)
+
+    def getCollisions(self):
+        """getCollisions() -> list(Collision)
+        Returns a list of collision objects
+        """
+        return self._getUniversal(tc.VAR_COLLISIONS)
+
+    def getPendingVehicles(self):
+        """getPendingVehicles() -> list(string)
+        Returns a list of all vehicle ids waiting for insertion (with depart delay)
+        """
+        return self._getUniversal(tc.VAR_PENDING_VEHICLES)
+
+    def getScale(self):
+        """getScale() -> double
+
+        Returns the traffic scaling factor
+        """
+        return self._getUniversal(tc.VAR_SCALE)
+
+    def getOption(self, option):
+        """getOption(string) -> string
+
+        Returns the value of the given SUMO option
+        """
+        return self._getUniversal(tc.VAR_OPTION, option)
 
     def getDeltaT(self):
         """getDeltaT() -> double
@@ -447,6 +643,13 @@ class SimulationDomain(Domain):
             answer.read("!B")                   # Type
             result.append(_readStage(answer))
         return tuple(result)
+
+    def setScale(self, value):
+        """setScale(value) -> None
+
+        Sets the traffic scaling factor
+        """
+        self._setCmd(tc.VAR_SCALE, "", "d", value)
 
     def clearPending(self, routeID=""):
         self._setCmd(tc.CMD_CLEAR_PENDING_VEHICLES, "", "s", routeID)

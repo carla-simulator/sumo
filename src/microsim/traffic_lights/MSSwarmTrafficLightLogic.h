@@ -1,6 +1,6 @@
 /****************************************************************************/
 // Eclipse SUMO, Simulation of Urban MObility; see https://eclipse.org/sumo
-// Copyright (C) 2010-2020 German Aerospace Center (DLR) and others.
+// Copyright (C) 2010-2023 German Aerospace Center (DLR) and others.
 // This program and the accompanying materials are made available under the
 // terms of the Eclipse Public License 2.0 which is available at
 // https://www.eclipse.org/legal/epl-2.0/
@@ -21,8 +21,6 @@
 #pragma once
 #include <config.h>
 
-//#define SWARM_DEBUG
-#include <utils/common/SwarmDebug.h>
 #include "MSSOTLHiLevelTrafficLightLogic.h"
 #include "MSSOTLPhasePolicy.h"
 #include "MSSOTLPlatoonPolicy.h"
@@ -112,7 +110,7 @@ public:
     MSSwarmTrafficLightLogic(MSTLLogicControl& tlcontrol, const std::string& id,
                              const std::string& programID, const Phases& phases, int step,
                              SUMOTime delay,
-                             const std::map<std::string, std::string>& parameters);
+                             const Parameterised::Map& parameters);
 
     ~MSSwarmTrafficLightLogic();
 
@@ -344,14 +342,14 @@ protected:
             sum_avg_tmp += phero_values[i];
         }
 
-        double mean = sum_avg_tmp / phero_values.size();
+        const double mean = sum_avg_tmp / (double)phero_values.size();
 
         double sum_dev_tmp = 0;
         for (int i = 0; i < (int)phero_values.size(); i++) {
             sum_dev_tmp += pow(phero_values[i] - mean, 2);
         }
 
-        double deviation = sqrt(sum_dev_tmp / phero_values.size());
+        const double deviation = sqrt(sum_dev_tmp / (double)phero_values.size());
 
         scaleFactorDispersionIn = getPheroMaxVal() / deviation;
     }
@@ -370,7 +368,7 @@ protected:
         for (int i = 0; i < (int)phero_values.size(); i++) {
             sum_avg_tmp += phero_values[i];
         }
-        double mean = sum_avg_tmp / phero_values.size();
+        const double mean = sum_avg_tmp / (double)phero_values.size();
 
         double sum_dev_tmp = 0;
 
@@ -378,7 +376,7 @@ protected:
             sum_dev_tmp += pow(phero_values[i] - mean, 2);
         }
 
-        double deviation = sqrt(sum_dev_tmp / phero_values.size());
+        const double deviation = sqrt(sum_dev_tmp / (double)phero_values.size());
 
         scaleFactorDispersionOut = getPheroMaxVal() / deviation;
     }
@@ -432,7 +430,7 @@ protected:
     std::map<std::string, std::vector<int> > m_laneIndexMap;
     std::string getLaneLightState(const std::string& laneId);
 //	store the last message logged. if equal do not log it again
-    std::map<std::string, std::string> m_pheroLevelLog;
+    Parameterised::Map m_pheroLevelLog;
 
     //derivative
     std::map<std::string, CircularBuffer<double>* > m_meanSpeedHistory;

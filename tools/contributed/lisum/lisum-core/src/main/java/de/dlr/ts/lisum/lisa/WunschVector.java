@@ -1,6 +1,6 @@
 /****************************************************************************/
 // Eclipse SUMO, Simulation of Urban MObility; see https://eclipse.org/sumo
-// Copyright (C) 2016-2020 German Aerospace Center (DLR) and others.
+// Copyright (C) 2016-2023 German Aerospace Center (DLR) and others.
 // This program and the accompanying materials are made available under the
 // terms of the Eclipse Public License 2.0 which is available at
 // https://www.eclipse.org/legal/epl-2.0/
@@ -18,6 +18,8 @@
 //
 /****************************************************************************/
 package de.dlr.ts.lisum.lisa;
+
+import org.apache.maven.artifact.versioning.ComparableVersion;
 
 /**
  *
@@ -37,6 +39,8 @@ class WunschVector {
 
     private final LisaSignalPrograms signalPrograms;
 
+    private final static ComparableVersion version72 = new ComparableVersion("7.2");
+
 
     //1;1;0;2;1;0;0;0
     public String getVector() {
@@ -48,6 +52,11 @@ class WunschVector {
         StringBuilder sb = new StringBuilder();
         //sb.append("{");
         sb.append(ebene).append(";");
+        
+        if (Lisa.minVersion(version72)) {
+            sb.append("0;0;0;");
+        }
+        
         sb.append(betriebsArt).append(";");
         sb.append(signalProg).append(";");
         sb.append(knotenEinAus).append(";");

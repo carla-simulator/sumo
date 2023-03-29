@@ -7,6 +7,9 @@ battery
 # Tests for per-vehicle emissions tracking
 emissions
 
+# Tests for electric vehicle powered from overhead wires
+elechybrid
+
 # tests for wireless (blue-tooth) devices
 bt
 
@@ -14,4 +17,4 @@ bt
 rerouting
 
 # tests for the taxi device
-#taxi
+taxi

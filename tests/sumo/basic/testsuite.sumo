@@ -1,9 +1,6 @@
 # testing route loading
 routes
 
-# tests for the traffic lights subsystem
-tls
-
 # tests for vehicle type handling
 vtypes
 
@@ -25,4 +22,7 @@ person
 # Tests related to personFlow 
 personFlow
 container
+
+# Tests related to containerFlow 
+containerFlow
 stops

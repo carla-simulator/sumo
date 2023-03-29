@@ -1,6 +1,5 @@
 ---
-title: TraCI/GUI Value Retrieval
-permalink: /TraCI/GUI_Value_Retrieval/
+title: GUI Value Retrieval
 ---
 
 ## Command 0xac: Get GUI Variable

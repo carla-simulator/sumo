@@ -1,6 +1,6 @@
 /****************************************************************************/
 // Eclipse SUMO, Simulation of Urban MObility; see https://eclipse.org/sumo
-// Copyright (C) 2001-2020 German Aerospace Center (DLR) and others.
+// Copyright (C) 2001-2023 German Aerospace Center (DLR) and others.
 // This program and the accompanying materials are made available under the
 // terms of the Eclipse Public License 2.0 which is available at
 // https://www.eclipse.org/legal/epl-2.0/
@@ -28,26 +28,38 @@
  * @enum GUITexture
  * @brief An enumeration of gifs used by the gui applications
  */
-enum GUITexture {
-    GNETEXTURE_E3 = 0,
-    GNETEXTURE_E3SELECTED,
-    GNETEXTURE_EMPTY,
-    GNETEXTURE_EMPTYSELECTED,
-    GNETEXTURE_LOCK,
-    GNETEXTURE_LOCKSELECTED,
-    GNETEXTURE_NOTMOVING,
-    GNETEXTURE_NOTMOVINGSELECTED,
-    GNETEXTURE_REROUTER,
-    GNETEXTURE_REROUTERSELECTED,
-    GNETEXTURE_ROUTEPROBE,
-    GNETEXTURE_ROUTEPROBESELECTED,
-    GNETEXTURE_TLS,
-    GNETEXTURE_VAPORIZER,
-    GNETEXTURE_VAPORIZERSELECTED,
-    GNETEXTURE_VARIABLESPEEDSIGN,
-    GNETEXTURE_VARIABLESPEEDSIGNSELECTED,
-    GNETEXTURE_LANEBIKE,
-    GNETEXTURE_LANEBUS,
-    GNETEXTURE_LANEPEDESTRIAN,
-    GIF_MAX
+enum class GUITexture {
+    E3 = 0,
+    E3_SELECTED,
+    LOCK,
+    NOTMOVING,
+    NOTMOVING_SELECTED,
+    REROUTER,
+    REROUTER_SELECTED,
+    REROUTER_INTERVAL,
+    REROUTER_CLOSINGREROUTE,
+    REROUTER_CLOSINGLANEREROUTE,
+    REROUTER_ROUTEPROBREROUTE,
+    REROUTER_DESTPROBREROUTE,
+    REROUTER_PARKINGAREAREROUTE,
+    ROUTEPROBE,
+    ROUTEPROBE_SELECTED,
+    TLS,
+    VAPORIZER,
+    VAPORIZER_SELECTED,
+    VARIABLESPEEDSIGN,
+    VARIABLESPEEDSIGN_SELECTED,
+    VARIABLESPEEDSIGN_STEP,
+    LANE_BIKE,
+    LANE_BUS,
+    LANE_PEDESTRIAN,
+    STOP,
+    STOP_SELECTED,
+    STOPPERSON,
+    STOPPERSON_SELECTED,
+    STOPCONTAINER,
+    STOPCONTAINER_SELECTED,
+    TRACTIONSUBSTATION,
+    TRACTIONSUBSTATION_SELECTED,
+    TEXTURE_MAX
 };

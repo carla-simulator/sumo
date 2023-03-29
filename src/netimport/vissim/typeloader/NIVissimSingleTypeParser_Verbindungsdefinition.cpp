@@ -1,6 +1,6 @@
 /****************************************************************************/
 // Eclipse SUMO, Simulation of Urban MObility; see https://eclipse.org/sumo
-// Copyright (C) 2001-2020 German Aerospace Center (DLR) and others.
+// Copyright (C) 2001-2023 German Aerospace Center (DLR) and others.
 // This program and the accompanying materials are made available under the
 // terms of the Eclipse Public License 2.0 which is available at
 // https://www.eclipse.org/legal/epl-2.0/
@@ -23,8 +23,8 @@
 #include <iostream>
 #include <utils/geom/PositionVector.h>
 #include <utils/common/StringUtils.h>
-#include "../NIImporter_Vissim.h"
-#include "../tempstructs/NIVissimConnection.h"
+#include <netimport/vissim/NIImporter_Vissim.h>
+#include <netimport/vissim/tempstructs/NIVissimConnection.h>
 #include "NIVissimSingleTypeParser_Verbindungsdefinition.h"
 
 
@@ -134,18 +134,18 @@ NIVissimSingleTypeParser_Verbindungsdefinition::parse(std::istream& from) {
                 int laneNo;
                 from >> laneNo; // unused and type-checking is missing!
                 // get the list of assigned car classes
-                std::vector<int> assignedVehicles;
+                std::vector<int> assigned;
                 tag = myRead(from);
                 if (tag == "fahrzeugklassen") {
                     tag = myRead(from);
                 }
                 while (tag != "DATAEND" && tag != "spur" && tag != "keinspurwechsel") {
                     int classes = StringUtils::toInt(tag);
-                    assignedVehicles.push_back(classes);
+                    assigned.push_back(classes);
                     tag = readEndSecure(from);
                 }
                 // build and add the definition
-                NIVissimClosedLaneDef* cld = new NIVissimClosedLaneDef(assignedVehicles);
+                NIVissimClosedLaneDef* cld = new NIVissimClosedLaneDef(assigned);
                 clv.push_back(cld);
             }
         } while (tag != "DATAEND");

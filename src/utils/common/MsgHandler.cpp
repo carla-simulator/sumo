@@ -1,6 +1,6 @@
 /****************************************************************************/
 // Eclipse SUMO, Simulation of Urban MObility; see https://eclipse.org/sumo
-// Copyright (C) 2001-2020 German Aerospace Center (DLR) and others.
+// Copyright (C) 2001-2023 German Aerospace Center (DLR) and others.
 // This program and the accompanying materials are made available under the
 // terms of the Eclipse Public License 2.0 which is available at
 // https://www.eclipse.org/legal/epl-2.0/
@@ -14,6 +14,7 @@
 /// @file    MsgHandler.cpp
 /// @author  Daniel Krajzewicz
 /// @author  Michael Behrisch
+/// @author  Mirko Barthauer
 /// @date    Tue, 17 Jun 2003
 ///
 // Retrieves messages about the process and gives them further to output
@@ -34,7 +35,6 @@
 // ===========================================================================
 // static member variables
 // ===========================================================================
-
 MsgHandler::Factory MsgHandler::myFactory = nullptr;
 MsgHandler* MsgHandler::myDebugInstance = nullptr;
 MsgHandler* MsgHandler::myGLDebugInstance = nullptr;
@@ -54,9 +54,9 @@ MsgHandler*
 MsgHandler::getMessageInstance() {
     if (myMessageInstance == nullptr) {
         if (myFactory == nullptr) {
-            myMessageInstance = new MsgHandler(MT_MESSAGE);
+            myMessageInstance = new MsgHandler(MsgType::MT_MESSAGE);
         } else {
-            myMessageInstance = myFactory(MT_MESSAGE);
+            myMessageInstance = myFactory(MsgType::MT_MESSAGE);
         }
     }
     return myMessageInstance;
@@ -67,9 +67,9 @@ MsgHandler*
 MsgHandler::getWarningInstance() {
     if (myWarningInstance == nullptr) {
         if (myFactory == nullptr) {
-            myWarningInstance = new MsgHandler(MT_WARNING);
+            myWarningInstance = new MsgHandler(MsgType::MT_WARNING);
         } else {
-            myWarningInstance = myFactory(MT_WARNING);
+            myWarningInstance = myFactory(MsgType::MT_WARNING);
         }
     }
     return myWarningInstance;
@@ -79,7 +79,7 @@ MsgHandler::getWarningInstance() {
 MsgHandler*
 MsgHandler::getErrorInstance() {
     if (myErrorInstance == nullptr) {
-        myErrorInstance = new MsgHandler(MT_ERROR);
+        myErrorInstance = new MsgHandler(MsgType::MT_ERROR);
     }
     return myErrorInstance;
 }
@@ -88,7 +88,7 @@ MsgHandler::getErrorInstance() {
 MsgHandler*
 MsgHandler::getDebugInstance() {
     if (myDebugInstance == nullptr) {
-        myDebugInstance = new MsgHandler(MT_DEBUG);
+        myDebugInstance = new MsgHandler(MsgType::MT_DEBUG);
     }
     return myDebugInstance;
 }
@@ -97,7 +97,7 @@ MsgHandler::getDebugInstance() {
 MsgHandler*
 MsgHandler::getGLDebugInstance() {
     if (myGLDebugInstance == nullptr) {
-        myGLDebugInstance = new MsgHandler(MT_GLDEBUG);
+        myGLDebugInstance = new MsgHandler(MsgType::MT_GLDEBUG);
     }
     return myGLDebugInstance;
 }
@@ -115,6 +115,9 @@ MsgHandler::enableDebugGLMessages(bool enable) {
 
 void
 MsgHandler::inform(std::string msg, bool addType) {
+    if (addType && !myInitialMessages.empty() && myInitialMessages.size() < 5) {
+        myInitialMessages.push_back(msg);
+    }
     // beautify progress output
     if (myAmProcessingProcess) {
         myAmProcessingProcess = false;
@@ -144,6 +147,20 @@ MsgHandler::beginProcessMsg(std::string msg, bool addType) {
 
 
 void
+MsgHandler::endProcessMsg2(bool success, long duration) {
+    if (success) {
+        if (duration > -1) {
+            endProcessMsg(TLF("done (%ms).", toString(duration)));
+        } else {
+            endProcessMsg(TL("done."));
+        }
+    } else {
+        endProcessMsg(TL("failed."));
+    }
+}
+
+
+void
 MsgHandler::endProcessMsg(std::string msg) {
     // inform all other receivers
     for (auto i : myRetrievers) {
@@ -157,9 +174,6 @@ MsgHandler::endProcessMsg(std::string msg) {
 
 void
 MsgHandler::clear(bool resetInformed) {
-    if (resetInformed) {
-        myWasInformed = false;
-    }
     if (myAggregationThreshold >= 0) {
         for (const auto& i : myAggregationCount) {
             if (i.second > myAggregationThreshold) {
@@ -168,6 +182,17 @@ MsgHandler::clear(bool resetInformed) {
         }
     }
     myAggregationCount.clear();
+    if (!resetInformed && myInitialMessages.size() > 1) {
+        const bool wasInformed = myWasInformed;
+        for (const std::string& msg : myInitialMessages) {
+            inform(msg, false);
+        }
+        myInitialMessages.clear();
+        myWasInformed = wasInformed;
+    }
+    if (resetInformed) {
+        myWasInformed = false;
+    }
 }
 
 
@@ -213,6 +238,41 @@ MsgHandler::removeRetrieverFromAllInstances(OutputDevice* out) {
     }
 }
 
+
+void
+MsgHandler::setupI18n(const std::string& locale) {
+#ifdef HAVE_INTL
+    if (locale != "") {
+#ifdef WIN32
+        _putenv_s("LANGUAGE", locale.data());
+#else
+        setenv("LANGUAGE", locale.data(), true);
+#endif
+    }
+    if (!setlocale(LC_MESSAGES, "")) {
+        WRITE_WARNINGF(TL("Could not set locale to '%'."), locale);
+    }
+    const char* sumoPath = getenv("SUMO_HOME");
+    if (sumoPath == nullptr) {
+        if (!bindtextdomain("sumo", nullptr)) {
+            WRITE_WARNING(TL("Environment variable SUMO_HOME is not set, could not find localized messages."));
+            return;
+        }
+    } else {
+        const std::string path = sumoPath + std::string("/data/locale/");
+        if (!bindtextdomain("sumo", path.data())) {
+            WRITE_WARNING(TL("Could not find localized messages."));
+            return;
+        }
+    }
+    bind_textdomain_codeset("sumo", "UTF-8");
+    textdomain("sumo");
+#else
+    UNUSED_PARAMETER(locale);
+#endif
+}
+
+
 void
 MsgHandler::initOutputOptions() {
     // initialize console properly
@@ -242,7 +302,9 @@ MsgHandler::initOutputOptions() {
         getErrorInstance()->addRetriever(logFile);
         getWarningInstance()->addRetriever(logFile);
     }
-    if (!oc.getBool("verbose")) {
+    if (oc.getBool("verbose")) {
+        getErrorInstance()->myInitialMessages.push_back("Repeating initial error messages:");
+    } else {
         getMessageInstance()->removeRetriever(&OutputDevice::getDevice("stdout"));
     }
 }
@@ -265,7 +327,7 @@ MsgHandler::cleanupOnEnd() {
 
 MsgHandler::MsgHandler(MsgType type) :
     myType(type), myWasInformed(false), myAggregationThreshold(-1) {
-    if (type == MT_MESSAGE) {
+    if (type == MsgType::MT_MESSAGE) {
         addRetriever(&OutputDevice::getDevice("stdout"));
     } else {
         addRetriever(&OutputDevice::getDevice("stderr"));

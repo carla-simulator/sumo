@@ -16,12 +16,22 @@ approachInformation
 # test dynamics on internal lanes
 internalLanes
 
+# test stopping position at internal junction
+internalJunction
+
 # tests for ignoring keepClear rules
 ignoreKeepClear
 driveAfterRedTime
 
 # tests for ignoring right of way
 ignoreRightOfWay
+ignoreFoeOnJunction
+
+# tests ignoring foes by id
+ignoreID
+
+# tests ignoring foes by type
+ignoreType
 
 # configure timegap to observe when passing a minor link
 timegapMinor
@@ -39,3 +49,12 @@ roundabout
 
 # test option --ignore-junction-blocker
 ignoreJunctionBlocker
+
+# test behavior when a minor road has an internal junction
+minor_internalJunction
+
+# test effect of vehicle length and turning radius on required space check
+cutting_corner
+
+# additional tests for bicycles not covered under the other topics
+bikes

@@ -103,6 +103,7 @@ protected:
                                  const bool isOuterEdge,
                                  const double straightThresh,
                                  const std::string& centerMark,
+                                 OpenDRIVERoad &discretizedRoad,
                                  SignalLanes& signalLanes);
 
     static void addPedestrianConnection(const NBEdge* inEdge, const NBEdge* outEdge, std::vector<NBEdge::Connection>& parallel);

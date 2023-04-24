@@ -205,8 +205,6 @@ NWWriter_OpenDrive::writeNetwork(const OptionsCont& oc, NBNetBuilder& nb) {
         OutputDevice_String junctioncontrollerOSS(2);
         // list of traffic lights
         std::vector<OpenDRIVETL> traffic_lights;
-
-        int sequence_index = 0;
         // for each road reaching the junction
         for (NBEdge* inEdge : incoming) {
             OpenDRIVETL traffic_light;
@@ -216,9 +214,8 @@ NWWriter_OpenDrive::writeNetwork(const OptionsCont& oc, NBNetBuilder& nb) {
             OutputDevice_String signal_referenceOSS(2);
 
             if (n->isTLControlled()) {
-                GenerateJunctionControllerRecord(junctioncontrollerOSS, controllerID, sequence_index);
+                GenerateJunctionControllerRecord(junctioncontrollerOSS, controllerID, 0);
                 writeSignalReference(signal_referenceOSS, std::to_string(signalID), 0, 0, "-");
-                ++sequence_index;
             }
 
             std::string centerMark = "none";
@@ -256,8 +253,7 @@ NWWriter_OpenDrive::writeNetwork(const OptionsCont& oc, NBNetBuilder& nb) {
                                                          getID(outEdge->getID(), edgeMap, edgeID),
                                                          connectionID,
                                                          parallel, isOuterEdge, straightThresh, centerMark,
-                                                         road,
-                                                         signalLanes);
+                                                         road, signalLanes);
                         // get positions (lanes) where traffic light is having effect
                         for (RoadLane& lane : road.lanes) {
                             LanePoint& initial_point = lane.points[0];
@@ -294,8 +290,7 @@ NWWriter_OpenDrive::writeNetwork(const OptionsCont& oc, NBNetBuilder& nb) {
                                                  getID(outEdge->getID(), edgeMap, edgeID),
                                                  connectionID,
                                                  parallel, isOuterEdge, straightThresh, centerMark,
-                                                 road,
-                                                 signalLanes);
+                                                 road, signalLanes);
                 // get positions (lanes) where traffic light is having effect
                 for (RoadLane& lane : road.lanes) {
                     LanePoint& initial_point = lane.points[0];
@@ -311,14 +306,12 @@ NWWriter_OpenDrive::writeNetwork(const OptionsCont& oc, NBNetBuilder& nb) {
             // store controller record and traffic light
             if(n->isTLControlled() && num_connecting_roads > 0) {
                 OutputDevice_String controllerOSS(2);
-                GenerateControllerRecord(controllerOSS, controllerID, signalID, sequence_index);
-
+                GenerateControllerRecord(controllerOSS, controllerID, signalID,0);
                 controllersOSS << controllerOSS.getString();
                 traffic_lights.emplace_back(traffic_light);
             }
             ++signalID;
             ++controllerID;
-
         }
 
         // write the junction only of there are internal connections
@@ -404,29 +397,30 @@ NWWriter_OpenDrive::writeNetwork(const OptionsCont& oc, NBNetBuilder& nb) {
     // write junctions (junction)
     device << junctionOSS.getString();
 
-    // write controllers
+    // TODO: Useless??
     for (std::map<std::string, NBNode*>::const_iterator i = nc.begin(); i != nc.end(); ++i) {
         NBNode* n = (*i).second;
-        if (n->isTLControlled()) {
-            NBTrafficLightDefinition* tl = *n->getControllingTLS().begin();
-            std::set<std::string> ids;
-            device.openTag("controller");
-            device.writeAttr("id", getintID(tl->getID()));
-            for (const NBConnection& c : tl->getControlledLinks()) {
-                const std::string id = std::to_string(getintID(tl->getID() + "_" + toString(c.getTLIndex())));
-                if (controlled_signal_ids.count(id) == 0) {
-                    controlled_signal_ids.insert(id);
-                    device.openTag("control");
-                    device.writeAttr("signalId", id);
-                    device.closeTag();
+        const std::vector<NBEdge*>& incoming = n->getIncomingEdges();
+        // check if any connections must be written
+        int numConnections = 0;
+        for (std::vector<NBEdge*>::const_iterator j = incoming.begin(); j != incoming.end(); ++j) {
+            numConnections += (int)((*j)->getConnections().size());
+        }
+        if (numConnections == 0) {
+            continue;
+        }
+        for (std::vector<NBEdge*>::const_iterator j = incoming.begin(); j != incoming.end(); ++j) {
+            const NBEdge* inEdge = *j;
+            const std::vector<NBEdge::Connection>& elv = inEdge->getConnections();
+            for (std::vector<NBEdge::Connection>::const_iterator k = elv.begin(); k != elv.end(); ++k) {
+                const NBEdge::Connection& c = *k;
+                const NBEdge* outEdge = c.toEdge;
+                if (outEdge == nullptr) {
+                    continue;
                 }
             }
-            device.closeTag();
         }
     }
-
-    // write junctions (junction)
-    device << junctionOSS.getString();
 
     device.closeTag();
 
@@ -588,7 +582,6 @@ NWWriter_OpenDrive::writeNormalEdge(OutputDevice& device, const NBEdge* e,
     device << "            </laneSection>\n";
     device << "        </lanes>\n";
     writeRoadObjects(device, e, shc, crossings);
-    writeSignals(device, e, length, signalLanes, shc);
     if (origNames) {
         device << "        <userData code=\"sumoId\" value=\"" << e->getID() << "\"/>\n";
     }

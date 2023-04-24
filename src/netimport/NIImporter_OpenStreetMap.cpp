@@ -150,7 +150,7 @@ NIImporter_OpenStreetMap::load(const OptionsCont& oc, NBNetBuilder& nb) {
     myImportSidewalks = oc.getBool("osm.sidewalks");
     myImportBikeAccess = oc.getBool("osm.bike-access");
     myImportCrossings = oc.getBool("osm.crossings");
-
+    std::cout << "Options: sw " << myImportSidewalks << " ba " <<  myImportBikeAccess << " cross " << myImportCrossings << std::endl;
     myAllAttributes = OptionsCont::getOptions().getBool("osm.all-attributes");
     std::vector<std::string> extra = OptionsCont::getOptions().getStringVector("osm.extra-attributes");
     myExtraAttributes.insert(extra.begin(), extra.end());
@@ -707,7 +707,7 @@ NIImporter_OpenStreetMap::insertEdge(Edge* e, int index, NBNode* from, NBNode* t
         }
     }
     // deal with sidewalks that run in the opposite direction of a one-way street
-    WayType sidewalkType = e->mySidewalkType; // make a copy because we do some temporary modifications
+    WayType sidewalkType = e->mySidewalkType;; // make a copy because we do some temporary modifications
     if (sidewalkType == WAY_UNKNOWN && (e->myExtraAllowed & SVC_PEDESTRIAN) != 0 && (permissions & SVC_PASSENGER) != 0) {
         // do not assume shared space unless sidewalk is actively disabled
         sidewalkType = WAY_BOTH;
@@ -792,9 +792,17 @@ NIImporter_OpenStreetMap::insertEdge(Edge* e, int index, NBNode* from, NBNode* t
                 // bikes drive on buslanes if no separate cycle lane is available
                 nbe->setPermissions(SVC_BUS | SVC_BICYCLE, 0);
             }
+
+            std::cout << "1st check _______________________" << std::endl;
             if ((addSidewalk && (sidewalkType == WAY_UNKNOWN || (sidewalkType & WAY_FORWARD) != 0))
                     || (myImportSidewalks && (sidewalkType & WAY_FORWARD) != 0 && defaultPermissions != SVC_PEDESTRIAN)) {
                 nbe->addSidewalk(sidewalkWidth * offsetFactor);
+                std::cout << " YES Adding sidwalk 1st condition addSidewalk" << addSidewalk << " sidewalkType " << sidewalkType << std::endl;
+            }else{
+              std::cout << " addSidewalk " << addSidewalk << " sidewalkType " << sidewalkType << std::endl;
+              std::cout << " myImportSidewalks " << myImportSidewalks << " defaultPermissions " << defaultPermissions << std::endl;
+              std::cout << " ((sidewalkType & WAY_FORWARD) != 0) " << (sidewalkType & WAY_FORWARD) << std::endl;
+              std::cout << " defaultPermissions != SVC_PEDESTRIAN) " << (defaultPermissions != SVC_PEDESTRIAN) << " myImportSidewalks && (sidewalkType & WAY_FORWARD) != 0 " << (sidewalkType & WAY_FORWARD) << std::endl;
             }
             nbe->updateParameters(e->getParametersMap());
             nbe->setDistance(distanceStart);
@@ -838,9 +846,16 @@ NIImporter_OpenStreetMap::insertEdge(Edge* e, int index, NBNode* from, NBNode* t
                 // bikes drive on buslanes if no separate cycle lane is available
                 nbe->setPermissions(SVC_BUS | SVC_BICYCLE, 0);
             }
+              std::cout << "2nd check _______________________" << std::endl;
+
             if ((addSidewalk && (sidewalkType == WAY_UNKNOWN || (sidewalkType & WAY_BACKWARD) != 0))
                     || (myImportSidewalks && (sidewalkType & WAY_BACKWARD) != 0 && defaultPermissions != SVC_PEDESTRIAN)) {
                 nbe->addSidewalk(sidewalkWidth * offsetFactor);
+            }else{
+              std::cout << " addSidewalk " << addSidewalk << " sidewalkType " << sidewalkType << std::endl;
+              std::cout << " myImportSidewalks " << myImportSidewalks << " defaultPermissions " << defaultPermissions << std::endl;
+              std::cout << " ((sidewalkType & WAY_FORWARD) != 0) " << (sidewalkType & WAY_BACKWARD)  << " sidewalkType == WAY_UNKNOWN  " << std::endl;
+              std::cout << " defaultPermissions != SVC_PEDESTRIAN) " << (defaultPermissions != SVC_PEDESTRIAN) << " myImportSidewalks && (sidewalkType & WAY_FORWARD) " <<  (sidewalkType & WAY_FORWARD) << std::endl;
             }
             nbe->updateParameters(e->getParametersMap());
             nbe->setDistance(distanceEnd);

@@ -20,6 +20,7 @@
 #pragma once
 #include <config.h>
 #include <vector>
+#include <unordered_map>
 #include <memory>
 
 #include <utils/common/StringBijection.h>
@@ -59,7 +60,7 @@ public:
     static void writeNetwork(const OptionsCont& oc, NBNetBuilder& nb);
 
 protected:
-    
+
     // Auxiliary structs for traffic light placement
     struct LanePoint {
         double s = 0;
@@ -102,7 +103,6 @@ protected:
                                  const bool isOuterEdge,
                                  const double straightThresh,
                                  const std::string& centerMark,
-                                 OpenDRIVERoad &discretizedRoad,
                                  SignalLanes& signalLanes);
 
     static void addPedestrianConnection(const NBEdge* inEdge, const NBEdge* outEdge, std::vector<NBEdge::Connection>& parallel);
@@ -145,7 +145,7 @@ protected:
     static void writeSignal(OutputDevice& device, std::string id, double s, double t, std::string type, double hOffset);
     static void writeSignalInertial(
             OutputDevice& device, std::string id, std::string type,
-            double x, double y, double z, 
+            double x, double y, double z,
             double hdg, double pitch, double roll);
     static void writeSignalReference(OutputDevice& device, std::string id, double s, double t, std::string orientation);
 
@@ -154,7 +154,7 @@ protected:
     static std::pair<double, double> ComputePointSegmentDistance(
             const Position& P1, const Position& P2, const Position& P3);
 
-    static void GenerateControllerRecord(OutputDevice& device, int controllerID, int signalID);
+    static void GenerateControllerRecord(OutputDevice& device, int controllerID, int signalID, int sequence);
     static void GenerateJunctionControllerRecord(OutputDevice& device, int controllerID, int sequence);
     static void writeRoadObjects(OutputDevice& device, const NBEdge* e, const ShapeContainer& shc, const std::vector<std::string>& crossings);
 
@@ -184,6 +184,7 @@ protected:
     // @brief return road postion in s,t coordinates
     static double getRoadSideOffset(const NBEdge* e);
 
+    static int getintID(std::string realid);
 
 protected:
     /// @brief whether a lefthand network is being written

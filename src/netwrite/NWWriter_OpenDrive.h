@@ -20,6 +20,7 @@
 #pragma once
 #include <config.h>
 #include <vector>
+#include <unordered_map>
 #include <memory>
 
 #include <utils/common/StringBijection.h>
@@ -140,6 +141,22 @@ protected:
     static void checkLaneGeometries(const NBEdge* e);
 
     /// @brief write road objects referenced as edge parameters
+    static void writeRoadObjects(OutputDevice& device, const NBEdge* e, const ShapeContainer& shc);
+
+    static void writeSignal(OutputDevice& device, std::string id, double s, double t, std::string type, double hOffset);
+    static void writeSignalInertial(
+            OutputDevice& device, std::string id, std::string type,
+            double x, double y, double z,
+            double hdg, double pitch, double roll);
+    static void writeSignalReference(OutputDevice& device, std::string id, double s, double t, std::string orientation);
+
+    // Computes distance of the segment [P1 + t*(P2-P1)] to the point P3
+    // Returns minimum value t and corresponding distance
+    static std::pair<double, double> ComputePointSegmentDistance(
+            const Position& P1, const Position& P2, const Position& P3);
+
+    static void GenerateControllerRecord(OutputDevice& device, int controllerID, int signalID, int sequence);
+    static void GenerateJunctionControllerRecord(OutputDevice& device, int controllerID, int sequence);
     static void writeRoadObjects(OutputDevice& device, const NBEdge* e, const ShapeContainer& shc, const std::vector<std::string>& crossings);
 
     /// @brief write signal record for traffic light
@@ -168,21 +185,7 @@ protected:
     // @brief return road postion in s,t coordinates
     static double getRoadSideOffset(const NBEdge* e);
 
-    static void writeSignal(OutputDevice& device, std::string id, double s, double t, std::string type, double hOffset);
-    static void writeSignalInertial(
-            OutputDevice& device, std::string id, std::string type,
-            double x, double y, double z, 
-            double hdg, double pitch, double roll);
-    static void writeSignalReference(OutputDevice& device, std::string id, double s, double t, std::string orientation);
-
-    // Computes distance of the segment [P1 + t*(P2-P1)] to the point P3
-    // Returns minimum value t and corresponding distance
-    static std::pair<double, double> ComputePointSegmentDistance(
-            const Position& P1, const Position& P2, const Position& P3);
-
-    static void GenerateControllerRecord(OutputDevice& device, int controllerID, int signalID);
-    static void GenerateJunctionControllerRecord(OutputDevice& device, int controllerID, int sequence);
-
+    static int getintID(std::string realid);
 
 protected:
     /// @brief whether a lefthand network is being written

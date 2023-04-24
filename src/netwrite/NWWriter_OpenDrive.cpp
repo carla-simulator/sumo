@@ -53,6 +53,9 @@ bool NWWriter_OpenDrive::lefthand(false);
 bool NWWriter_OpenDrive::LHLL(false);
 bool NWWriter_OpenDrive::LHRL(false);
 
+static std::unordered_map<std::string, u_int32_t> id_redirections;
+static u_int32_t id_increment(0);
+static std::set<std::string> controlled_signal_ids;
 // ===========================================================================
 // method definitions
 // ===========================================================================
@@ -74,6 +77,7 @@ NWWriter_OpenDrive::writeNetwork(const OptionsCont& oc, NBNetBuilder& nb) {
     if (!oc.isSet("opendrive-output")) {
         return;
     }
+    id_redirections.clear();
     const NBNodeCont& nc = nb.getNodeCont();
     const NBEdgeCont& ec = nb.getEdgeCont();
     const bool origNames = oc.getBool("output.original-names");
@@ -209,6 +213,8 @@ NWWriter_OpenDrive::writeNetwork(const OptionsCont& oc, NBNetBuilder& nb) {
         OutputDevice_String junctioncontrollerOSS(2);
         // list of traffic lights
         std::vector<OpenDRIVETL> traffic_lights;
+
+        int sequence_index = 0;
         // for each road reaching the junction
         for (NBEdge* inEdge : incoming) {
             OpenDRIVETL traffic_light;
@@ -218,8 +224,9 @@ NWWriter_OpenDrive::writeNetwork(const OptionsCont& oc, NBNetBuilder& nb) {
             OutputDevice_String signal_referenceOSS(2);
 
             if (n->isTLControlled()) {
-                GenerateJunctionControllerRecord(junctioncontrollerOSS, controllerID, 0);
+                GenerateJunctionControllerRecord(junctioncontrollerOSS, controllerID, sequence_index);
                 writeSignalReference(signal_referenceOSS, std::to_string(signalID), 0, 0, "-");
+                ++sequence_index;
             }
 
             std::string centerMark = "none";
@@ -232,7 +239,7 @@ NWWriter_OpenDrive::writeNetwork(const OptionsCont& oc, NBNetBuilder& nb) {
             std::vector<NBEdge::Connection> connections = inEdge->getConnections();
             for (const NBEdge::Connection& c : connections) {
                 // remove undesired self loops
-                if (c.toEdge->getID() == ("-" + inEdge->getID()) || 
+                if (c.toEdge->getID() == ("-" + inEdge->getID()) ||
                     inEdge->getID() == ("-" + c.toEdge->getID())) {
                     continue;
                 }
@@ -308,12 +315,14 @@ NWWriter_OpenDrive::writeNetwork(const OptionsCont& oc, NBNetBuilder& nb) {
             // store controller record and traffic light
             if(n->isTLControlled() && num_connecting_roads > 0) {
                 OutputDevice_String controllerOSS(2);
-                GenerateControllerRecord(controllerOSS, controllerID, signalID);
+                GenerateControllerRecord(controllerOSS, controllerID, signalID, sequence_index);
+
                 controllersOSS << controllerOSS.getString();
                 traffic_lights.emplace_back(traffic_light);
             }
             ++signalID;
             ++controllerID;
+
         }
 
         // write the junction only of there are internal connections
@@ -376,7 +385,7 @@ NWWriter_OpenDrive::writeNetwork(const OptionsCont& oc, NBNetBuilder& nb) {
                     Position traffic_light_position = center + orientation*displacement + lateral*(max_lateral_distance + 5);
                     OutputDevice_String signal_defOSS(2);
                     writeSignalInertial(signal_defOSS, std::to_string(traffic_light.id), "1000001",
-                            traffic_light_position.x(), traffic_light_position.y(), traffic_light_position.z(), 
+                            traffic_light_position.x(), traffic_light_position.y(), traffic_light_position.z(),
                             heading, 0, 0);
                     auto& road = roads.front();
                     *(road.signals_device) << signal_defOSS.getString();
@@ -443,11 +452,11 @@ NWWriter_OpenDrive::writeNetwork(const OptionsCont& oc, NBNetBuilder& nb) {
             NBTrafficLightDefinition* tl = *n->getControllingTLS().begin();
             std::set<std::string> ids;
             device.openTag("controller");
-            device.writeAttr("id", tl->getID());
+            device.writeAttr("id", getintID(tl->getID()));
             for (const NBConnection& c : tl->getControlledLinks()) {
-                const std::string id = tl->getID() + "_" + toString(c.getTLIndex());
-                if (ids.count(id) == 0) {
-                    ids.insert(id);
+                const std::string id = std::to_string(getintID(tl->getID() + "_" + toString(c.getTLIndex())));
+                if (controlled_signal_ids.count(id) == 0) {
+                    controlled_signal_ids.insert(id);
                     device.openTag("control");
                     device.writeAttr("signalId", id);
                     device.closeTag();
@@ -456,6 +465,7 @@ NWWriter_OpenDrive::writeNetwork(const OptionsCont& oc, NBNetBuilder& nb) {
             device.closeTag();
         }
     }
+
     // write junctions (junction)
     device << junctionOSS.getString();
 
@@ -1431,11 +1441,13 @@ NWWriter_OpenDrive::writeSignals(OutputDevice& device, const NBEdge* e, double l
         // try to faithfully represent the SUMO signal layout
         // (if a realistic number of signals is needed, the user should set
         // option --tls.group-signals)
+        // IDs to ints tip staticunordered map <std:string, uint8>
+        // Checkear sealkes importer
         NBTrafficLightDefinition* tl = *e->getToNode()->getControllingTLS().begin();
         std::map<std::string, bool> toWrite;
         for (const NBConnection& c : tl->getControlledLinks()) {
             if (c.getFrom() == e) {
-                const std::string id = tl->getID() + "_" + toString(c.getTLIndex());
+                const std::string id = std::to_string(getintID(tl->getID() + "_" + toString(c.getTLIndex())));
                 if (toWrite.count(id) == 0) {
                     toWrite[id] = signalLanes.count(id) == 0;
                 }
@@ -1490,6 +1502,8 @@ NWWriter_OpenDrive::writeSignals(OutputDevice& device, const NBEdge* e, double l
                 device.writeAttr("width", 0.26);
             }
             for (int lane : signalLanes[id].first) {
+                if(lane > 0)
+                  lane = 0 - lane;
                 device.openTag("validity");
                 device.writeAttr("fromLane", s2x(lane, e->getNumLanes()));
                 device.writeAttr("toLane", s2x(lane, e->getNumLanes()));
@@ -1656,7 +1670,7 @@ NWWriter_OpenDrive::mapmatchRoadObjects(const ShapeContainer& shc,  const NBEdge
     }
 }
 
-void 
+void
 NWWriter_OpenDrive::writeSignal(OutputDevice& device, std::string id, double s, double t, std::string type, double hOffset) {
     device.openTag("signal");
     device.writeAttr("id", id);
@@ -1686,7 +1700,7 @@ NWWriter_OpenDrive::writeSignal(OutputDevice& device, std::string id, double s, 
 void
 NWWriter_OpenDrive::writeSignalInertial(
         OutputDevice& device, std::string id, std::string type,
-        double x, double y, double z, 
+        double x, double y, double z,
         double hdg, double pitch, double roll) {
     device.openTag("signal");
     device.writeAttr("id", id);
@@ -1742,20 +1756,21 @@ NWWriter_OpenDrive::ComputePointSegmentDistance(
     return std::make_pair(t, dist);
 }
 
-void 
-NWWriter_OpenDrive::GenerateControllerRecord(OutputDevice& device, int controllerID, int signalID){
+void
+NWWriter_OpenDrive::GenerateControllerRecord(OutputDevice& device, int controllerID, int signalID,int sequence){
     device.openTag("controller");
     device.writeAttr("name", "crtl" + std::to_string(controllerID));
     device.writeAttr("id", controllerID);
-    device.writeAttr("sequence", 0);
+    device.writeAttr("sequence", sequence);
     device.openTag("control");
     device.writeAttr("signalId", signalID);
     device.writeAttr("type", "");
     device.closeTag();
     device.closeTag();
+    controlled_signal_ids.insert(std::to_string(signalID));
 }
 
-void 
+void
 NWWriter_OpenDrive::GenerateJunctionControllerRecord(OutputDevice& device, int controllerID, int sequence) {
     device.openTag("controller");
     device.writeAttr("id", controllerID);
@@ -1885,5 +1900,16 @@ NWWriter_OpenDrive::writeRoadObjectPoly(OutputDevice& device, const NBEdge* e, c
     device.closeTag();
     device.closeTag();
 }
+
+int
+NWWriter_OpenDrive::getintID(std::string realid){
+  if( id_redirections.find(realid) != id_redirections.end() ){
+    return id_redirections[realid];
+  }
+  id_redirections[realid] = id_increment;
+  ++id_increment;
+  return id_redirections[realid];
+}
+
 
 /****************************************************************************/

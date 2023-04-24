@@ -68,6 +68,10 @@ namespace osm2odr {
     std::vector<std::string> OptionsArgs = {
       "--proj", settings.proj_string,
       "--geometry.remove", "--ramps.guess", "--edges.join", "--junctions.join", "--roundabouts.guess",
+      "--tls.group-signals", "true",
+      "--sidewalks.guess","true",
+      "--osm.sidewalks", "true",
+      "--osm.crossings", "true",
       "--default.lanewidth",
       std::to_string(settings.default_lane_width),
       "--osm-files", "TRUE", "--opendrive-output", "TRUE", // necessary for now to enable osm input and xodr output

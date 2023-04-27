@@ -54,8 +54,8 @@ bool NWWriter_OpenDrive::lefthand(false);
 bool NWWriter_OpenDrive::LHLL(false);
 bool NWWriter_OpenDrive::LHRL(false);
 
-static std::unordered_map<std::string, u_int32_t> id_redirections;
-static u_int32_t id_increment(0);
+static std::unordered_map<std::string, int> id_redirections;
+static int id_increment(0);
 static std::set<std::string> controlled_signal_ids;
 // ===========================================================================
 // method definitions

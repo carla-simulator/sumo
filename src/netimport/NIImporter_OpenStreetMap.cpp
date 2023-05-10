@@ -909,16 +909,11 @@ NIImporter_OpenStreetMap::insertEdge(Edge* e, int index, NBNode* from, NBNode* t
                 nbe->setPermissions(SVC_BUS | SVC_BICYCLE, 0);
             }
 
-            std::cout << "1st check _______________________" << std::endl;
+
             if ((addSidewalk && (sidewalkType == WAY_UNKNOWN || (sidewalkType & WAY_FORWARD) != 0))
                     || (myImportSidewalks && (sidewalkType & WAY_FORWARD) != 0 && defaultPermissions != SVC_PEDESTRIAN)) {
                 nbe->addSidewalk(sidewalkWidth * offsetFactor);
-                std::cout << " YES Adding sidwalk 1st condition addSidewalk" << addSidewalk << " sidewalkType " << sidewalkType << std::endl;
-            }else{
-              std::cout << " addSidewalk " << addSidewalk << " sidewalkType " << sidewalkType << std::endl;
-              std::cout << " myImportSidewalks " << myImportSidewalks << " defaultPermissions " << defaultPermissions << std::endl;
-              std::cout << " ((sidewalkType & WAY_FORWARD) != 0) " << (sidewalkType & WAY_FORWARD) << std::endl;
-              std::cout << " defaultPermissions != SVC_PEDESTRIAN) " << (defaultPermissions != SVC_PEDESTRIAN) << " myImportSidewalks && (sidewalkType & WAY_FORWARD) != 0 " << (sidewalkType & WAY_FORWARD) << std::endl;
+
             }
             if (!addBackward && (e->myExtraAllowed & SVC_PEDESTRIAN) != 0 && (nbe->getPermissions(0) & SVC_PEDESTRIAN) == 0) {
                 // Pedestrians are explicitly allowed (maybe through foot="yes") but did not get a sidewalk (maybe through sidewalk="no").
@@ -975,16 +970,10 @@ NIImporter_OpenStreetMap::insertEdge(Edge* e, int index, NBNode* from, NBNode* t
                 // bikes drive on buslanes if no separate cycle lane is available
                 nbe->setPermissions(SVC_BUS | SVC_BICYCLE, 0);
             }
-              std::cout << "2nd check _______________________" << std::endl;
 
             if ((addSidewalk && (sidewalkType == WAY_UNKNOWN || (sidewalkType & WAY_BACKWARD) != 0))
                     || (myImportSidewalks && (sidewalkType & WAY_BACKWARD) != 0 && defaultPermissions != SVC_PEDESTRIAN)) {
                 nbe->addSidewalk(sidewalkWidth * offsetFactor);
-            }else{
-              std::cout << " addSidewalk " << addSidewalk << " sidewalkType " << sidewalkType << std::endl;
-              std::cout << " myImportSidewalks " << myImportSidewalks << " defaultPermissions " << defaultPermissions << std::endl;
-              std::cout << " ((sidewalkType & WAY_FORWARD) != 0) " << (sidewalkType & WAY_BACKWARD)  << " sidewalkType == WAY_UNKNOWN  " << std::endl;
-              std::cout << " defaultPermissions != SVC_PEDESTRIAN) " << (defaultPermissions != SVC_PEDESTRIAN) << " myImportSidewalks && (sidewalkType & WAY_FORWARD) " <<  (sidewalkType & WAY_FORWARD) << std::endl;
             }
             nbe->updateParameters(e->getParametersMap());
             nbe->setDistance(distanceEnd);

@@ -119,6 +119,7 @@ if (X11_FOUND)
 endif (X11_FOUND)
 
 find_package(ZLIB)
+set(HAVE_ZLIB 0)
 if (ZLIB_FOUND)
     set(HAVE_ZLIB 1)
     link_directories(${ZLIB_LIBRARY_DIR})

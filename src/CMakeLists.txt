@@ -27,6 +27,9 @@ set(osm2odr_sources "${osm2odr_sources};${netwrite_sources}")
 file(GLOB foreign_eulerspiral_sources "foreign/eulerspiral/*.cpp" "foreign/eulerspiral/*.h")
 set(osm2odr_sources "${osm2odr_sources};${foreign_eulerspiral_sources}")
 
+file(GLOB foreign_phemlight_sources "foreign/PHEMlight/V5/cpp/*.cpp" "foreign/PHEMlight/V5/cpp/*.h" "foreign/PHEMlight/cpp/*.cpp" "foreign/PHEMlight/cpp/*.h")
+set(osm2odr_sources "${osm2odr_sources};${foreign_phemlight_sources}")
+
 file(GLOB foreign_tcpip_sources "foreign/tcpip/*.cpp" "foreign/tcpip/*.h")
 set(osm2odr_sources "${osm2odr_sources};${foreign_tcpip_sources}")
 
@@ -45,6 +48,9 @@ set(osm2odr_sources "${osm2odr_sources};${utils_options_sources}")
 file(GLOB utils_xml_sources "utils/xml/*.cpp" "utils/xml/*.h")
 set(osm2odr_sources "${osm2odr_sources};${utils_xml_sources}")
 
+file(GLOB utils_emissions_sources "utils/emissions/*.cpp" "utils/emissions/*.h")
+set(osm2odr_sources "${osm2odr_sources};${utils_emissions_sources}")
+
 file(GLOB utils_geom_sources "utils/geom/*.cpp" "utils/geom/*.h")
 set(osm2odr_sources "${osm2odr_sources};${utils_geom_sources}")
 
@@ -57,8 +63,14 @@ set(osm2odr_sources "${osm2odr_sources};${utils_iodevices_sources}")
 file(GLOB utils_traction_wire_sources "utils/traction_wire/*.cpp" "utils/traction_wire/*.h")
 set(osm2odr_sources "${osm2odr_sources};${utils_traction_wire_sources}")
 
+file(GLOB utils_vehicle_sources "utils/vehicle/*.cpp" "utils/vehicle/*.h")
+set(osm2odr_sources "${osm2odr_sources};${utils_vehicle_sources}")
+
 add_library(osm2odr STATIC ${osm2odr_sources})
-target_link_libraries(osm2odr ${XercesC_LIBRARIES} ${ZLIB_LIBRARIES} ${PROJ_LIBRARY})
+target_link_libraries(osm2odr ${XercesC_LIBRARIES} ${PROJ_LIBRARY})
+if ( HAVE_ZLIB )
+  target_link_libraries(osm2odr ${ZLIB_LIBRARIES})
+endif()
 
 target_compile_definitions(osm2odr PUBLIC "XERCES_STATIC_LIBRARY")
 

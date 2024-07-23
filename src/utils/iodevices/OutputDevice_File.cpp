@@ -22,6 +22,7 @@
 #include <config.h>
 
 #include <iostream>
+#include <fstream>
 #include <cstring>
 #include <cerrno>
 #ifdef HAVE_ZLIB

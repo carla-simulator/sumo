@@ -253,7 +253,7 @@ NIImporter_OpenStreetMap::load(const OptionsCont& oc, NBNetBuilder& nb) {
     NBTrafficLightLogicCont& tlsc = nb.getTLLogicCont();
     for (auto& myEdge : myEdges) {
         Edge* e = myEdge.second;
-        bool ok_for_lights = 
+        bool ok_for_lights =
             !ExistsInVector(e->myHighWayType.substr(8), oc.tl_excluded_highways_types);
         assert(e->myCurrentIsRoad);
         if (e->myCurrentNodes.size() < 2) {
@@ -793,16 +793,11 @@ NIImporter_OpenStreetMap::insertEdge(Edge* e, int index, NBNode* from, NBNode* t
                 nbe->setPermissions(SVC_BUS | SVC_BICYCLE, 0);
             }
 
-            std::cout << "1st check _______________________" << std::endl;
+
             if ((addSidewalk && (sidewalkType == WAY_UNKNOWN || (sidewalkType & WAY_FORWARD) != 0))
                     || (myImportSidewalks && (sidewalkType & WAY_FORWARD) != 0 && defaultPermissions != SVC_PEDESTRIAN)) {
                 nbe->addSidewalk(sidewalkWidth * offsetFactor);
-                std::cout << " YES Adding sidwalk 1st condition addSidewalk" << addSidewalk << " sidewalkType " << sidewalkType << std::endl;
-            }else{
-              std::cout << " addSidewalk " << addSidewalk << " sidewalkType " << sidewalkType << std::endl;
-              std::cout << " myImportSidewalks " << myImportSidewalks << " defaultPermissions " << defaultPermissions << std::endl;
-              std::cout << " ((sidewalkType & WAY_FORWARD) != 0) " << (sidewalkType & WAY_FORWARD) << std::endl;
-              std::cout << " defaultPermissions != SVC_PEDESTRIAN) " << (defaultPermissions != SVC_PEDESTRIAN) << " myImportSidewalks && (sidewalkType & WAY_FORWARD) != 0 " << (sidewalkType & WAY_FORWARD) << std::endl;
+
             }
             nbe->updateParameters(e->getParametersMap());
             nbe->setDistance(distanceStart);
@@ -846,16 +841,10 @@ NIImporter_OpenStreetMap::insertEdge(Edge* e, int index, NBNode* from, NBNode* t
                 // bikes drive on buslanes if no separate cycle lane is available
                 nbe->setPermissions(SVC_BUS | SVC_BICYCLE, 0);
             }
-              std::cout << "2nd check _______________________" << std::endl;
 
             if ((addSidewalk && (sidewalkType == WAY_UNKNOWN || (sidewalkType & WAY_BACKWARD) != 0))
                     || (myImportSidewalks && (sidewalkType & WAY_BACKWARD) != 0 && defaultPermissions != SVC_PEDESTRIAN)) {
                 nbe->addSidewalk(sidewalkWidth * offsetFactor);
-            }else{
-              std::cout << " addSidewalk " << addSidewalk << " sidewalkType " << sidewalkType << std::endl;
-              std::cout << " myImportSidewalks " << myImportSidewalks << " defaultPermissions " << defaultPermissions << std::endl;
-              std::cout << " ((sidewalkType & WAY_FORWARD) != 0) " << (sidewalkType & WAY_BACKWARD)  << " sidewalkType == WAY_UNKNOWN  " << std::endl;
-              std::cout << " defaultPermissions != SVC_PEDESTRIAN) " << (defaultPermissions != SVC_PEDESTRIAN) << " myImportSidewalks && (sidewalkType & WAY_FORWARD) " <<  (sidewalkType & WAY_FORWARD) << std::endl;
             }
             nbe->updateParameters(e->getParametersMap());
             nbe->setDistance(distanceEnd);
@@ -1197,7 +1186,7 @@ NIImporter_OpenStreetMap::EdgesHandler::myStartElement(int element, const SUMOSA
             myCurrentEdge->setParameter(key, attrs.get<std::string>(SUMO_ATTR_V, info.c_str(), ok, false));
         }
         // we check whether the key is relevant (and we really need to transcode the value) to avoid hitting #1636
-        if (!StringUtils::endsWith(key, "way") 
+        if (!StringUtils::endsWith(key, "way")
                 && !StringUtils::startsWith(key, "lanes")
                 && key != "maxspeed" && key != "maxspeed:type"
                 && key != "zone:maxspeed"

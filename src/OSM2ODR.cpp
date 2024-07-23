@@ -74,6 +74,8 @@ namespace osm2odr {
       "--osm.crossings", "true",
       "--default.lanewidth",
       std::to_string(settings.default_lane_width),
+      "--default.sidewalk-width",
+      std::to_string(settings.default_sidewalk_width),
       "--osm-files", "TRUE", "--opendrive-output", "TRUE", // necessary for now to enable osm input and xodr output
     };
     if (settings.osm_highways_types.size() == 0) {

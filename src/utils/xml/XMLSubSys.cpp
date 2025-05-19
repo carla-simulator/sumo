@@ -201,7 +201,7 @@ XMLSubSys::runParserFromString(GenericSAXHandler& handler,
     std::string file = "String XML";
     MsgHandler::getErrorInstance()->clear();
     try {
-        XERCES_CPP_NAMESPACE::SAX2XMLReader::ValSchemes validationScheme = isNet ? myNetValidationScheme : myValidationScheme;
+        std::string validationScheme = isNet ? myNetValidationScheme : myValidationScheme;
         if (myNextFreeReader == (int)myReaders.size()) {
             myReaders.push_back(new SUMOSAXReader(handler, validationScheme, myGrammarPool));
         } else {
@@ -214,8 +214,6 @@ XMLSubSys::runParserFromString(GenericSAXHandler& handler,
         myReaders[myNextFreeReader - 1]->parseString(xml);
         handler.setFileName(prevFile);
         myNextFreeReader--;
-    } catch (AbortParsing&) {
-        return false;
     } catch (ProcessError& e) {
         WRITE_ERROR(std::string(e.what()) != std::string("") ? std::string(e.what()) : std::string("Process Error"));
         return false;

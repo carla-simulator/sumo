@@ -466,9 +466,10 @@ NWWriter_OpenDrive::writeNetwork(const OptionsCont& oc, NBNetBuilder& nb) {
 
     device.closeTag();
 
-    OptionsCont::getOptions().output_xodr_file = device.getString();
+    OptionsCont::getOptions().output_xodr_file = dynamic_cast<OutputDevice_String*>(&device)->getString();
 
-    // device.close();
+    device.closeTag("OpenDRIVE");
+    device.close();
 }
 
 
@@ -755,6 +756,7 @@ NWWriter_OpenDrive::writeInternalEdge(OutputDevice& device, OutputDevice& juncti
     const std::string side = lefthand ? "left" : "right";
     device << "                <" << side << ">\n";
     const int numLanes = (int)parallel.size();
+    double accumulated_width = 0.0;
     for (int jRH = numLanes; --jRH >= 0;) {
         const int j = lefthand ? numLanes - 1 - jRH : jRH;
         const int xJ = s2x(j, numLanes);
@@ -764,6 +766,7 @@ NWWriter_OpenDrive::writeInternalEdge(OutputDevice& device, OutputDevice& juncti
 
         double inEdgeWidth = inEdge->getLaneWidth(c.fromLane);
         double outEdgeWidth = outEdge->getLaneWidth(c.toLane);
+        double lane_width = outEdge->getLaneWidth(c.toLane);
         // Ideally a polynomial function of third order would be needed for more precision.
         // This is obtained by specifying c and d coefficients, keeping it simple and linear
         // as we only know final and initial width.
@@ -806,6 +809,7 @@ NWWriter_OpenDrive::writeInternalEdge(OutputDevice& device, OutputDevice& juncti
         // junctionDevice << "            <laneLink from=\"" << fromIndex << "\" to=\"" << toLane << "\"/>\n";
         connectionID++;
         // get lane geometry
+        
         if (getLaneType(outEdge->getPermissions(c.toLane)) == "driving") {
             RoadLane lane;
             double displacement = accumulated_width + lane_width*0.5;
@@ -1319,113 +1323,100 @@ NWWriter_OpenDrive::parseTrafficSignId(const std::string& trafficSign) {
     }
 }
 
-void 
-NWWriter_OpenDrive::writeSignal(OutputDevice& device, std::string id, double s, double t, std::string type, double hOffset) {
-    device.openTag("signal");
-    device.writeAttr("id", id);
-    device.writeAttr("s", s);
-    device.writeAttr("t", t);
-    device.writeAttr("name", "signal:"+id);
-    device.writeAttr("dynamic", "yes");
-    device.writeAttr("orientation", "none");
-    device.writeAttr("zOffset", 0);
-    device.writeAttr("country", "OpenDRIVE");
-    device.writeAttr("type", type); // "1000001" is traffic light
-    device.writeAttr("subtype", "-1");
-    device.writeAttr("value", -1);
-    device.writeAttr("height", 0);
-    device.writeAttr("width", 0.5);
-    device.writeAttr("text", "");
-    device.writeAttr("hOffset", hOffset);
-    device.writeAttr("pitch", 0);
-    device.writeAttr("roll", 0);
-    device.openTag("validity");
-    device.writeAttr("fromLane", 0);
-    device.writeAttr("toLane", 0);
-    device.closeTag();
-    device.closeTag();
-}
+// void 
+// NWWriter_OpenDrive::writeSignal(OutputDevice& device, std::string id, double s, double t, std::string type, double hOffset) {
+//     device.openTag("signal");
+//     device.writeAttr("id", id);
+//     device.writeAttr("s", s);
+//     device.writeAttr("t", t);
+//     device.writeAttr("name", "signal:"+id);
+//     device.writeAttr("dynamic", "yes");
+//     device.writeAttr("orientation", "none");
+//     device.writeAttr("zOffset", 0);
+//     device.writeAttr("country", "OpenDRIVE");
+//     device.writeAttr("type", type); // "1000001" is traffic light
+//     device.writeAttr("subtype", "-1");
+//     device.writeAttr("value", -1);
+//     device.writeAttr("height", 0);
+//     device.writeAttr("width", 0.5);
+//     device.writeAttr("text", "");
+//     device.writeAttr("hOffset", hOffset);
+//     device.writeAttr("pitch", 0);
+//     device.writeAttr("roll", 0);
+//     device.openTag("validity");
+//     device.writeAttr("fromLane", 0);
+//     device.writeAttr("toLane", 0);
+//     device.closeTag();
+//     device.closeTag();
+// }
 
-void
-NWWriter_OpenDrive::writeSignalInertial(
-        OutputDevice& device, std::string id, std::string type,
-        double x, double y, double z, 
-        double hdg, double pitch, double roll) {
-    device.openTag("signal");
-    device.writeAttr("id", id);
-    device.writeAttr("s", 0);
-    device.writeAttr("t", 0);
-    device.writeAttr("name", "signal:"+id);
-    device.writeAttr("dynamic", "yes");
-    device.writeAttr("orientation", "none");
-    device.writeAttr("zOffset", 0);
-    device.writeAttr("country", "OpenDRIVE");
-    device.writeAttr("type", type); // "1000001" is traffic light
-    device.writeAttr("subtype", "-1");
-    device.writeAttr("value", -1);
-    device.writeAttr("height", 0);
-    device.writeAttr("width", 0.5);
-    device.writeAttr("text", "");
-    device.writeAttr("hOffset", 0);
-    device.writeAttr("pitch", 0);
-    device.writeAttr("roll", 0);
-    device.openTag("validity");
-    device.writeAttr("fromLane", 0);
-    device.writeAttr("toLane", 0);
-    device.closeTag();
-    device.openTag("positionInertial");
-    device.writeAttr("x", x);
-    device.writeAttr("y", y);
-    device.writeAttr("z", z);
-    device.writeAttr("hdg", hdg);
-    device.writeAttr("pitch", pitch);
-    device.writeAttr("roll", roll);
-    device.closeTag();
-    device.closeTag();
-}
+// void
+// NWWriter_OpenDrive::writeSignalInertial(
+//         OutputDevice& device, std::string id, std::string type,
+//         double x, double y, double z, 
+//         double hdg, double pitch, double roll) {
+//     device.openTag("signal");
+//     device.writeAttr("id", id);
+//     device.writeAttr("s", 0);
+//     device.writeAttr("t", 0);
+//     device.writeAttr("name", "signal:"+id);
+//     device.writeAttr("dynamic", "yes");
+//     device.writeAttr("orientation", "none");
+//     device.writeAttr("zOffset", 0);
+//     device.writeAttr("country", "OpenDRIVE");
+//     device.writeAttr("type", type); // "1000001" is traffic light
+//     device.writeAttr("subtype", "-1");
+//     device.writeAttr("value", -1);
+//     device.writeAttr("height", 0);
+//     device.writeAttr("width", 0.5);
+//     device.writeAttr("text", "");
+//     device.writeAttr("hOffset", 0);
+//     device.writeAttr("pitch", 0);
+//     device.writeAttr("roll", 0);
+//     device.openTag("validity");
+//     device.writeAttr("fromLane", 0);
+//     device.writeAttr("toLane", 0);
+//     device.closeTag();
+//     device.openTag("positionInertial");
+//     device.writeAttr("x", x);
+//     device.writeAttr("y", y);
+//     device.writeAttr("z", z);
+//     device.writeAttr("hdg", hdg);
+//     device.writeAttr("pitch", pitch);
+//     device.writeAttr("roll", roll);
+//     device.closeTag();
+//     device.closeTag();
+// }
 
 
-void
-NWWriter_OpenDrive::writeSignalReference(OutputDevice& device, std::string id, double s, double t, std::string orientation) {
-    device.openTag("signalReference");
-    device.writeAttr("id", id);
-    device.writeAttr("s", s);
-    device.writeAttr("t", t);
-    device.writeAttr("orientation", orientation);
-    device.closeTag();
-}
+// void
+// NWWriter_OpenDrive::writeSignalReference(OutputDevice& device, std::string id, double s, double t, std::string orientation) {
+//     device.openTag("signalReference");
+//     device.writeAttr("id", id);
+//     device.writeAttr("s", s);
+//     device.writeAttr("t", t);
+//     device.writeAttr("orientation", orientation);
+//     device.closeTag();
+// }
 
-std::pair<double, double>
-NWWriter_OpenDrive::ComputePointSegmentDistance(
-            const Position& P1, const Position& P2, const Position& P3) {
-    Position P1P2 = P1 - P2;
-    double DP1P2 = P1P2.dotProduct(P1P2);
-    double t = (P3 - P1).dotProduct(P1P2) / DP1P2;
-    double dist = P3.distanceTo(P1 - P1P2*t);
-    return std::make_pair(t, dist);
-}
+// std::pair<double, double>
+// NWWriter_OpenDrive::ComputePointSegmentDistance(
+//             const Position& P1, const Position& P2, const Position& P3) {
+//     Position P1P2 = P1 - P2;
+//     double DP1P2 = P1P2.dotProduct(P1P2);
+//     double t = (P3 - P1).dotProduct(P1P2) / DP1P2;
+//     double dist = P3.distanceTo(P1 - P1P2*t);
+//     return std::make_pair(t, dist);
+// }
 
-void 
-NWWriter_OpenDrive::GenerateControllerRecord(OutputDevice& device, int controllerID, int signalID){
-    device.openTag("controller");
-    device.writeAttr("name", "crtl" + std::to_string(controllerID));
-    device.writeAttr("id", controllerID);
-    device.writeAttr("sequence", 0);
-    device.openTag("control");
-    device.writeAttr("signalId", signalID);
-    device.writeAttr("type", "");
-    device.closeTag();
-    device.closeTag();
-}
-
-void 
-NWWriter_OpenDrive::GenerateJunctionControllerRecord(OutputDevice& device, int controllerID, int sequence) {
-    device.openTag("controller");
-    device.writeAttr("id", controllerID);
-    device.writeAttr("type", 0);
-    device.writeAttr("sequence", sequence);
-    device.closeTag();
-}
+// void 
+// NWWriter_OpenDrive::GenerateJunctionControllerRecord(OutputDevice& device, int controllerID, int sequence) {
+//     device.openTag("controller");
+//     device.writeAttr("id", controllerID);
+//     device.writeAttr("type", 0);
+//     device.writeAttr("sequence", sequence);
+//     device.closeTag();
+// }
 
 void
 NWWriter_OpenDrive::writeSignals(OutputDevice& device, const NBEdge* e, double length,

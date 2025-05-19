@@ -192,14 +192,6 @@ public:
         return sqrt(lengthSquared());
     }
 
-    double lengthSquared() {
-        return myX * myX + myY * myY + myZ * myZ;
-    }
-
-    double length() {
-        return sqrt(lengthSquared());
-    }
-
     /// @brief output operator
     friend std::ostream& operator<<(std::ostream& os, const Position& p) {
         os << p.x() << "," << p.y();

@@ -230,7 +230,8 @@ SUMOSAXReader::LocalSchemaResolver::resolveEntity(const XMLCh* const /* publicId
         //         WRITE_WARNING("Cannot read local schema '" + file + (myHaveFallback ? "', will try website lookup." : "', XML validation will fail."));
         //     }        
         if(url.substr(pos) == "/xsd/types_file.xsd") {
-            return new XERCES_CPP_NAMESPACE::MemBufInputSource((const XMLByte*)types_file.c_str(), types_file.size(), "registrySettings");
+            //return new XERCES_CPP_NAMESPACE::MemBufInputSource((const XMLByte*)types_file.c_str(), types_file.size(), "registrySettings");
+            return nullptr;
         }
         else {
             WRITE_WARNING("Cannot read local schema '" + url + "', will try website lookup.");

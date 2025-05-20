@@ -252,7 +252,7 @@ enum SumoXMLTag {
     SUMO_TAG_PROHIBITION,
     /// @brief split something
     SUMO_TAG_SPLIT,
-    /// @brief alternative definition for junction
+    /// @brief Latitude and longitude bounds
     SUMO_TAG_BOUNDS,
     /// @brief alternative definition for junction
     SUMO_TAG_NODE,
@@ -1134,7 +1134,7 @@ enum SumoXMLAttr {
     /// @brief Stopping threshold
     SUMO_ATTR_STOPPINGTHRESHOLD,
     /// @}
-    
+
     /// @name tripinfo output attributes
     /// @{
     SUMO_ATTR_WAITINGCOUNT,

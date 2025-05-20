@@ -70,16 +70,16 @@ public:
 
 protected:
 
-/** @enum CycleWayType
- * @brief details on the kind of cycleway along this road
- */
-enum WayType {
-    WAY_NONE = 0,
-    WAY_FORWARD = 1,
-    WAY_BACKWARD = 2,
-    WAY_BOTH = WAY_FORWARD | WAY_BACKWARD,
-    WAY_UNKNOWN = 4
-};
+    /** @enum CycleWayType
+     * @brief details on the kind of cycleway along this road
+     */
+    enum WayType {
+        WAY_NONE = 0,
+        WAY_FORWARD = 1,
+        WAY_BACKWARD = 2,
+        WAY_BOTH = WAY_FORWARD | WAY_BACKWARD,
+        WAY_UNKNOWN = 4
+    };
 
     /** @brief An internal representation of an OSM-node
      */
@@ -391,12 +391,12 @@ protected:
     static void applyChangeProhibition(NBEdge* e, int changeProhibition);
     /// Applies lane use information from `nie` to `e`. Uses the member values
     /// `myLaneAllowedForward`, `myLaneDisallowedForward` and `myLaneDesignatedForward`
-    /// or the respective backward values to determine the ultimate lane uses. 
+    /// or the respective backward values to determine the ultimate lane uses.
     /// When a value of `e->myLaneDesignatedForward/Backward` is `true`, all permissions for the corresponding
     /// lane will be deleted before adding permissions from `e->myLaneAllowedForward/Backward`.
-    /// SVCs from `e->myLaneAllowedForward/Backward` will be added to the existing permissions (for each lane). 
+    /// SVCs from `e->myLaneAllowedForward/Backward` will be added to the existing permissions (for each lane).
     /// SVCs from `e->myLaneDisallowedForward/Backward` will be subtracted from the existing permissions.
-    /// @brief Applies lane use information from `nie` to `e`. 
+    /// @brief Applies lane use information from `nie` to `e`.
     /// @param e The NBEdge that the new information will be written to.
     /// @param nie Ths Edge that the information comes from.
     void applyLaneUse(NBEdge* e, NIImporter_OpenStreetMap::Edge* nie, const bool forward);

@@ -817,6 +817,10 @@ StringBijection<int>::Entry SUMOXMLDefinitions::attrs[] = {
     { "aggregate",              SUMO_ATTR_AGGREGATE },
     { "numEdges",               SUMO_ATTR_NUMEDGES },
 
+    { "minlon",                 SUMO_ATTR_MINLON },
+    { "minlat",                 SUMO_ATTR_MINLAT },
+    { "maxlon",                 SUMO_ATTR_MAXLON },
+    { "maxlat",                 SUMO_ATTR_MAXLAT },
     { "lon",                    SUMO_ATTR_LON },
     { "lat",                    SUMO_ATTR_LAT },
     { "action",                 SUMO_ATTR_ACTION },

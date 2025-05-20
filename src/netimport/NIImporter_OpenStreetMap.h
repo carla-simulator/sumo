@@ -69,6 +69,18 @@ public:
     static void loadNetwork(const OptionsCont& oc, NBNetBuilder& nb);
 
 protected:
+
+/** @enum CycleWayType
+ * @brief details on the kind of cycleway along this road
+ */
+enum WayType {
+    WAY_NONE = 0,
+    WAY_FORWARD = 1,
+    WAY_BACKWARD = 2,
+    WAY_BOTH = WAY_FORWARD | WAY_BACKWARD,
+    WAY_UNKNOWN = 4
+};
+
     /** @brief An internal representation of an OSM-node
      */
     struct NIOSMNode : public Parameterised {
@@ -460,6 +472,12 @@ protected:
 
         /// @brief number of diplicate nodes
         int myDuplicateNodes;
+
+        /// Minimum and maximum bounds
+        double minLon;
+        double minLat;
+        double maxLon;
+        double maxLat;
 
         /// @brief the options
         const OptionsCont& myOptionsCont;

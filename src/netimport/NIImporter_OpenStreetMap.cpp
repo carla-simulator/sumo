@@ -1063,6 +1063,16 @@ NIImporter_OpenStreetMap::NodesHandler::~NodesHandler() = default;
 void
 NIImporter_OpenStreetMap::NodesHandler::myStartElement(int element, const SUMOSAXAttributes& attrs) {
     ++myHierarchyLevel;
+    if (element == SUMO_TAG_BOUNDS) {
+        bool ok = true;
+        minLon = attrs.get<double>(SUMO_ATTR_MINLON, myLastNodeID.c_str(), ok);
+        minLat = attrs.get<double>(SUMO_ATTR_MINLAT, myLastNodeID.c_str(), ok);
+        maxLon = attrs.get<double>(SUMO_ATTR_MAXLON, myLastNodeID.c_str(), ok);
+        maxLat = attrs.get<double>(SUMO_ATTR_MAXLAT, myLastNodeID.c_str(), ok);
+        if (!ok) {
+            return;
+        }
+    }
     if (element == SUMO_TAG_NODE) {
         bool ok = true;
         myLastNodeID = attrs.get<std::string>(SUMO_ATTR_ID, nullptr, ok);
@@ -1085,6 +1095,9 @@ NIImporter_OpenStreetMap::NodesHandler::myStartElement(int element, const SUMOSA
                 const double tlon = attrs.get<double>(SUMO_ATTR_LON, myLastNodeID.c_str(), ok);
                 const double tlat = attrs.get<double>(SUMO_ATTR_LAT, myLastNodeID.c_str(), ok);
                 if (!ok) {
+                    return;
+                }
+                if (tlon > maxLon || tlon < minLon || tlat > maxLat || tlat < minLat){
                     return;
                 }
                 myCurrentNode = new NIOSMNode(id, tlon, tlat);

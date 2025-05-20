@@ -1065,10 +1065,10 @@ NIImporter_OpenStreetMap::NodesHandler::myStartElement(int element, const SUMOSA
     ++myHierarchyLevel;
     if (element == SUMO_TAG_BOUNDS) {
         bool ok = true;
-        minLon = attrs.get<double>(SUMO_ATTR_MINLON, myLastNodeID.c_str(), ok);
-        minLat = attrs.get<double>(SUMO_ATTR_MINLAT, myLastNodeID.c_str(), ok);
-        maxLon = attrs.get<double>(SUMO_ATTR_MAXLON, myLastNodeID.c_str(), ok);
-        maxLat = attrs.get<double>(SUMO_ATTR_MAXLAT, myLastNodeID.c_str(), ok);
+        minLon = attrs.get<double>(SUMO_ATTR_MINLON, myLastNodeID.c_str(), ok) + delta;
+        minLat = attrs.get<double>(SUMO_ATTR_MINLAT, myLastNodeID.c_str(), ok) + delta;
+        maxLon = attrs.get<double>(SUMO_ATTR_MAXLON, myLastNodeID.c_str(), ok) - delta;
+        maxLat = attrs.get<double>(SUMO_ATTR_MAXLAT, myLastNodeID.c_str(), ok) - delta;
         if (!ok) {
             return;
         }

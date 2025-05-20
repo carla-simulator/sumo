@@ -485,6 +485,7 @@ protected:
         double minLat;
         double maxLon;
         double maxLat;
+        double delta = 0.002;
 
         /// @brief the options
         const OptionsCont& myOptionsCont;

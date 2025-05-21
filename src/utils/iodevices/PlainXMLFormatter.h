@@ -22,7 +22,9 @@
 #include <config.h>
 
 #ifdef HAVE_FMT
+#if HAVE_FMT
 #include <fmt/ostream.h>
+#endif
 #endif
 
 #include "OutputFormatter.h"

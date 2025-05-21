@@ -59,13 +59,13 @@ macro(_eigen3_check_version)
   endif(NOT EIGEN3_VERSION_OK)
 endmacro(_eigen3_check_version)
 
-if (EIGEN3_INCLUDE_DIR)
+if (IS_DIRECTORY "${EIGEN3_INCLUDE_DIR}")
 
   # in cache already
   _eigen3_check_version()
   set(EIGEN3_FOUND ${EIGEN3_VERSION_OK})
 
-else (EIGEN3_INCLUDE_DIR)
+else ()
 
   # search first if an Eigen3Config.cmake is available in the system,
   # if successful this would set EIGEN3_INCLUDE_DIR and the rest of
@@ -84,13 +84,13 @@ else (EIGEN3_INCLUDE_DIR)
       )
   endif(NOT EIGEN3_INCLUDE_DIR)
 
-  if(EIGEN3_INCLUDE_DIR)
+  if(IS_DIRECTORY "${EIGEN3_INCLUDE_DIR}")
     _eigen3_check_version()
-  endif(EIGEN3_INCLUDE_DIR)
+  endif()
 
   include(FindPackageHandleStandardArgs)
   find_package_handle_standard_args(Eigen3 DEFAULT_MSG EIGEN3_INCLUDE_DIR EIGEN3_VERSION_OK)
 
   mark_as_advanced(EIGEN3_INCLUDE_DIR)
 
-endif(EIGEN3_INCLUDE_DIR)
+endif()

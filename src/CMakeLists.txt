@@ -174,13 +174,13 @@ set(osm2odr_sources "${osm2odr_sources};${utils_traction_wire_sources}")
 file(GLOB utils_vehicle_sources "utils/vehicle/*.cpp" "utils/vehicle/*.h")
 set(osm2odr_sources "${osm2odr_sources};${utils_vehicle_sources}")
 
+find_package(XercesC REQUIRED)
+message (STATUS "XercesC_LIBRARIES=${XercesC_LIBRARIES}")
 add_library(osm2odr STATIC ${osm2odr_sources})
-target_link_libraries(osm2odr ${XercesC_LIBRARIES} ${PROJ_LIBRARY})
-if ( HAVE_ZLIB )
+target_link_libraries(osm2odr XercesC::XercesC ${PROJ_LIBRARY})
+if ( ${HAVE_ZLIB} )
   target_link_libraries(osm2odr ${ZLIB_LIBRARIES})
 endif()
-
-target_compile_definitions(osm2odr PUBLIC "XERCES_STATIC_LIBRARY")
 
 install(TARGETS osm2odr ARCHIVE DESTINATION lib)
 install(FILES OSM2ODR.h DESTINATION include)

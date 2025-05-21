@@ -270,7 +270,7 @@ endif ()
 
 if (NOT JUPEDSIM_CUSTOMDIR)
 #     check if set JuPedSim directory from SUMOLibraries
-    if (SUMO_LIBRARIES AND WIN32)
+    if (WIN32 AND IS_DIRECTORY "${SUMO_LIBRARIES}")
         file(GLOB JUPEDSIM_CUSTOMDIR_SUMOLIBRARIES "${SUMO_LIBRARIES}/JuPedSim-*")
         set(JUPEDSIM_CUSTOMDIR "${JUPEDSIM_CUSTOMDIR_SUMOLIBRARIES}")
     else ()
@@ -284,7 +284,7 @@ if (NOT JUPEDSIM_CUSTOMDIR)
 endif ()
 
 # check if SUMOLibraries was found (Only in Windows)
-if (SUMO_LIBRARIES AND WIN32)
+if (WIN32 AND IS_DIRECTORY "${SUMO_LIBRARIES}")
     # set option for install debug and release runtime dlls
     option(INSTALL_DLL_RUNTIMES "Copy debug and release runtimes for MSVC" true)
     # Special option for MinGW32
@@ -390,7 +390,7 @@ if (FOX_FOUND)
 endif (FOX_FOUND)
 
 
-if (SUMO_LIBRARIES AND WIN32)
+if (WIN32 AND IS_DIRECTORY "${SUMO_LIBRARIES}")
     find_package(fmt PATHS ${fmt_PATH} NO_DEFAULT_PATH)
     if (fmt_FOUND)
         message(STATUS "Found FMT (SUMOLibraries): " ${fmt_DIR})
@@ -525,7 +525,10 @@ include_directories(${CMAKE_CURRENT_SOURCE_DIR}/src)
 set(commonlibs
         utils_distribution utils_handlers utils_shapes utils_options
         utils_xml utils_geom utils_common utils_importio utils_iodevices utils_traction_wire foreign_tcpip
-        ${XercesC_LIBRARIES} ${ZLIB_LIBRARIES} ${PROJ_LIBRARY} ${Intl_LIBRARIES} ${FMT_LIBRARY})
+        ${XercesC_LIBRARIES} ${PROJ_LIBRARY} ${Intl_LIBRARIES} ${FMT_LIBRARY})
+if (${HAVE_ZLIB})
+    list (APPEND commonlibs ${ZLIB_LIBRARIES})
+endif ()
 if (WIN32)
     set(commonlibs ${commonlibs} ws2_32)
 endif ()
@@ -604,7 +607,7 @@ if (NOT ${PYTHON_SETUPTOOLS_MISSING})
     endif ()
 endif ()
 
-if (SUMO_LIBRARIES AND WIN32)
+if (WIN32 AND IS_DIRECTORY "${SUMO_LIBRARIES}")
     # filter release DLLs
     execute_process(COMMAND ${PYTHON_EXECUTABLE} ${CMAKE_SOURCE_DIR}/tools/build_config/filterDebugDLL.py ${SUMO_LIBRARIES_DLL}
                     OUTPUT_VARIABLE SUMO_LIBRARIES_RELEASE_DLL)

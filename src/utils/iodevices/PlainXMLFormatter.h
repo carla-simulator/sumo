@@ -23,8 +23,12 @@
 
 #ifdef HAVE_FMT
 #if HAVE_FMT
-#include <fmt/ostream.h>
+#define HAS_FMT
 #endif
+#endif
+
+#if HAS_FMT
+#include <fmt/ostream.h>
 #endif
 
 #include "OutputFormatter.h"
@@ -163,7 +167,7 @@ private:
 // ===========================================================================
 template <>
 inline void PlainXMLFormatter::writeAttr(std::ostream& into, const SumoXMLAttr attr, const double& val) {
-#ifdef HAVE_FMT
+#if HAS_FMT
     fmt::print(into, " {}=\"{:.{}f}\"", toString(attr), val, into.precision());
 #else
     into << " " << toString(attr) << "=\"" << val << "\"";

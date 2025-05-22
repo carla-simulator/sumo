@@ -252,6 +252,8 @@ enum SumoXMLTag {
     SUMO_TAG_PROHIBITION,
     /// @brief split something
     SUMO_TAG_SPLIT,
+    /// @brief Latitude and longitude bounds
+    SUMO_TAG_BOUNDS,
     /// @brief alternative definition for junction
     SUMO_TAG_NODE,
     /// @brief type (edge)
@@ -1625,6 +1627,10 @@ enum SumoXMLAttr {
     SUMO_ATTR_AGGREGATE,
     SUMO_ATTR_NUMEDGES,
 
+    SUMO_ATTR_MINLON,
+    SUMO_ATTR_MINLAT,
+    SUMO_ATTR_MAXLON,
+    SUMO_ATTR_MAXLAT,
     SUMO_ATTR_LON,
     SUMO_ATTR_LAT,
     SUMO_ATTR_ACTION,

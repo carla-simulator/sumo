@@ -390,6 +390,7 @@ if (FOX_FOUND)
 endif (FOX_FOUND)
 
 
+set(HAVE_FMT 0)
 if (WIN32 AND IS_DIRECTORY "${SUMO_LIBRARIES}")
     find_package(fmt PATHS ${fmt_PATH} NO_DEFAULT_PATH)
     if (fmt_FOUND)

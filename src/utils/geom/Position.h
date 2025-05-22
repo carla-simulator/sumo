@@ -47,6 +47,8 @@ public:
     /// @brief Parametrised constructor
     Position(double x, double y, double z) :
         myX(x), myY(y), myZ(z) { }
+    
+    ~Position() = default;
 
     /// @brief Returns the x-position
     inline double x() const {

@@ -42,6 +42,9 @@
 #include <utils/router/CHRouterWrapper.h>
 #include <utils/vehicle/SUMOVehicleParserHelper.h>
 
+template class std::vector<Position>; // @CARLA HACK
+template class std::vector<Position*>; // @CARLA HACK
+
 //#define DEBUG_SEPARATE_TURNS
 #define DEBUG_COND(obj) (obj->isSelected())
 

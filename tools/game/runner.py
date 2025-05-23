@@ -32,6 +32,7 @@ import sys
 import re
 import pickle
 import glob
+import time
 try:
     import Tkinter
 except ImportError:
@@ -64,6 +65,8 @@ if not os.path.exists(sumolib.translation.LOCALEDIR) and os.path.exists(os.path.
 def updateLocalMessages():
     global _LANGUAGE_CAPTIONS
     _LANGUAGE_CAPTIONS = {'title': TL('Interactive Traffic Light'),
+                          'rail': TL('Railway Control'),
+                          'rail_demo': TL('Railway Control Demo'),
                           'fkk_in': TL('Research intersection Ingolstadt'),
                           'cross': TL('Simple Junction'),
                           'cross_demo': TL('Simple Junction (Demo)'),
@@ -210,6 +213,29 @@ def computeScoreDRT(gamename):
         return score, rideCount, True
 
 
+def computeScoreRail(gamename):
+    expectedMeanWait = 360
+    tripinfos = gamename + ".tripinfos.xml"
+    rideCount = 0
+    score = 0
+    for ride in sumolib.xml.parse(tripinfos, 'ride'):
+        wt = float(ride.waitingTime)
+        if wt < 0:
+            if _DEBUG:
+                print("negative waitingTime")
+            wt = 1000
+        factor = min(1, expectedMeanWait / wt)
+        if float(ride.arrival) >= 0:
+            score += 100 * factor
+        elif float(ride.duration) >= 0:
+            score += 50 * factor
+        rideCount += 1
+    if rideCount == 0:
+        return 0, 0, False
+    else:
+        return int(score), rideCount, True
+
+
 def computeScoreSquare(gamename):
     maxScore = 1000.0
     expectedVehCount = 142
@@ -243,6 +269,8 @@ _SCORING_FUNCTION.update({
     'DRT2': computeScoreDRT,
     'DRT_demo': computeScoreDRT,
     'square': computeScoreSquare,
+    'rail': computeScoreRail,
+    'rail_demo': computeScoreRail,
 })
 
 
@@ -439,6 +467,8 @@ class StartDialog(Tkinter.Frame):
 
         if _DEBUG:
             print("ended", cfg)
+        # ensure files are fully written
+        time.sleep(1)
 
         # compute score
         score, totalArrived, complete = _SCORING_FUNCTION[self.category](self.category)

@@ -6,6 +6,47 @@ title: ChangeLog
 
 ### Bugfixes
 
+- sumo
+  - Fixed invalid traffic light warnings #16602
+  - Fixed overly verbose router output when using stationfinder device #16624
+  - Vehicles no longer drive onto forbidden internal lanes when option **--ignore-route-errors** is set #16635
+  - Fixed bug where junction collision was not detected #16695
+  - Fixed collision on junction due to unsafe lane changing #16643
+
+- netedit
+  - Changing connection attribute 'uncontrolled' to `False` and a traffic light, now makes that connection controlled by the traffic light #16705
+  - Fixed crash after using tls-mode "reset single" when loaded programs had non-standard programIDs. #16702
+
+- netconvert
+  - Fixed bug where option **--tls.rebuild** creates invalid signal plan when using custom crossing traffic light indices. #16653
+  - Fixed unsafe signal plan when crossings use linkIndex2 #16657
+  - Fixed missing yellow phase when crossing re-uses vehicular link index #16658
+
+- tools
+  - gtfs2pt.py: Fixed bug where option **--repair** did not fix broken **--osm-routes**. #16632 (regression in 1.17.0)
+  - gtfs2pt.py: Fixed obsolete config header when using **--osm-routes** #16680
+  - osmWebWizard.py: Fixed bug where the wizard wouldn't open properly on Linux #16086
+  - net2geojson.py: Fixed bug that was causing invalid shapes with option **--boundary** #16295  
+  - sumolib.net.connection: No longer ignores connection permissions #16633
+
+### Enhancements
+
+- sumo
+  - A warning is now issued for traffic light programs where a link never gets a green phase even when the program has only a single phase. #16652
+ 
+- meso
+  - `<tlLogic>` with `<param key="meso.tls.control" value="true"/>` is now excempt from options **--meso-tls-penalty** and **--meso-tls-flow-penalty** and runs with full control #16674
+
+- tools
+  - plotXMLAttributes.py: The options **--xticks-file** and **--yticks-file** now support giving a column for name aliases to group the respective values #16683
+  - [plotStops.py](Tools/Railways.md#plotstopspy): New tool to simplify drawing a train schedule diagram along a specified route. #16683
+
+ 
+### Miscellaneous
+
+- sumo-gui: swapped color semantics of stopping place occupancy indicator (red means used and green now means empty) #16668
+- Shift-click no longer switches traffic lights or starts tracking vehicles in gaming mode #16703, #16704
+
 
 ## Version 1.23.1 (08.05.2025)
 

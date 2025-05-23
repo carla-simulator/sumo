@@ -8,7 +8,7 @@ if (${CMAKE_VERSION} VERSION_GREATER 3.14.0)
 endif()
 if (${CMAKE_VERSION} VERSION_GREATER 3.21.0)
     # use library name conventions for C#
-    cmake_policy(SET CMP0122 OLD)
+    cmake_policy(SET CMP0122 NEW)
 endif ()
 set(libtracistatic_STAT_SRCS
     Connection.cpp
@@ -108,7 +108,7 @@ if (SWIG_FOUND)
             else()
                 message(WARNING "Could not build libtraci jar, maven was not found.")
             endif()
-            set_property(TARGET libtracijni PROPERTY FOLDER "libtraci")
+            set_target_properties(libtracijni PROPERTIES FOLDER "libtraci")
             install(TARGETS libtracijni DESTINATION bin LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR})
         else()
             message(WARNING "ENABLE_JAVA_BINDINGS is set but Java or JNI was not found.")
@@ -116,8 +116,9 @@ if (SWIG_FOUND)
     endif()
 
     if (ENABLE_CS_BINDINGS)
-        set(CMAKE_SWIG_FLAGS -namespace Eclipse.Sumo.Libtraci)
-        set(CMAKE_SWIG_OUTDIR ${CMAKE_CURRENT_BINARY_DIR}/cs)
+        set(CS_NAMESPACE Eclipse.Sumo.Libtraci)
+        set(CMAKE_SWIG_FLAGS -namespace ${CS_NAMESPACE})
+        set(CMAKE_SWIG_OUTDIR ${CMAKE_CURRENT_BINARY_DIR}/${CS_NAMESPACE})
         set(SWIG_MODULE_libtracics_EXTRA_DEPS ${libtraci_HEADERS} ../libsumo/libsumo_typemap.i)
         if (${CMAKE_VERSION} VERSION_GREATER 3.8.0)
             SWIG_ADD_LIBRARY(libtracics LANGUAGE CSharp SOURCES libtraci.i)
@@ -131,9 +132,9 @@ if (SWIG_FOUND)
             swig_link_libraries(libtracics libtracistatic ${libtcpip})
         endif()
         ADD_CUSTOM_COMMAND(TARGET libtracics POST_BUILD
-            COMMAND ${CMAKE_COMMAND} -E tar "cf" "${CMAKE_SOURCE_DIR}/bin/libtracics-sources.zip" --format=zip "cs"
+            COMMAND ${CMAKE_COMMAND} -E tar "cf" "${CMAKE_SOURCE_DIR}/bin/libtracics-sources.zip" --format=zip "${CS_NAMESPACE}"
         )
-        set_property(TARGET libtracics PROPERTY FOLDER "libtraci")
+        set_target_properties(libtracics PROPERTIES FOLDER "libtraci" PREFIX "")
         install(TARGETS libtracics DESTINATION bin LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR})
     endif()
 

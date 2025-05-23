@@ -177,7 +177,7 @@ GNETagSelector::refreshTagSelector() {
 
 
 long
-GNETagSelector::onCmdSelectTag(FXObject*, FXSelector, void*) {
+GNETagSelector::onCmdSelectTag(FXObject*, FXSelector, void* ptr) {
     myCurrentTemplateAC = myFrameParent->getViewNet()->getNet()->getACTemplates()->getTemplateAC(myTagsMatchBox->getText().text());
     if (myCurrentTemplateAC) {
         // set color of myTypeMatchBox to black (valid)

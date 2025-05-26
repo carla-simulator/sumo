@@ -466,7 +466,7 @@ NWWriter_OpenDrive::writeNetwork(const OptionsCont& oc, NBNetBuilder& nb) {
 
     device.closeTag();
 
-    OptionsCont::getOptions().output_xodr_file = dynamic_cast<OutputDevice_String*>(&device)->getString();
+    OptionsCont::getOptions().output_xodr_file = device.getFilename();
 
     device.closeTag("OpenDRIVE");
     device.close();

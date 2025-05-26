@@ -90,7 +90,7 @@ namespace osm2odr {
       std::to_string(settings.default_lane_width),
       "--default.sidewalk-width",
       std::to_string(settings.default_sidewalk_width),
-      "--osm-files", "true",
+      "--osm-files", osm_file,
       "--opendrive-output", opendrive_output
     };
     if (settings.osm_highways_types.size() == 0) {

@@ -95,6 +95,7 @@ NWWriter_OpenDrive::writeNetwork(const OptionsCont& oc, NBNetBuilder& nb) {
     //
     OutputDevice& device = OutputDevice::getDevice(oc.getString("opendrive-output"));
     OutputDevice::createDeviceByOption("opendrive-output", "OpenDRIVE");
+    std::cout << "(2) device.getFilename(): " << device.getFilename() << std::endl;
     time_t now = time(nullptr);
     std::string dstr(ctime(&now));
     const Boundary& b = GeoConvHelper::getFinal().getConvBoundary();
@@ -466,6 +467,7 @@ NWWriter_OpenDrive::writeNetwork(const OptionsCont& oc, NBNetBuilder& nb) {
 
     device.closeTag();
 
+    std::cout << "(2) device.getFilename(): " << device.getFilename() << std::endl;
     OptionsCont::getOptions().output_xodr_file = device.getFilename();
 
     device.closeTag("OpenDRIVE");

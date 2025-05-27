@@ -121,6 +121,8 @@ namespace osm2odr {
     // OptionsCont::getOptions().clear();
     OptionsCont& oc = OptionsCont::getOptions();
     oc.input_osm_file = osm_file;
+    std::cout << "osm_file: " << osm_file << std::endl;
+    std::cout << "opendrive_output: " << opendrive_output << std::endl;
     oc.generate_traffic_lights = settings.generate_traffic_lights;
     oc.all_junctions_traffic_lights = settings.all_junctions_traffic_lights;
     oc.tl_excluded_highways_types = settings.tl_excluded_highways_types;

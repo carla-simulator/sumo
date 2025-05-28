@@ -66,14 +66,6 @@ namespace osm2odr {
   }
 
   std::string ConvertOSMToOpenDRIVE(std::string osm_file, OSM2ODRSettings settings) {
-    const std::string osm_ext = ".osm";
-    const std::string xodr_ext = ".xodr";
-    std::string opendrive_output = osm_file;
-    if (StringUtils::endsWith(opendrive_output, osm_ext))
-    {
-      opendrive_output.resize(opendrive_output.size() - osm_ext.size());
-      opendrive_output.append(xodr_ext);
-    }
     std::vector<std::string> OptionsArgs =
     {
       "--proj", settings.proj_string,
@@ -90,8 +82,8 @@ namespace osm2odr {
       std::to_string(settings.default_lane_width),
       "--default.sidewalk-width",
       std::to_string(settings.default_sidewalk_width),
-      "--osm-files", osm_file,
-      "--opendrive-output", opendrive_output
+      "--osm-files", "string",
+      "--opendrive-output", "string"
     };
     if (settings.osm_highways_types.size() == 0) {
       WRITE_ERROR("No osm way types specified for importing.");
@@ -121,8 +113,6 @@ namespace osm2odr {
     // OptionsCont::getOptions().clear();
     OptionsCont& oc = OptionsCont::getOptions();
     oc.input_osm_file = osm_file;
-    std::cout << "osm_file: " << osm_file << std::endl;
-    std::cout << "opendrive_output: " << opendrive_output << std::endl;
     oc.generate_traffic_lights = settings.generate_traffic_lights;
     oc.all_junctions_traffic_lights = settings.all_junctions_traffic_lights;
     oc.tl_excluded_highways_types = settings.tl_excluded_highways_types;

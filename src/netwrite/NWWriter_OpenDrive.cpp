@@ -134,7 +134,6 @@ NWWriter_OpenDrive::writeNetwork(const OptionsCont& oc, NBNetBuilder& nb) {
             WRITE_WARNING("Could not write OpenDRIVE geoReference. Only unshifted Coordinate systems are supported (center_map and use_offsets need to be set to False)");
         }
     }
-    device.closeTag();
 
     SignalLanes signalLanes;
 
@@ -467,8 +466,11 @@ NWWriter_OpenDrive::writeNetwork(const OptionsCont& oc, NBNetBuilder& nb) {
 
     device.closeTag();
 
-    std::cout << "(2) device.getFilename(): " << device.getFilename() << std::endl;
-    OptionsCont::getOptions().output_xodr_file = device.getFilename();
+    auto output_device_string = dynamic_cast<OutputDevice_String*>(&device);
+    if (output_device_string != nullptr)
+    {
+        OptionsCont::getOptions().output_xodr_file = output_device_string->getString();
+    }
 
     device.closeTag("OpenDRIVE");
     device.close();

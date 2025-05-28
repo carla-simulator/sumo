@@ -36,6 +36,7 @@
 #include "OutputDevice_COUT.h"
 #include "OutputDevice_CERR.h"
 #include "OutputDevice_Network.h"
+#include "OutputDevice_String.h"
 #include "PlainXMLFormatter.h"
 #include <utils/common/StringUtils.h>
 #include <utils/common/UtilExceptions.h>
@@ -76,6 +77,8 @@ OutputDevice::getDevice(const std::string& name, bool usePrefix) {
         dev = OutputDevice_COUT::getDevice();
     } else if (name == "stderr") {
         dev = OutputDevice_CERR::getDevice();
+    } else if (name == "string") {
+        dev = new OutputDevice_String();
     } else if (FileHelpers::isSocket(name)) {
         try {
             const bool ipv6 = name[0] == '[';  // IPv6 adresses may be written like '[::1]:8000'

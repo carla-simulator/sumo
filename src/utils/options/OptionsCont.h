@@ -341,6 +341,8 @@ public:
      */
     bool isBool(const std::string& name) const;
 
+    bool IsString(const std::string& name) const;
+
     /** @brief Checks whether the named option is usable as a file list (with at least a single file)
      *
      * The method returns true, if the named option is set with entries containing

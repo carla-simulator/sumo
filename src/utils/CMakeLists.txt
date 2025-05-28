@@ -15,6 +15,7 @@ add_subdirectory(xml)
 if (FOX_FOUND)
     add_subdirectory(foxtools)
     add_subdirectory(gui)
+    add_subdirectory(tests)
 endif ()
 
 if (SUMO_UTILS)

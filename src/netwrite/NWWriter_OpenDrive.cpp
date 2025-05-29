@@ -95,6 +95,7 @@ NWWriter_OpenDrive::writeNetwork(const OptionsCont& oc, NBNetBuilder& nb) {
     //
     OutputDevice& device = OutputDevice::getDevice(oc.getString("opendrive-output"));
     OutputDevice::createDeviceByOption("opendrive-output", "OpenDRIVE");
+    std::cout << "(2) device.getFilename(): " << device.getFilename() << std::endl;
     time_t now = time(nullptr);
     std::string dstr(ctime(&now));
     const Boundary& b = GeoConvHelper::getFinal().getConvBoundary();
@@ -133,7 +134,6 @@ NWWriter_OpenDrive::writeNetwork(const OptionsCont& oc, NBNetBuilder& nb) {
             WRITE_WARNING("Could not write OpenDRIVE geoReference. Only unshifted Coordinate systems are supported (center_map and use_offsets need to be set to False)");
         }
     }
-    device.closeTag();
 
     SignalLanes signalLanes;
 
@@ -466,7 +466,11 @@ NWWriter_OpenDrive::writeNetwork(const OptionsCont& oc, NBNetBuilder& nb) {
 
     device.closeTag();
 
-    OptionsCont::getOptions().output_xodr_file = dynamic_cast<OutputDevice_String*>(&device)->getString();
+    auto output_device_string = dynamic_cast<OutputDevice_String*>(&device);
+    if (output_device_string != nullptr)
+    {
+        OptionsCont::getOptions().output_xodr_file = output_device_string->getString();
+    }
 
     device.closeTag("OpenDRIVE");
     device.close();

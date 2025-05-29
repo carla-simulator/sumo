@@ -142,7 +142,14 @@ NIImporter_OpenStreetMap::load(const OptionsCont& oc, NBNetBuilder& nb) {
     if (!oc.isSet("osm-files")) {
         return;
     }
-    const std::vector<std::string> files = oc.getStringVector("osm-files");
+    bool raw_string = oc.IsString("osm-files");
+    if (raw_string)
+        raw_string = oc.getString("osm-files") == "string";
+
+    std::vector<std::string> files;
+    if (!raw_string)
+        files = oc.getStringVector("osm-files");
+
     std::vector<SUMOSAXReader*> readers;
 
     myImportLaneAccess = oc.getBool("osm.lane-access");
@@ -164,54 +171,65 @@ NIImporter_OpenStreetMap::load(const OptionsCont& oc, NBNetBuilder& nb) {
 
     // load nodes, first
     NodesHandler nodesHandler(myOSMNodes, myUniqueNodes, oc);
-    // for (const std::string& file : files) {
-    //     if (!FileHelpers::isReadable(file)) {
-    //         WRITE_ERRORF(TL("Could not open osm-file '%'."), file);
-    //         return;
-    //     }
-    //     nodesHandler.setFileName(file);
-    //     nodesHandler.resetHierarchy();
-    //     const long before = PROGRESS_BEGIN_TIME_MESSAGE("Parsing nodes from osm-file '" + file + "'");
-    //     readers.push_back(XMLSubSys::getSAXReader(nodesHandler));
-    //     if (!readers.back()->parseFirst(file) || !readers.back()->parseSection(SUMO_TAG_NODE) ||
-    //             MsgHandler::getErrorInstance()->wasInformed()) {
-    //         return;
-    //     }
-    //     if (nodesHandler.getDuplicateNodes() > 0) {
-    //         WRITE_MESSAGEF(TL("Found and substituted % osm nodes."), toString(nodesHandler.getDuplicateNodes()));
-    //     }
-    //     PROGRESS_TIME_MESSAGE(before);
-    // }
-    nodesHandler.setFileName("osm_file");
-    PROGRESS_BEGIN_MESSAGE("Parsing nodes from osm string");
-    if (!XMLSubSys::runParserFromString(nodesHandler, oc.input_osm_file)) {
-        return;
+    if (raw_string)
+    {
+        for (const std::string& file : files) {
+            if (!FileHelpers::isReadable(file)) {
+                WRITE_ERRORF(TL("Could not open osm-file '%'."), file);
+                return;
+            }
+            nodesHandler.setFileName(file);
+            nodesHandler.resetHierarchy();
+            const long before = PROGRESS_BEGIN_TIME_MESSAGE("Parsing nodes from osm-file '" + file + "'");
+            readers.push_back(XMLSubSys::getSAXReader(nodesHandler));
+            if (!readers.back()->parseFirst(file) || !readers.back()->parseSection(SUMO_TAG_NODE) ||
+                    MsgHandler::getErrorInstance()->wasInformed()) {
+                return;
+            }
+            if (nodesHandler.getDuplicateNodes() > 0) {
+                WRITE_MESSAGEF(TL("Found and substituted % osm nodes."), toString(nodesHandler.getDuplicateNodes()));
+            }
+            PROGRESS_TIME_MESSAGE(before);
+        }
     }
-    if (nodesHandler.getDuplicateNodes() > 0) {
-        WRITE_MESSAGE("Found and substituted " + toString(nodesHandler.getDuplicateNodes()) + " osm nodes.");
+    else
+    {
+        nodesHandler.setFileName("osm_file");
+        PROGRESS_BEGIN_MESSAGE("Parsing nodes from osm string");
+        if (!XMLSubSys::runParserFromString(nodesHandler, oc.input_osm_file)) {
+            return;
+        }
+        if (nodesHandler.getDuplicateNodes() > 0) {
+            WRITE_MESSAGE("Found and substituted " + toString(nodesHandler.getDuplicateNodes()) + " osm nodes.");
+        }
+        PROGRESS_DONE_MESSAGE();
     }
-    PROGRESS_DONE_MESSAGE();
 
+    int idx = 0;
     // load edges, then
     EdgesHandler edgesHandler(myOSMNodes, myEdges, myPlatformShapes);
-    // int idx = 0;
-    // for (const std::string& file : files) {
-    //     edgesHandler.setFileName(file);
-    //     readers[idx]->setHandler(edgesHandler);
-    //     const long before = PROGRESS_BEGIN_TIME_MESSAGE("Parsing edges from osm-file '" + file + "'");
-    //     if (!readers[idx]->parseSection(SUMO_TAG_WAY)) {
-    //         // eof already reached, no relations
-    //         delete readers[idx];
-    //         readers[idx] = nullptr;
-    //     }
-    //     PROGRESS_TIME_MESSAGE(before);
-    //     idx++;
-    // }
-    edgesHandler.setFileName("osm_file");
-    PROGRESS_BEGIN_MESSAGE("Parsing nodes from osm string");
-    XMLSubSys::runParserFromString(edgesHandler, oc.input_osm_file);
-    PROGRESS_DONE_MESSAGE();
-
+    if (raw_string)
+    {
+        for (const std::string& file : files) {
+            edgesHandler.setFileName(file);
+            readers[idx]->setHandler(edgesHandler);
+            const long before = PROGRESS_BEGIN_TIME_MESSAGE("Parsing edges from osm-file '" + file + "'");
+            if (!readers[idx]->parseSection(SUMO_TAG_WAY)) {
+                // eof already reached, no relations
+                delete readers[idx];
+                readers[idx] = nullptr;
+            }
+            PROGRESS_TIME_MESSAGE(before);
+            idx++;
+        }
+    }
+    else
+    {
+        edgesHandler.setFileName("osm_file");
+        PROGRESS_BEGIN_MESSAGE("Parsing nodes from osm string");
+        XMLSubSys::runParserFromString(edgesHandler, oc.input_osm_file);
+        PROGRESS_DONE_MESSAGE();
+    }
 
     /* Remove duplicate edges with the same shape and attributes */
     if (!oc.getBool("osm.skip-duplicates-check")) {
@@ -384,52 +402,31 @@ NIImporter_OpenStreetMap::load(const OptionsCont& oc, NBNetBuilder& nb) {
             }
         }
     }
-    if (OptionsCont::getOptions().generate_traffic_lights) {
-        for(auto& node_pair : nc) {
-            // WRITE_WARNING(node_pair.first);
-            long long int id = std::stoll(node_pair.first);
-            NBNode* node = node_pair.second;
-            NIOSMNode* n = myOSMNodes.find(id)->second;
-            if (n == nullptr) {
-                continue;
-            }
-            if ((n->tlsControlled || OptionsCont::getOptions().all_junctions_traffic_lights) &&
-                (node->is_suitable_for_traffic_lights && node->getIncomingEdges().size() > 1)) {
-                // ok, this node is a traffic light node where no other nodes
-                //  participate
-                // @note: The OSM-community has not settled on a schema for differentiating between fixed and actuated lights
-                TrafficLightType type = SUMOXMLDefinitions::TrafficLightTypes.get(
-                                            OptionsCont::getOptions().getString("tls.default-type"));
-                NBOwnTLDef* tlDef = new NBOwnTLDef(toString(id), node, 0, type);
-                if (!tlsc.insert(tlDef)) {
-                    // actually, nothing should fail here
-                    delete tlDef;
-                    throw ProcessError("Could not allocate tls '" + toString(id) + "'.");
+
+    if (raw_string)
+    {
+        if (OptionsCont::getOptions().generate_traffic_lights) {
+            for(auto& node_pair : nc) {
+                // WRITE_WARNING(node_pair.first);
+                long long int id = std::stoll(node_pair.first);
+                NBNode* node = node_pair.second;
+                NIOSMNode* n = myOSMNodes.find(id)->second;
+                if (n == nullptr) {
+                    continue;
                 }
-            }
-        }
-    }
-    if (OptionsCont::getOptions().generate_traffic_lights) {
-        for(auto& node_pair : nc) {
-            // WRITE_WARNING(node_pair.first);
-            long long int id = std::stoll(node_pair.first);
-            NBNode* node = node_pair.second;
-            NIOSMNode* n = myOSMNodes.find(id)->second;
-            if (n == nullptr) {
-                continue;
-            }
-            if ((n->tlsControlled || OptionsCont::getOptions().all_junctions_traffic_lights) &&
-                (node->is_suitable_for_traffic_lights && node->getIncomingEdges().size() > 1)) {
-                // ok, this node is a traffic light node where no other nodes
-                //  participate
-                // @note: The OSM-community has not settled on a schema for differentiating between fixed and actuated lights
-                TrafficLightType type = SUMOXMLDefinitions::TrafficLightTypes.get(
-                                            OptionsCont::getOptions().getString("tls.default-type"));
-                NBOwnTLDef* tlDef = new NBOwnTLDef(toString(id), node, 0, type);
-                if (!tlsc.insert(tlDef)) {
-                    // actually, nothing should fail here
-                    delete tlDef;
-                    throw ProcessError("Could not allocate tls '" + toString(id) + "'.");
+                if ((n->tlsControlled || OptionsCont::getOptions().all_junctions_traffic_lights) &&
+                    (node->is_suitable_for_traffic_lights && node->getIncomingEdges().size() > 1)) {
+                    // ok, this node is a traffic light node where no other nodes
+                    //  participate
+                    // @note: The OSM-community has not settled on a schema for differentiating between fixed and actuated lights
+                    TrafficLightType type = SUMOXMLDefinitions::TrafficLightTypes.get(
+                                                OptionsCont::getOptions().getString("tls.default-type"));
+                    NBOwnTLDef* tlDef = new NBOwnTLDef(toString(id), node, 0, type);
+                    if (!tlsc.insert(tlDef)) {
+                        // actually, nothing should fail here
+                        delete tlDef;
+                        throw ProcessError("Could not allocate tls '" + toString(id) + "'.");
+                    }
                 }
             }
         }
@@ -447,40 +444,44 @@ NIImporter_OpenStreetMap::load(const OptionsCont& oc, NBNetBuilder& nb) {
     // turn-restrictions directly to NBEdges)
     RelationHandler relationHandler(myOSMNodes, myEdges, &(nb.getPTStopCont()), myPlatformShapes,
                                     &nb.getPTLineCont(), oc);
-    // idx = 0;
-    // for (const std::string& file : files) {
-    //     if (readers[idx] != nullptr) {
-    //         relationHandler.setFileName(file);
-    //         readers[idx]->setHandler(relationHandler);
-    //         const long before = PROGRESS_BEGIN_TIME_MESSAGE("Parsing relations from osm-file '" + file + "'");
-    //         readers[idx]->parseSection(SUMO_TAG_RELATION);
-    //         PROGRESS_TIME_MESSAGE(before);
-    //         delete readers[idx];
-    //     }
-    //     idx++;
-    // }
-
-    // // declare additional stops that are not anchored to a (road)-way or route relation
-    // std::set<std::string> stopNames;
-    // for (const auto& item : nb.getPTStopCont().getStops()) {
-    //     stopNames.insert(item.second->getName());
-    // }
-    // for (const auto& item : myOSMNodes) {
-    //     const NIOSMNode* n = item.second;
-    //     if (n->ptStopPosition && stopNames.count(n->name) == 0) {
-    //         Position ptPos(n->lon, n->lat, n->ele);
-    //         if (!NBNetBuilder::transformCoordinate(ptPos)) {
-    //             WRITE_ERRORF("Unable to project coordinates for node '%'.", n->id);
-    //         }
-    //         std::shared_ptr<NBPTStop> ptStop = std::make_shared<NBPTStop>(toString(n->id), ptPos, "", "", n->ptStopLength, n->name, n->permissions);
-    //         nb.getPTStopCont().insert(ptStop, true);
-    //     }
-    // }
-    relationHandler.setFileName("osm-file");
-    PROGRESS_BEGIN_MESSAGE("Parsing nodes from osm string");
-    XMLSubSys::runParserFromString(edgesHandler, oc.input_osm_file);
-    PROGRESS_DONE_MESSAGE();
-
+    if (raw_string)
+    {
+        idx = 0;
+        for (const std::string& file : files) {
+            if (readers[idx] != nullptr) {
+                relationHandler.setFileName(file);
+                readers[idx]->setHandler(relationHandler);
+                const long before = PROGRESS_BEGIN_TIME_MESSAGE("Parsing relations from osm-file '" + file + "'");
+                readers[idx]->parseSection(SUMO_TAG_RELATION);
+                PROGRESS_TIME_MESSAGE(before);
+                delete readers[idx];
+            }
+            idx++;
+        }
+        // declare additional stops that are not anchored to a (road)-way or route relation
+        std::set<std::string> stopNames;
+        for (const auto& item : nb.getPTStopCont().getStops()) {
+            stopNames.insert(item.second->getName());
+        }
+        for (const auto& item : myOSMNodes) {
+            const NIOSMNode* n = item.second;
+            if (n->ptStopPosition && stopNames.count(n->name) == 0) {
+                Position ptPos(n->lon, n->lat, n->ele);
+                if (!NBNetBuilder::transformCoordinate(ptPos)) {
+                    WRITE_ERRORF("Unable to project coordinates for node '%'.", n->id);
+                }
+                std::shared_ptr<NBPTStop> ptStop = std::make_shared<NBPTStop>(toString(n->id), ptPos, "", "", n->ptStopLength, n->name, n->permissions);
+                nb.getPTStopCont().insert(ptStop, true);
+            }
+        }
+    }
+    else
+    {
+        relationHandler.setFileName("osm-file");
+        PROGRESS_BEGIN_MESSAGE("Parsing nodes from osm string");
+        XMLSubSys::runParserFromString(edgesHandler, oc.input_osm_file);
+        PROGRESS_DONE_MESSAGE();
+    }
 }
 
 

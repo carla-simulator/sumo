@@ -458,6 +458,11 @@ OptionsCont::isBool(const std::string& name) const {
     return o->isBool();
 }
 
+bool
+OptionsCont::IsString(const std::string& name) const {
+    Option* o = getSecure(name);
+    return o->getTypeName() == "STR";
+}
 
 void
 OptionsCont::resetWritable() {

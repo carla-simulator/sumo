@@ -66,9 +66,14 @@ namespace osm2odr {
   }
 
   std::string ConvertOSMToOpenDRIVE(std::string osm_file, OSM2ODRSettings settings) {
-    std::vector<std::string> OptionsArgs = {
+    std::vector<std::string> OptionsArgs =
+    {
       "--proj", settings.proj_string,
-      "--geometry.remove", "--ramps.guess", "--edges.join", "--junctions.join", "--roundabouts.guess",
+      "--geometry.remove",
+      "--ramps.guess",
+      "--edges.join",
+      "--junctions.join",
+      "--roundabouts.guess",
       "--tls.group-signals", "true",
       "--sidewalks.guess","true",
       "--osm.sidewalks", "true",
@@ -77,7 +82,8 @@ namespace osm2odr {
       std::to_string(settings.default_lane_width),
       "--default.sidewalk-width",
       std::to_string(settings.default_sidewalk_width),
-      "--osm-files", "TRUE", "--opendrive-output", "TRUE", // necessary for now to enable osm input and xodr output
+      "--osm-files", "string",
+      "--opendrive-output", "string"
     };
     if (settings.osm_highways_types.size() == 0) {
       WRITE_ERROR("No osm way types specified for importing.");

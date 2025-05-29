@@ -483,6 +483,13 @@ protected:
         /// @brief number of duplicate nodes
         int myDuplicateNodes;
 
+        /// Minimum and maximum bounds
+        double minLon;
+        double minLat;
+        double maxLon;
+        double maxLat;
+        double delta = 0.002;
+
         /// @brief the options
         const OptionsCont& myOptionsCont;
 

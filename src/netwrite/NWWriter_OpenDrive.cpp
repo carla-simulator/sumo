@@ -631,6 +631,13 @@ NWWriter_OpenDrive::writeNormalEdge(OutputDevice& device, const NBEdge* e,
     if (origNames) {
         device << "        <userData code=\"sumoId\" value=\"" << e->getID() << "\"/>\n";
     }
+    if (e->getJunctionPriority(e->getToNode()) == NBEdge::JunctionPriority::ROUNDABOUT || e->getJunctionPriority(e->getFromNode()) == NBEdge::JunctionPriority::ROUNDABOUT) {
+        device << "        <userData code=\"IsRoundabout\" value=\"" << "true" << "\"/>\n";
+    }
+    else
+    {
+        device << "        <userData code=\"IsRoundabout\" value=\"" << "false" << "\"/>\n";
+    }
     device.closeTag();
     checkLaneGeometries(e);
 }

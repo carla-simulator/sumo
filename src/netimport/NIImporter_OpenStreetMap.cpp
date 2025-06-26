@@ -332,7 +332,7 @@ NIImporter_OpenStreetMap::load(const OptionsCont& oc, NBNetBuilder& nb) {
 
         for (auto item : nodeUsage) {
             NIOSMNode* osmNode = myOSMNodes.find(item.first)->second;
-            if (osmNode->pedestrianCrossing) {
+            if (osmNode->pedestrianCrossing && osmNode->node != nullptr) {
                 NBNode* n = osmNode->node;
                 EdgeVector incomingEdges = n->getIncomingEdges();
                 EdgeVector outgoingEdges = n->getOutgoingEdges();

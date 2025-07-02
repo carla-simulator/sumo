@@ -33,7 +33,6 @@
 #include <utils/iodevices/OutputDevice.h>
 #include "GeoConvHelper.h"
 
-
 // ===========================================================================
 // static member variables
 // ===========================================================================
@@ -91,6 +90,8 @@ GeoConvHelper::GeoConvHelper(const std::string& proj, const Position& offset,
         if (myProjection == nullptr) {
             throw ProcessError(TL("Could not build projection!"));
         }
+#else
+        throw ProcessError(TL("The CARLA fork of SUMO requires the presence of PROJ-Library."));
 #endif
     }
 }
@@ -247,6 +248,8 @@ GeoConvHelper::init(OptionsCont& oc) {
     } else if (!oc.isDefault("proj")) {
         proj = oc.getString("proj");
     }
+#else
+    throw ProcessError(TL("The CARLA fork of SUMO requires the presence of PROJ-Library."));
 #endif
     myProcessing = GeoConvHelper(proj, offset, Boundary(), Boundary(), scale, rot, inverse, flatten);
     myFinal = myProcessing;

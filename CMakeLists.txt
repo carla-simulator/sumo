@@ -198,7 +198,7 @@ if (SKBUILD OR ${CMAKE_VERSION} VERSION_LESS 3.12.0)
     find_package(PythonLibs)
 else()
     # @TODO: Reintroduce Development module.
-    find_package(Python REQUIRED COMPONENTS Interpreter)
+    find_package(Python3 REQUIRED COMPONENTS Interpreter)
     # define variables for compatibility. refactor once older cmake unsupported
     if (Python3_FOUND)
         set(PYTHONLIBS_FOUND ${Python3_FOUND})
